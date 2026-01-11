@@ -2,6 +2,7 @@ package com.frnholding.pocketaccount.controller;
 
 import com.frnholding.pocketaccount.DocumentResponse;
 import com.frnholding.pocketaccount.DocumentUploadResponse;
+import com.frnholding.pocketaccount.JobCancelResponse;
 import com.frnholding.pocketaccount.JobCreationRequest;
 import com.frnholding.pocketaccount.JobCreationResponse;
 import com.frnholding.pocketaccount.JobStatusResponse;
@@ -119,6 +120,26 @@ public class DocumentController {
                     job.getError()
             );
             return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @PostMapping("/jobs/{jobId}/cancel")
+    public ResponseEntity<JobCancelResponse> cancelJob(@PathVariable String jobId) {
+        try {
+            Job job = documentService.cancelJob(jobId);
+            JobCancelResponse response = new JobCancelResponse(
+                    job.getId(),
+                    job.getStatus(),
+                    job.getFinishedAt()
+            );
+            return ResponseEntity.ok(response);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (IllegalStateException e) {
+            return ResponseEntity.badRequest().build();
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().build();

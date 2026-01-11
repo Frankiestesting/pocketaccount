@@ -115,4 +115,23 @@ public class DocumentService {
         JobEntity entity = jobRepository.findById(jobId).orElse(null);
         return entity != null ? entity.toDomain() : null;
     }
+
+    public Job cancelJob(String jobId) {
+        JobEntity entity = jobRepository.findById(jobId).orElse(null);
+        if (entity == null) {
+            throw new IllegalArgumentException("Job not found: " + jobId);
+        }
+
+        // Only allow cancellation of pending or running jobs
+        String currentStatus = entity.getStatus();
+        if (!"pending".equals(currentStatus) && !"running".equals(currentStatus)) {
+            throw new IllegalStateException("Job cannot be cancelled. Current status: " + currentStatus);
+        }
+
+        entity.setStatus("cancelled");
+        entity.setFinishedAt(Instant.now());
+        jobRepository.save(entity);
+
+        return entity.toDomain();
+    }
 }

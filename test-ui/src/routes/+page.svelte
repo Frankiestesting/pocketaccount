@@ -16,6 +16,8 @@
 	let jobId = '';
 	let jobStatus = null;
 	let jobStatusError = null;
+	let cancelJobResponse = null;
+	let cancelJobError = null;
 
 	$: file = files[0];
 
@@ -161,6 +163,35 @@
 			jobStatus = null;
 		}
 	}
+
+	async function cancelJob() {
+		if (!jobId.trim()) {
+			cancelJobError = 'Please enter a job ID';
+			return;
+		}
+
+		try {
+			const res = await fetch(`http://localhost:8080/api/v1/jobs/${jobId}/cancel`, {
+				method: 'POST'
+			});
+			if (res.ok) {
+				cancelJobResponse = await res.json();
+				cancelJobError = null;
+			} else if (res.status === 404) {
+				cancelJobError = 'Job not found';
+				cancelJobResponse = null;
+			} else if (res.status === 400) {
+				cancelJobError = 'Job cannot be cancelled (already completed or failed)';
+				cancelJobResponse = null;
+			} else {
+				cancelJobError = `Error: ${res.status} ${res.statusText}`;
+				cancelJobResponse = null;
+			}
+		} catch (err) {
+			cancelJobError = `Network error: ${err.message}`;
+			cancelJobResponse = null;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -294,6 +325,28 @@
 			<p><strong>Started At:</strong> {jobStatus.startedAt || 'Not started'}</p>
 			<p><strong>Finished At:</strong> {jobStatus.finishedAt || 'Not finished'}</p>
 			<p><strong>Error:</strong> {jobStatus.error || 'None'}</p>
+		</div>
+	{/if}
+</section>
+
+<section>
+	<h1>Cancel Job</h1>
+	<div>
+		<label for="cancelJobId">Job ID:</label>
+		<input type="text" id="cancelJobId" bind:value={jobId} placeholder="Enter job ID to cancel" />
+		<button on:click={cancelJob}>Cancel Job</button>
+	</div>
+
+	{#if cancelJobError}
+		<p style="color: red;">{cancelJobError}</p>
+	{/if}
+
+	{#if cancelJobResponse}
+		<div>
+			<h2>Job Cancelled Successfully</h2>
+			<p><strong>Job ID:</strong> {cancelJobResponse.jobId}</p>
+			<p><strong>Status:</strong> {cancelJobResponse.status}</p>
+			<p><strong>Cancelled At:</strong> {cancelJobResponse.cancelledAt}</p>
 		</div>
 	{/if}
 </section>
