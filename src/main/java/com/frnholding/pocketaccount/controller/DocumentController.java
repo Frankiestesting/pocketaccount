@@ -2,6 +2,7 @@ package com.frnholding.pocketaccount.controller;
 
 import com.frnholding.pocketaccount.DocumentResponse;
 import com.frnholding.pocketaccount.DocumentUploadResponse;
+import com.frnholding.pocketaccount.ExtractionResultResponse;
 import com.frnholding.pocketaccount.JobCancelResponse;
 import com.frnholding.pocketaccount.JobCreationRequest;
 import com.frnholding.pocketaccount.JobCreationResponse;
@@ -31,10 +32,11 @@ public class DocumentController {
     public ResponseEntity<DocumentUploadResponse> uploadDocument(
             @RequestParam("file") MultipartFile file,
             @RequestParam("source") String source,
-            @RequestParam("originalFilename") String originalFilename) {
+            @RequestParam("originalFilename") String originalFilename,
+            @RequestParam(value = "documentType", defaultValue = "PDF") String documentType) {
 
         try {
-            Document document = documentService.uploadDocument(file, source, originalFilename);
+            Document document = documentService.uploadDocument(file, source, originalFilename, documentType);
             DocumentUploadResponse response = new DocumentUploadResponse(
                     document.getId(),
                     document.getStatus(),
@@ -140,6 +142,19 @@ public class DocumentController {
             return ResponseEntity.notFound().build();
         } catch (IllegalStateException e) {
             return ResponseEntity.badRequest().build();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @GetMapping("/documents/{documentId}/result")
+    public ResponseEntity<ExtractionResultResponse> getExtractionResult(@PathVariable String documentId) {
+        try {
+            ExtractionResultResponse result = documentService.getExtractionResult(documentId);
+            return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().build();

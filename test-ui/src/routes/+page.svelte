@@ -2,6 +2,7 @@
 	let files = [];
 	let source = 'mobile';
 	let originalFilename = '';
+	let documentType = 'INVOICE';
 	let response = null;
 	let error = null;
 	let documentId = '';
@@ -18,6 +19,8 @@
 	let jobStatusError = null;
 	let cancelJobResponse = null;
 	let cancelJobError = null;
+	let extractionResult = null;
+	let extractionResultError = null;
 
 	$: file = files[0];
 
@@ -36,6 +39,7 @@
 		formData.append('file', file);
 		formData.append('source', source);
 		formData.append('originalFilename', originalFilename);
+		formData.append('documentType', documentType);
 
 		try {
 			const res = await fetch('http://localhost:8080/api/v1/documents', {
@@ -192,6 +196,30 @@
 			cancelJobResponse = null;
 		}
 	}
+
+	async function getExtractionResult() {
+		if (!documentId.trim()) {
+			extractionResultError = 'Please enter a document ID';
+			return;
+		}
+
+		try {
+			const res = await fetch(`http://localhost:8080/api/v1/documents/${documentId}/result`);
+			if (res.ok) {
+				extractionResult = await res.json();
+				extractionResultError = null;
+			} else if (res.status === 404) {
+				extractionResultError = 'Document not found or no extraction result available';
+				extractionResult = null;
+			} else {
+				extractionResultError = `Error: ${res.status} ${res.statusText}`;
+				extractionResult = null;
+			}
+		} catch (err) {
+			extractionResultError = `Network error: ${err.message}`;
+			extractionResult = null;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -215,6 +243,13 @@
 		<div>
 			<label for="originalFilename">Original Filename:</label>
 			<input type="text" id="originalFilename" bind:value={originalFilename} required />
+		</div>
+		<div>
+			<label for="documentType">Document Type:</label>
+			<select id="documentType" bind:value={documentType}>
+				<option value="INVOICE">Invoice</option>
+				<option value="STATEMENT">Statement</option>
+			</select>
 		</div>
 		<button type="submit">Upload</button>
 	</form>
@@ -347,6 +382,87 @@
 			<p><strong>Job ID:</strong> {cancelJobResponse.jobId}</p>
 			<p><strong>Status:</strong> {cancelJobResponse.status}</p>
 			<p><strong>Cancelled At:</strong> {cancelJobResponse.cancelledAt}</p>
+		</div>
+	{/if}
+</section>
+
+<section>
+	<h1>Get Extraction Result</h1>
+	<div>
+		<label for="extractionDocumentId">Document ID:</label>
+		<input type="text" id="extractionDocumentId" bind:value={documentId} placeholder="Enter document ID from upload" />
+		<button on:click={getExtractionResult}>Get Extraction Result</button>
+	</div>
+
+	{#if extractionResultError}
+		<p style="color: red;">{extractionResultError}</p>
+	{/if}
+
+	{#if extractionResult}
+		<div>
+			<h2>Extraction Result</h2>
+			<p><strong>Document ID:</strong> {extractionResult.documentId}</p>
+			<p><strong>Document Type:</strong> {extractionResult.documentType}</p>
+			<p><strong>Extraction Version:</strong> {extractionResult.extractionVersion}</p>
+			
+			{#if extractionResult.documentType === 'STATEMENT'}
+				{#if extractionResult.transactions && extractionResult.transactions.length > 0}
+					<h3>Transactions</h3>
+					<table style="border-collapse: collapse; width: 100%;">
+						<thead>
+							<tr>
+								<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Date</th>
+								<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Amount</th>
+								<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Currency</th>
+								<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Description</th>
+								<th style="border: 1px solid #ddd; padding: 8px; text-align: left;">Confidence</th>
+							</tr>
+						</thead>
+						<tbody>
+							{#each extractionResult.transactions as transaction}
+								<tr>
+									<td style="border: 1px solid #ddd; padding: 8px;">{transaction.date}</td>
+									<td style="border: 1px solid #ddd; padding: 8px;">{transaction.amount}</td>
+									<td style="border: 1px solid #ddd; padding: 8px;">{transaction.currency}</td>
+									<td style="border: 1px solid #ddd; padding: 8px;">{transaction.description}</td>
+									<td style="border: 1px solid #ddd; padding: 8px;">
+										{#if transaction.confidence}
+											Date: {transaction.confidence.date}, Amount: {transaction.confidence.amount}
+										{/if}
+									</td>
+								</tr>
+							{/each}
+						</tbody>
+					</table>
+				{/if}
+			{:else if extractionResult.documentType === 'INVOICE'}
+				{#if extractionResult.extractedAt}
+					<p><strong>Extracted At:</strong> {extractionResult.extractedAt}</p>
+				{/if}
+				
+				{#if extractionResult.fields}
+					<h3>Extracted Fields</h3>
+					{#each Object.entries(extractionResult.fields) as [key, value]}
+						<p><strong>{key.charAt(0).toUpperCase() + key.slice(1)}:</strong> {value}</p>
+					{/each}
+				{/if}
+				
+				{#if extractionResult.confidence}
+					<h3>Confidence Scores</h3>
+					{#each Object.entries(extractionResult.confidence) as [field, score]}
+						<p><strong>{field.charAt(0).toUpperCase() + field.slice(1)}:</strong> {score}</p>
+					{/each}
+				{/if}
+				
+				{#if extractionResult.warnings && extractionResult.warnings.length > 0}
+					<h3>Warnings</h3>
+					<ul>
+						{#each extractionResult.warnings as warning}
+							<li>{warning}</li>
+						{/each}
+					</ul>
+				{/if}
+			{/if}
 		</div>
 	{/if}
 </section>

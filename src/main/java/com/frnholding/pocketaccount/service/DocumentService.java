@@ -1,5 +1,6 @@
 package com.frnholding.pocketaccount.service;
 
+import com.frnholding.pocketaccount.ExtractionResultResponse;
 import com.frnholding.pocketaccount.domain.Document;
 import com.frnholding.pocketaccount.domain.DocumentEntity;
 import com.frnholding.pocketaccount.domain.Job;
@@ -22,6 +23,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
+import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 @Service
@@ -35,7 +38,7 @@ public class DocumentService {
     @Autowired
     private JobRepository jobRepository;
 
-    public Document uploadDocument(MultipartFile file, String source, String originalFilename) throws IOException {
+    public Document uploadDocument(MultipartFile file, String source, String originalFilename, String documentType) throws IOException {
         // Validate source
         if (!"mobile".equals(source) && !"web".equals(source)) {
             throw new IllegalArgumentException("Invalid source");
@@ -63,7 +66,7 @@ public class DocumentService {
         Files.copy(file.getInputStream(), path);
 
         // Create document
-        Document document = new Document(id, "uploaded", Instant.now(), originalFilename, filePath, "PDF");
+        Document document = new Document(id, "uploaded", Instant.now(), originalFilename, filePath, documentType);
 
         // Save to DB
         DocumentEntity entity = DocumentEntity.fromDomain(document);
@@ -133,5 +136,68 @@ public class DocumentService {
         jobRepository.save(entity);
 
         return entity.toDomain();
+    }
+
+    public ExtractionResultResponse getExtractionResult(String documentId) {
+        // Validate document exists
+        Document document = getDocument(documentId);
+        if (document == null) {
+            throw new IllegalArgumentException("Document not found: " + documentId);
+        }
+
+        String documentType = document.getDocumentType();
+        
+        if ("STATEMENT".equals(documentType)) {
+            // Return STATEMENT structure with transactions
+            List<ExtractionResultResponse.Transaction> transactions = List.of(
+                new ExtractionResultResponse.Transaction(
+                    "2026-01-03",
+                    -399.00,
+                    "NOK",
+                    "KIWI 123",
+                    Map.of("date", 0.95, "amount", 0.91)
+                )
+            );
+            
+            return new ExtractionResultResponse(
+                documentId,
+                "STATEMENT",
+                1,
+                null, // extractedAt not needed for STATEMENT
+                null, // fields not used for STATEMENT
+                null, // confidence not used for STATEMENT
+                null, // warnings not used for STATEMENT
+                transactions
+            );
+        } else {
+            // Return INVOICE structure (existing logic)
+            Map<String, Object> fields = Map.of(
+                "date", "2026-01-02",
+                "amount", 12450.00,
+                "currency", "NOK",
+                "sender", "Strøm AS",
+                "description", "Faktura strøm januar"
+            );
+
+            Map<String, Double> confidence = Map.of(
+                "date", 0.86,
+                "amount", 0.93,
+                "sender", 0.72,
+                "description", 0.60
+            );
+
+            List<String> warnings = List.of("Sender confidence low");
+
+            return new ExtractionResultResponse(
+                documentId,
+                "INVOICE",
+                3,
+                Instant.parse("2026-01-11T13:26:08Z"),
+                fields,
+                confidence,
+                warnings,
+                null // transactions not used for INVOICE
+            );
+        }
     }
 }
