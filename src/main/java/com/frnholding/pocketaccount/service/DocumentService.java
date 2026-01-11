@@ -5,8 +5,15 @@ import com.frnholding.pocketaccount.domain.DocumentEntity;
 import com.frnholding.pocketaccount.repository.DocumentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.core.io.InputStreamResource;
+import org.springframework.core.io.Resource;
+import org.springframework.http.MediaType;
+import org.springframework.http.ResponseEntity;
+
 import org.springframework.web.multipart.MultipartFile;
 
+import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -62,5 +69,19 @@ public class DocumentService {
     public Document getDocument(String documentId) {
         DocumentEntity entity = documentRepository.findById(documentId).orElse(null);
         return entity != null ? entity.toDomain() : null;
+    }
+
+    public Resource getDocumentFile(String documentId) throws IOException {
+        Document document = getDocument(documentId);
+        if (document == null) {
+            throw new FileNotFoundException("Document not found: " + documentId);
+        }
+
+        Path filePath = Paths.get(document.getFilePath());
+        if (!Files.exists(filePath)) {
+            throw new FileNotFoundException("File not found: " + document.getFilePath());
+        }
+
+        return new InputStreamResource(new FileInputStream(filePath.toFile()));
     }
 }

@@ -67,6 +67,30 @@
 			documentInfo = null;
 		}
 	}
+
+	async function previewDocument() {
+		if (!documentId.trim()) {
+			getError = 'Please enter a document ID';
+			return;
+		}
+
+		try {
+			const res = await fetch(`http://localhost:8080/api/v1/documents/${documentId}/file`);
+			if (res.ok) {
+				// Create a blob from the response and open it in a new tab
+				const blob = await res.blob();
+				const url = URL.createObjectURL(blob);
+				window.open(url, '_blank');
+				getError = null;
+			} else if (res.status === 404) {
+				getError = 'Document file not found';
+			} else {
+				getError = `Error: ${res.status} ${res.statusText}`;
+			}
+		} catch (err) {
+			getError = `Network error: ${err.message}`;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -115,6 +139,7 @@
 		<label for="documentId">Document ID:</label>
 		<input type="text" id="documentId" bind:value={documentId} placeholder="Enter document ID from upload" />
 		<button on:click={getDocumentInfo}>Get Info</button>
+		<button on:click={previewDocument} style="margin-left: 10px;">Preview File</button>
 	</div>
 
 	{#if getError}

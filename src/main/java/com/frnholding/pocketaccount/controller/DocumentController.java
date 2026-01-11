@@ -5,10 +5,14 @@ import com.frnholding.pocketaccount.DocumentUploadResponse;
 import com.frnholding.pocketaccount.domain.Document;
 import com.frnholding.pocketaccount.service.DocumentService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.core.io.Resource;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 import org.springframework.web.multipart.MultipartFile;
+
+import java.io.IOException;
 
 @RestController
 @RequestMapping("/api/v1")
@@ -54,6 +58,22 @@ public class DocumentController {
                     document.getOriginalFilename()
             );
             return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @GetMapping("/documents/{documentId}/file")
+    public ResponseEntity<Resource> getDocumentFile(@PathVariable String documentId) {
+        try {
+            Resource file = documentService.getDocumentFile(documentId);
+            return ResponseEntity.ok()
+                    .contentType(MediaType.APPLICATION_PDF)
+                    .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + documentId + ".pdf\"")
+                    .body(file);
+        } catch (IOException e) {
+            return ResponseEntity.notFound().build();
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().build();
