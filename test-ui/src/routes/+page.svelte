@@ -531,7 +531,7 @@
 	</div>
 	<div>
 		<label for="correctionFields">Fields (JSON):</label>
-		<textarea id="correctionFields" bind:value={correctionFields} rows="6" placeholder='{"date": "2026-01-02", "amount": 12450.00}'></textarea>
+		<textarea id="correctionFields" bind:value={correctionFields} rows="6" placeholder="Enter JSON fields"></textarea>
 	</div>
 	<div>
 		<label for="correctionNote">Note:</label>
