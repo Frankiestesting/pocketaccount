@@ -21,14 +21,15 @@ public class DocumentEntity {
     private Instant created;
     private String originalFilename;
     private String filePath;
+    private String documentType;
 
     // Convert to domain
     public Document toDomain() {
-        return new Document(id, status, created, originalFilename, filePath);
+        return new Document(id, status, created, originalFilename, filePath, documentType);
     }
 
     // From domain
     public static DocumentEntity fromDomain(Document document) {
-        return new DocumentEntity(document.getId(), document.getStatus(), document.getCreated(), document.getOriginalFilename(), document.getFilePath());
+        return new DocumentEntity(document.getId(), document.getStatus(), document.getCreated(), document.getOriginalFilename(), document.getFilePath(), document.getDocumentType());
     }
 }

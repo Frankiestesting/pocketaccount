@@ -1,5 +1,6 @@
 package com.frnholding.pocketaccount.controller;
 
+import com.frnholding.pocketaccount.DocumentResponse;
 import com.frnholding.pocketaccount.DocumentUploadResponse;
 import com.frnholding.pocketaccount.domain.Document;
 import com.frnholding.pocketaccount.service.DocumentService;
@@ -28,6 +29,27 @@ public class DocumentController {
             DocumentUploadResponse response = new DocumentUploadResponse(
                     document.getId(),
                     document.getStatus(),
+                    document.getCreated(),
+                    document.getOriginalFilename()
+            );
+            return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @GetMapping("/documents/{documentId}")
+    public ResponseEntity<DocumentResponse> getDocument(@PathVariable String documentId) {
+        try {
+            Document document = documentService.getDocument(documentId);
+            if (document == null) {
+                return ResponseEntity.notFound().build();
+            }
+            DocumentResponse response = new DocumentResponse(
+                    document.getId(),
+                    document.getStatus(),
+                    document.getDocumentType(),
                     document.getCreated(),
                     document.getOriginalFilename()
             );

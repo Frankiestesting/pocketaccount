@@ -50,12 +50,17 @@ public class DocumentService {
         Files.copy(file.getInputStream(), path);
 
         // Create document
-        Document document = new Document(id, "uploaded", Instant.now(), originalFilename, filePath);
+        Document document = new Document(id, "uploaded", Instant.now(), originalFilename, filePath, "PDF");
 
         // Save to DB
         DocumentEntity entity = DocumentEntity.fromDomain(document);
         documentRepository.save(entity);
 
         return document;
+    }
+
+    public Document getDocument(String documentId) {
+        DocumentEntity entity = documentRepository.findById(documentId).orElse(null);
+        return entity != null ? entity.toDomain() : null;
     }
 }

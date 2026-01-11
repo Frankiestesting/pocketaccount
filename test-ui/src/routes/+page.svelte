@@ -4,6 +4,9 @@
 	let originalFilename = '';
 	let response = null;
 	let error = null;
+	let documentId = '';
+	let documentInfo = null;
+	let getError = null;
 
 	$: file = files[0];
 
@@ -38,6 +41,30 @@
 		} catch (err) {
 			error = `Network error: ${err.message}`;
 			response = null;
+		}
+	}
+
+	async function getDocumentInfo() {
+		if (!documentId.trim()) {
+			getError = 'Please enter a document ID';
+			return;
+		}
+
+		try {
+			const res = await fetch(`http://localhost:8080/api/v1/documents/${documentId}`);
+			if (res.ok) {
+				documentInfo = await res.json();
+				getError = null;
+			} else if (res.status === 404) {
+				getError = 'Document not found';
+				documentInfo = null;
+			} else {
+				getError = `Error: ${res.status} ${res.statusText}`;
+				documentInfo = null;
+			}
+		} catch (err) {
+			getError = `Network error: ${err.message}`;
+			documentInfo = null;
 		}
 	}
 </script>
@@ -78,6 +105,30 @@
 			<p><strong>Status:</strong> {response.status}</p>
 			<p><strong>Created:</strong> {response.created}</p>
 			<p><strong>Original Filename:</strong> {response.originalFilename}</p>
+		</div>
+	{/if}
+</section>
+
+<section>
+	<h1>Get Document Info</h1>
+	<div>
+		<label for="documentId">Document ID:</label>
+		<input type="text" id="documentId" bind:value={documentId} placeholder="Enter document ID from upload" />
+		<button on:click={getDocumentInfo}>Get Info</button>
+	</div>
+
+	{#if getError}
+		<p style="color: red;">{getError}</p>
+	{/if}
+
+	{#if documentInfo}
+		<div>
+			<h2>Document Information</h2>
+			<p><strong>Document ID:</strong> {documentInfo.documentId}</p>
+			<p><strong>Status:</strong> {documentInfo.status}</p>
+			<p><strong>Document Type:</strong> {documentInfo.documentType}</p>
+			<p><strong>Created:</strong> {documentInfo.created}</p>
+			<p><strong>Original Filename:</strong> {documentInfo.originalFilename}</p>
 		</div>
 	{/if}
 </section>
