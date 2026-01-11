@@ -1,10 +1,15 @@
 package com.frnholding.pocketaccount.service;
 
 import com.frnholding.pocketaccount.ExtractionResultResponse;
+import com.frnholding.pocketaccount.DocumentCorrectionRequest;
+import com.frnholding.pocketaccount.DocumentCorrectionResponse;
+import com.frnholding.pocketaccount.domain.Correction;
+import com.frnholding.pocketaccount.domain.CorrectionEntity;
 import com.frnholding.pocketaccount.domain.Document;
 import com.frnholding.pocketaccount.domain.DocumentEntity;
 import com.frnholding.pocketaccount.domain.Job;
 import com.frnholding.pocketaccount.domain.JobEntity;
+import com.frnholding.pocketaccount.repository.CorrectionRepository;
 import com.frnholding.pocketaccount.repository.DocumentRepository;
 import com.frnholding.pocketaccount.repository.JobRepository;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -37,6 +42,9 @@ public class DocumentService {
 
     @Autowired
     private JobRepository jobRepository;
+
+    @Autowired
+    private CorrectionRepository correctionRepository;
 
     public Document uploadDocument(MultipartFile file, String source, String originalFilename, String documentType) throws IOException {
         // Validate source
