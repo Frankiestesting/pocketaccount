@@ -1,6 +1,6 @@
-package com.example.demo.repository;
+package com.frnholding.pocketaccount.repository;
 
-import com.example.demo.domain.DocumentEntity;
+import com.frnholding.pocketaccount.domain.DocumentEntity;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.stereotype.Repository;
 

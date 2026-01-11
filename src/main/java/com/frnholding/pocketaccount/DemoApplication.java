@@ -1,4 +1,4 @@
-package com.example.demo;
+package com.frnholding.pocketaccount;
 
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;

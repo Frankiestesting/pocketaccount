@@ -1,4 +1,4 @@
-package com.example.demo.domain;
+package com.frnholding.pocketaccount.domain;
 
 import jakarta.persistence.*;
 import lombok.AllArgsConstructor;

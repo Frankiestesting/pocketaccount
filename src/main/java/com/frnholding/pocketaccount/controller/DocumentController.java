@@ -1,7 +1,8 @@
-package com.example.demo;
+package com.frnholding.pocketaccount.controller;
 
-import com.example.demo.domain.Document;
-import com.example.demo.service.DocumentService;
+import com.frnholding.pocketaccount.DocumentUploadResponse;
+import com.frnholding.pocketaccount.domain.Document;
+import com.frnholding.pocketaccount.service.DocumentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;

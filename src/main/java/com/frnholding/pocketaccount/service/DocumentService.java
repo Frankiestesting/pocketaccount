@@ -1,8 +1,8 @@
-package com.example.demo.service;
+package com.frnholding.pocketaccount.service;
 
-import com.example.demo.domain.Document;
-import com.example.demo.domain.DocumentEntity;
-import com.example.demo.repository.DocumentRepository;
+import com.frnholding.pocketaccount.domain.Document;
+import com.frnholding.pocketaccount.domain.DocumentEntity;
+import com.frnholding.pocketaccount.repository.DocumentRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.web.multipart.MultipartFile;
