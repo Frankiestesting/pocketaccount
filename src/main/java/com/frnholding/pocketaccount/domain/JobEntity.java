@@ -24,15 +24,19 @@ public class JobEntity {
     private boolean useOcr;
     private boolean useAi;
     private String languageHint;
+    private Instant startedAt;
+    private Instant finishedAt;
+    private String error;
 
     // Convert to domain
     public Job toDomain() {
-        return new Job(id, documentId, status, created, pipeline, useOcr, useAi, languageHint);
+        return new Job(id, documentId, status, created, pipeline, useOcr, useAi, languageHint, startedAt, finishedAt, error);
     }
 
     // From domain
     public static JobEntity fromDomain(Job job) {
         return new JobEntity(job.getId(), job.getDocumentId(), job.getStatus(), job.getCreated(),
-                           job.getPipeline(), job.isUseOcr(), job.isUseAi(), job.getLanguageHint());
+                           job.getPipeline(), job.isUseOcr(), job.isUseAi(), job.getLanguageHint(),
+                           job.getStartedAt(), job.getFinishedAt(), job.getError());
     }
 }

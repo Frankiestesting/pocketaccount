@@ -4,6 +4,7 @@ import com.frnholding.pocketaccount.DocumentResponse;
 import com.frnholding.pocketaccount.DocumentUploadResponse;
 import com.frnholding.pocketaccount.JobCreationRequest;
 import com.frnholding.pocketaccount.JobCreationResponse;
+import com.frnholding.pocketaccount.JobStatusResponse;
 import com.frnholding.pocketaccount.domain.Document;
 import com.frnholding.pocketaccount.domain.Job;
 import com.frnholding.pocketaccount.service.DocumentService;
@@ -96,6 +97,28 @@ public class DocumentController {
             return ResponseEntity.accepted().body(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @GetMapping("/jobs/{jobId}")
+    public ResponseEntity<JobStatusResponse> getJobStatus(@PathVariable String jobId) {
+        try {
+            Job job = documentService.getJob(jobId);
+            if (job == null) {
+                return ResponseEntity.notFound().build();
+            }
+            JobStatusResponse response = new JobStatusResponse(
+                    job.getId(),
+                    job.getDocumentId(),
+                    job.getStatus(),
+                    job.getStartedAt(),
+                    job.getFinishedAt(),
+                    job.getError()
+            );
+            return ResponseEntity.ok(response);
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().build();

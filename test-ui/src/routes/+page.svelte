@@ -13,6 +13,9 @@
 	let useOcr = true;
 	let useAi = true;
 	let languageHint = 'nb';
+	let jobId = '';
+	let jobStatus = null;
+	let jobStatusError = null;
 
 	$: file = files[0];
 
@@ -134,6 +137,30 @@
 			jobResponse = null;
 		}
 	}
+
+	async function getJobStatus() {
+		if (!jobId.trim()) {
+			jobStatusError = 'Please enter a job ID';
+			return;
+		}
+
+		try {
+			const res = await fetch(`http://localhost:8080/api/v1/jobs/${jobId}`);
+			if (res.ok) {
+				jobStatus = await res.json();
+				jobStatusError = null;
+			} else if (res.status === 404) {
+				jobStatusError = 'Job not found';
+				jobStatus = null;
+			} else {
+				jobStatusError = `Error: ${res.status} ${res.statusText}`;
+				jobStatus = null;
+			}
+		} catch (err) {
+			jobStatusError = `Network error: ${err.message}`;
+			jobStatus = null;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -242,6 +269,31 @@
 			<p><strong>Document ID:</strong> {jobResponse.documentId}</p>
 			<p><strong>Status:</strong> {jobResponse.status}</p>
 			<p><strong>Created:</strong> {jobResponse.created}</p>
+		</div>
+	{/if}
+</section>
+
+<section>
+	<h1>Get Job Status</h1>
+	<div>
+		<label for="jobId">Job ID:</label>
+		<input type="text" id="jobId" bind:value={jobId} placeholder="Enter job ID from job creation" />
+		<button on:click={getJobStatus}>Get Status</button>
+	</div>
+
+	{#if jobStatusError}
+		<p style="color: red;">{jobStatusError}</p>
+	{/if}
+
+	{#if jobStatus}
+		<div>
+			<h2>Job Status</h2>
+			<p><strong>Job ID:</strong> {jobStatus.jobId}</p>
+			<p><strong>Document ID:</strong> {jobStatus.documentId}</p>
+			<p><strong>Status:</strong> {jobStatus.status}</p>
+			<p><strong>Started At:</strong> {jobStatus.startedAt || 'Not started'}</p>
+			<p><strong>Finished At:</strong> {jobStatus.finishedAt || 'Not finished'}</p>
+			<p><strong>Error:</strong> {jobStatus.error || 'None'}</p>
 		</div>
 	{/if}
 </section>

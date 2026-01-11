@@ -102,12 +102,17 @@ public class DocumentService {
         String jobId = UUID.randomUUID().toString();
 
         // Create job
-        Job job = new Job(jobId, documentId, "pending", Instant.now(), pipeline, useOcr, useAi, languageHint);
+        Job job = new Job(jobId, documentId, "pending", Instant.now(), pipeline, useOcr, useAi, languageHint, null, null, null);
 
         // Save to DB
         JobEntity entity = JobEntity.fromDomain(job);
         jobRepository.save(entity);
 
         return job;
+    }
+
+    public Job getJob(String jobId) {
+        JobEntity entity = jobRepository.findById(jobId).orElse(null);
+        return entity != null ? entity.toDomain() : null;
     }
 }

@@ -1,4 +1,4 @@
-package com.frnholding.pocketaccount.domain;
+package com.frnholding.pocketaccount;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -9,15 +9,10 @@ import java.time.Instant;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class Job {
-    private String id;
+public class JobStatusResponse {
+    private String jobId;
     private String documentId;
     private String status;
-    private Instant created;
-    private String pipeline;
-    private boolean useOcr;
-    private boolean useAi;
-    private String languageHint;
     private Instant startedAt;
     private Instant finishedAt;
     private String error;
