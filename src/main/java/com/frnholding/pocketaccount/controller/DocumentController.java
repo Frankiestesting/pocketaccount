@@ -1,5 +1,7 @@
 package com.frnholding.pocketaccount.controller;
 
+import com.frnholding.pocketaccount.DocumentCorrectionRequest;
+import com.frnholding.pocketaccount.DocumentCorrectionResponse;
 import com.frnholding.pocketaccount.DocumentResponse;
 import com.frnholding.pocketaccount.DocumentUploadResponse;
 import com.frnholding.pocketaccount.ExtractionResultResponse;
@@ -153,6 +155,21 @@ public class DocumentController {
         try {
             ExtractionResultResponse result = documentService.getExtractionResult(documentId);
             return ResponseEntity.ok(result);
+        } catch (IllegalArgumentException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @PutMapping("/documents/{documentId}/correction")
+    public ResponseEntity<DocumentCorrectionResponse> saveCorrection(
+            @PathVariable String documentId,
+            @RequestBody DocumentCorrectionRequest request) {
+        try {
+            DocumentCorrectionResponse response = documentService.saveCorrection(documentId, request);
+            return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         } catch (Exception e) {

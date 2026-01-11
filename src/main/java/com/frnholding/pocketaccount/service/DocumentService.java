@@ -208,4 +208,42 @@ public class DocumentService {
             );
         }
     }
+
+    public DocumentCorrectionResponse saveCorrection(String documentId, DocumentCorrectionRequest request) {
+        // Validate document exists
+        Document document = getDocument(documentId);
+        if (document == null) {
+            throw new IllegalArgumentException("Document not found: " + documentId);
+        }
+
+        // Get next correction version
+        Integer maxVersion = correctionRepository.findMaxCorrectionVersionByDocumentId(documentId).orElse(0);
+        Integer nextVersion = maxVersion + 1;
+
+        // Create correction
+        Instant now = Instant.now();
+        Correction correction = new Correction(
+            null, // id will be generated
+            documentId,
+            request.getDocumentType(),
+            request.getFields(),
+            request.getNote(),
+            nextVersion,
+            now,
+            "user:123", // Mock user ID
+            1 // Mock normalized transactions created
+        );
+
+        // Save to database
+        CorrectionEntity entity = CorrectionEntity.fromDomain(correction);
+        CorrectionEntity savedEntity = correctionRepository.save(entity);
+
+        return new DocumentCorrectionResponse(
+            documentId,
+            nextVersion,
+            now,
+            "user:123",
+            1
+        );
+    }
 }

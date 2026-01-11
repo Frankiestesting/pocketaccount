@@ -21,6 +21,11 @@
 	let cancelJobError = null;
 	let extractionResult = null;
 	let extractionResultError = null;
+	let correctionResponse = null;
+	let correctionError = null;
+	let correctionDocumentType = 'INVOICE';
+	let correctionFields = '{"date": "2026-01-02", "amount": 12450.00, "currency": "NOK", "sender": "Strøm AS", "description": "Strøm - januar 2026"}';
+	let correctionNote = 'Rettet beskrivelse';
 
 	$: file = files[0];
 
@@ -218,6 +223,50 @@
 		} catch (err) {
 			extractionResultError = `Network error: ${err.message}`;
 			extractionResult = null;
+		}
+	}
+
+	async function saveCorrection() {
+		if (!documentId.trim()) {
+			correctionError = 'Please enter a document ID';
+			return;
+		}
+
+		let fields;
+		try {
+			fields = JSON.parse(correctionFields);
+		} catch (e) {
+			correctionError = 'Invalid JSON in fields';
+			return;
+		}
+
+		const correctionRequest = {
+			documentType: correctionDocumentType,
+			fields: fields,
+			note: correctionNote
+		};
+
+		try {
+			const res = await fetch(`http://localhost:8080/api/v1/documents/${documentId}/correction`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(correctionRequest)
+			});
+			if (res.ok) {
+				correctionResponse = await res.json();
+				correctionError = null;
+			} else if (res.status === 404) {
+				correctionError = 'Document not found';
+				correctionResponse = null;
+			} else {
+				correctionError = `Error: ${res.status} ${res.statusText}`;
+				correctionResponse = null;
+			}
+		} catch (err) {
+			correctionError = `Network error: ${err.message}`;
+			correctionResponse = null;
 		}
 	}
 </script>
@@ -467,6 +516,45 @@
 	{/if}
 </section>
 
+<section>
+	<h1>Save Correction</h1>
+	<div>
+		<label for="correctionDocumentId">Document ID:</label>
+		<input type="text" id="correctionDocumentId" bind:value={documentId} placeholder="Enter document ID" />
+	</div>
+	<div>
+		<label for="correctionDocumentType">Document Type:</label>
+		<select id="correctionDocumentType" bind:value={correctionDocumentType}>
+			<option value="INVOICE">Invoice</option>
+			<option value="STATEMENT">Statement</option>
+		</select>
+	</div>
+	<div>
+		<label for="correctionFields">Fields (JSON):</label>
+		<textarea id="correctionFields" bind:value={correctionFields} rows="6" placeholder='{"date": "2026-01-02", "amount": 12450.00}'></textarea>
+	</div>
+	<div>
+		<label for="correctionNote">Note:</label>
+		<input type="text" id="correctionNote" bind:value={correctionNote} placeholder="Enter correction note" />
+	</div>
+	<button on:click={saveCorrection}>Save Correction</button>
+
+	{#if correctionError}
+		<p style="color: red;">{correctionError}</p>
+	{/if}
+
+	{#if correctionResponse}
+		<div>
+			<h2>Correction Saved</h2>
+			<p><strong>Document ID:</strong> {correctionResponse.documentId}</p>
+			<p><strong>Correction Version:</strong> {correctionResponse.correctionVersion}</p>
+			<p><strong>Saved At:</strong> {correctionResponse.savedAt}</p>
+			<p><strong>Saved By:</strong> {correctionResponse.savedBy}</p>
+			<p><strong>Normalized Transactions Created:</strong> {correctionResponse.normalizedTransactionsCreated}</p>
+		</div>
+	{/if}
+</section>
+
 <style>
 	section {
 		max-width: 600px;
@@ -487,6 +575,13 @@
 		width: 100%;
 		padding: 8px;
 		box-sizing: border-box;
+	}
+
+	textarea {
+		width: 100%;
+		padding: 8px;
+		box-sizing: border-box;
+		font-family: monospace;
 	}
 
 	button {
