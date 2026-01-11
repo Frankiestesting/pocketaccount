@@ -1,4 +1,4 @@
-package com.example.demo;
+package com.example.demo.domain;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -9,9 +9,10 @@ import java.time.Instant;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class DocumentUploadResponse {
-    private String documentId;
+public class Document {
+    private String id;
     private String status;
     private Instant created;
     private String originalFilename;
+    private String filePath;
 }
