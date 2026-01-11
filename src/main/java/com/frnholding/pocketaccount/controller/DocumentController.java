@@ -2,7 +2,10 @@ package com.frnholding.pocketaccount.controller;
 
 import com.frnholding.pocketaccount.DocumentResponse;
 import com.frnholding.pocketaccount.DocumentUploadResponse;
+import com.frnholding.pocketaccount.JobCreationRequest;
+import com.frnholding.pocketaccount.JobCreationResponse;
 import com.frnholding.pocketaccount.domain.Document;
+import com.frnholding.pocketaccount.domain.Job;
 import com.frnholding.pocketaccount.service.DocumentService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.io.Resource;
@@ -73,6 +76,25 @@ public class DocumentController {
                     .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + documentId + ".pdf\"")
                     .body(file);
         } catch (IOException e) {
+            return ResponseEntity.notFound().build();
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @PostMapping("/documents/{documentId}/jobs")
+    public ResponseEntity<JobCreationResponse> createJob(@PathVariable String documentId, @RequestBody JobCreationRequest request) {
+        try {
+            Job job = documentService.createJob(documentId, request.getPipeline(), request.isUseOcr(), request.isUseAi(), request.getLanguageHint());
+            JobCreationResponse response = new JobCreationResponse(
+                    job.getId(),
+                    job.getDocumentId(),
+                    job.getStatus(),
+                    job.getCreated()
+            );
+            return ResponseEntity.accepted().body(response);
+        } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
         } catch (Exception e) {
             e.printStackTrace();

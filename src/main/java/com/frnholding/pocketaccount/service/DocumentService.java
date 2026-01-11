@@ -2,7 +2,10 @@ package com.frnholding.pocketaccount.service;
 
 import com.frnholding.pocketaccount.domain.Document;
 import com.frnholding.pocketaccount.domain.DocumentEntity;
+import com.frnholding.pocketaccount.domain.Job;
+import com.frnholding.pocketaccount.domain.JobEntity;
 import com.frnholding.pocketaccount.repository.DocumentRepository;
+import com.frnholding.pocketaccount.repository.JobRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.core.io.InputStreamResource;
@@ -28,6 +31,9 @@ public class DocumentService {
 
     @Autowired
     private DocumentRepository documentRepository;
+
+    @Autowired
+    private JobRepository jobRepository;
 
     public Document uploadDocument(MultipartFile file, String source, String originalFilename) throws IOException {
         // Validate source
@@ -83,5 +89,25 @@ public class DocumentService {
         }
 
         return new InputStreamResource(new FileInputStream(filePath.toFile()));
+    }
+
+    public Job createJob(String documentId, String pipeline, boolean useOcr, boolean useAi, String languageHint) {
+        // Validate document exists
+        Document document = getDocument(documentId);
+        if (document == null) {
+            throw new IllegalArgumentException("Document not found: " + documentId);
+        }
+
+        // Generate job ID
+        String jobId = UUID.randomUUID().toString();
+
+        // Create job
+        Job job = new Job(jobId, documentId, "pending", Instant.now(), pipeline, useOcr, useAi, languageHint);
+
+        // Save to DB
+        JobEntity entity = JobEntity.fromDomain(job);
+        jobRepository.save(entity);
+
+        return job;
     }
 }

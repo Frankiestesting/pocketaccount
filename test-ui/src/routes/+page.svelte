@@ -7,6 +7,12 @@
 	let documentId = '';
 	let documentInfo = null;
 	let getError = null;
+	let jobResponse = null;
+	let jobError = null;
+	let pipeline = 'DEFAULT';
+	let useOcr = true;
+	let useAi = true;
+	let languageHint = 'nb';
 
 	$: file = files[0];
 
@@ -91,6 +97,43 @@
 			getError = `Network error: ${err.message}`;
 		}
 	}
+
+	async function createJob() {
+		if (!documentId.trim()) {
+			jobError = 'Please enter a document ID';
+			return;
+		}
+
+		const jobRequest = {
+			pipeline: pipeline,
+			useOcr: useOcr,
+			useAi: useAi,
+			languageHint: languageHint
+		};
+
+		try {
+			const res = await fetch(`http://localhost:8080/api/v1/documents/${documentId}/jobs`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(jobRequest)
+			});
+			if (res.status === 202) {
+				jobResponse = await res.json();
+				jobError = null;
+			} else if (res.status === 404) {
+				jobError = 'Document not found';
+				jobResponse = null;
+			} else {
+				jobError = `Error: ${res.status} ${res.statusText}`;
+				jobResponse = null;
+			}
+		} catch (err) {
+			jobError = `Network error: ${err.message}`;
+			jobResponse = null;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -154,6 +197,51 @@
 			<p><strong>Document Type:</strong> {documentInfo.documentType}</p>
 			<p><strong>Created:</strong> {documentInfo.created}</p>
 			<p><strong>Original Filename:</strong> {documentInfo.originalFilename}</p>
+		</div>
+	{/if}
+</section>
+
+<section>
+	<h1>Create Job</h1>
+	<div>
+		<label for="jobDocumentId">Document ID:</label>
+		<input type="text" id="jobDocumentId" bind:value={documentId} placeholder="Enter document ID from upload" />
+	</div>
+	<div>
+		<label for="pipeline">Pipeline:</label>
+		<select id="pipeline" bind:value={pipeline}>
+			<option value="DEFAULT">DEFAULT</option>
+			<option value="FAST">FAST</option>
+			<option value="ACCURATE">ACCURATE</option>
+		</select>
+	</div>
+	<div>
+		<label>
+			<input type="checkbox" bind:checked={useOcr} /> Use OCR
+		</label>
+	</div>
+	<div>
+		<label>
+			<input type="checkbox" bind:checked={useAi} /> Use AI
+		</label>
+	</div>
+	<div>
+		<label for="languageHint">Language Hint:</label>
+		<input type="text" id="languageHint" bind:value={languageHint} placeholder="e.g., nb, en, sv" />
+	</div>
+	<button on:click={createJob}>Create Job</button>
+
+	{#if jobError}
+		<p style="color: red;">{jobError}</p>
+	{/if}
+
+	{#if jobResponse}
+		<div>
+			<h2>Job Created Successfully</h2>
+			<p><strong>Job ID:</strong> {jobResponse.jobId}</p>
+			<p><strong>Document ID:</strong> {jobResponse.documentId}</p>
+			<p><strong>Status:</strong> {jobResponse.status}</p>
+			<p><strong>Created:</strong> {jobResponse.created}</p>
 		</div>
 	{/if}
 </section>
