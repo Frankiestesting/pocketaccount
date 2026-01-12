@@ -1,4 +1,4 @@
-package com.frnholding.pocketaccount;
+package com.frnholding.pocketaccount.api.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;

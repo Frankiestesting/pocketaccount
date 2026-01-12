@@ -47,7 +47,7 @@
 		formData.append('documentType', documentType);
 
 		try {
-			const res = await fetch('http://localhost:8080/api/v1/documents', {
+			const res = await fetch('/api/v1/documents', {
 				method: 'POST',
 				body: formData
 			});
@@ -71,7 +71,7 @@
 		}
 
 		try {
-			const res = await fetch(`http://localhost:8080/api/v1/documents/${documentId}`);
+			const res = await fetch(`/api/v1/documents/${documentId}`);
 			if (res.ok) {
 				documentInfo = await res.json();
 				getError = null;
@@ -95,7 +95,7 @@
 		}
 
 		try {
-			const res = await fetch(`http://localhost:8080/api/v1/documents/${documentId}/file`);
+			const res = await fetch(`/api/v1/documents/${documentId}/file`);
 			if (res.ok) {
 				// Create a blob from the response and open it in a new tab
 				const blob = await res.blob();
@@ -126,7 +126,7 @@
 		};
 
 		try {
-			const res = await fetch(`http://localhost:8080/api/v1/documents/${documentId}/jobs`, {
+			const res = await fetch(`/api/v1/documents/${documentId}/jobs`, {
 				method: 'POST',
 				headers: {
 					'Content-Type': 'application/json'
@@ -156,7 +156,7 @@
 		}
 
 		try {
-			const res = await fetch(`http://localhost:8080/api/v1/jobs/${jobId}`);
+			const res = await fetch(`/api/v1/jobs/${jobId}`);
 			if (res.ok) {
 				jobStatus = await res.json();
 				jobStatusError = null;
@@ -180,7 +180,7 @@
 		}
 
 		try {
-			const res = await fetch(`http://localhost:8080/api/v1/jobs/${jobId}/cancel`, {
+			const res = await fetch(`/api/v1/jobs/${jobId}/cancel`, {
 				method: 'POST'
 			});
 			if (res.ok) {
@@ -209,7 +209,7 @@
 		}
 
 		try {
-			const res = await fetch(`http://localhost:8080/api/v1/documents/${documentId}/result`);
+			const res = await fetch(`/api/v1/documents/${documentId}/result`);
 			if (res.ok) {
 				extractionResult = await res.json();
 				extractionResultError = null;
@@ -247,7 +247,7 @@
 		};
 
 		try {
-			const res = await fetch(`http://localhost:8080/api/v1/documents/${documentId}/correction`, {
+			const res = await fetch(`/api/v1/documents/${documentId}/correction`, {
 				method: 'PUT',
 				headers: {
 					'Content-Type': 'application/json'

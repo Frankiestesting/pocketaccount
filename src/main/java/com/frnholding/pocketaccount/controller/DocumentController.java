@@ -1,14 +1,14 @@
 package com.frnholding.pocketaccount.controller;
 
-import com.frnholding.pocketaccount.DocumentCorrectionRequest;
-import com.frnholding.pocketaccount.DocumentCorrectionResponse;
-import com.frnholding.pocketaccount.DocumentResponse;
-import com.frnholding.pocketaccount.DocumentUploadResponse;
-import com.frnholding.pocketaccount.ExtractionResultResponse;
-import com.frnholding.pocketaccount.JobCancelResponse;
-import com.frnholding.pocketaccount.JobCreationRequest;
-import com.frnholding.pocketaccount.JobCreationResponse;
-import com.frnholding.pocketaccount.JobStatusResponse;
+import com.frnholding.pocketaccount.api.dto.DocumentCorrectionRequest;
+import com.frnholding.pocketaccount.api.dto.JobCreationRequest;
+import com.frnholding.pocketaccount.api.dto.DocumentCorrectionResponse;
+import com.frnholding.pocketaccount.api.dto.DocumentResponse;
+import com.frnholding.pocketaccount.api.dto.DocumentUploadResponse;
+import com.frnholding.pocketaccount.api.dto.ExtractionResultResponse;
+import com.frnholding.pocketaccount.api.dto.JobCancelResponse;
+import com.frnholding.pocketaccount.api.dto.JobCreationResponse;
+import com.frnholding.pocketaccount.api.dto.JobStatusResponse;
 import com.frnholding.pocketaccount.domain.Document;
 import com.frnholding.pocketaccount.domain.Job;
 import com.frnholding.pocketaccount.service.DocumentService;

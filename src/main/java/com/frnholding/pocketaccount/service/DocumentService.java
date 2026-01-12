@@ -1,8 +1,8 @@
 package com.frnholding.pocketaccount.service;
 
-import com.frnholding.pocketaccount.ExtractionResultResponse;
-import com.frnholding.pocketaccount.DocumentCorrectionRequest;
-import com.frnholding.pocketaccount.DocumentCorrectionResponse;
+import com.frnholding.pocketaccount.api.dto.ExtractionResultResponse;
+import com.frnholding.pocketaccount.api.dto.DocumentCorrectionRequest;
+import com.frnholding.pocketaccount.api.dto.DocumentCorrectionResponse;
 import com.frnholding.pocketaccount.domain.Correction;
 import com.frnholding.pocketaccount.domain.CorrectionEntity;
 import com.frnholding.pocketaccount.domain.Document;

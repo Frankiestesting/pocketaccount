@@ -1,4 +1,4 @@
-package com.frnholding.pocketaccount;
+package com.frnholding.pocketaccount.api.dto;
 
 import lombok.AllArgsConstructor;
 import lombok.Data;
@@ -9,9 +9,9 @@ import java.time.Instant;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class JobCreationResponse {
-    private String jobId;
+public class DocumentUploadResponse {
     private String documentId;
     private String status;
     private Instant created;
+    private String originalFilename;
 }
