@@ -1,0 +1,36 @@
+package com.frnholding.pocketaccount.interpretation.domain;
+
+import jakarta.persistence.*;
+import lombok.AllArgsConstructor;
+import lombok.Data;
+import lombok.NoArgsConstructor;
+
+import java.time.Instant;
+import java.util.ArrayList;
+import java.util.List;
+
+@Entity
+@Table(name = "interpretation_results")
+@Data
+@NoArgsConstructor
+@AllArgsConstructor
+public class InterpretationResult {
+    @Id
+    @GeneratedValue(strategy = GenerationType.IDENTITY)
+    private Long id;
+    
+    @Column(nullable = false, unique = true)
+    private String documentId;
+    
+    @Column(nullable = false)
+    private String documentType;
+    
+    @Column(nullable = false)
+    private Instant interpretedAt;
+    
+    @Embedded
+    private InvoiceFields invoiceFields;
+    
+    @OneToMany(mappedBy = "interpretationResult", cascade = CascadeType.ALL, orphanRemoval = true)
+    private List<StatementTransaction> statementTransactions = new ArrayList<>();
+}
