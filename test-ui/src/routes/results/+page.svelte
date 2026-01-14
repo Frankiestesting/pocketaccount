@@ -45,7 +45,7 @@
 		jobResult = null;
 
 		try {
-			const res = await fetch(`/api/v1/interpretation/documents/${job.documentId}/result`);
+			const res = await fetch(`/api/v1/interpretation/jobs/${job.jobId}/result`);
 			if (res.ok) {
 				jobResult = await res.json();
 			} else if (res.status === 404) {

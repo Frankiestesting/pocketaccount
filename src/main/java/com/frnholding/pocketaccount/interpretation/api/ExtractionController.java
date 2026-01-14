@@ -124,6 +124,32 @@ public class ExtractionController {
     }
 
     /**
+     * Get the interpretation/extraction results for a specific job.
+     * GET /api/v1/interpretation/jobs/{jobId}/result
+     *
+     * @param jobId Job ID to get results for
+     * @return Extraction results (invoice fields or statement transactions)
+     */
+    @GetMapping("/jobs/{jobId}/result")
+    public ResponseEntity<ExtractionResultResponse> getJobResult(@PathVariable String jobId) {
+        
+        log.debug("Getting extraction result for job {}", jobId);
+        
+        try {
+            ExtractionResultResponse response = interpretationService.getJobResult(jobId);
+            return ResponseEntity.ok(response);
+            
+        } catch (IllegalArgumentException e) {
+            log.error("Job or result not found: {}", jobId);
+            return ResponseEntity.notFound().build();
+            
+        } catch (Exception e) {
+            log.error("Failed to get extraction result for job {}: {}", jobId, e.getMessage(), e);
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    /**
      * Save corrections to interpretation results.
      * PUT /api/v1/interpretation/documents/{id}/correction
      *

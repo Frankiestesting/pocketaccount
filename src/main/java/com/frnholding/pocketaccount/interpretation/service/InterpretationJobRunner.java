@@ -3,17 +3,19 @@ package com.frnholding.pocketaccount.interpretation.service;
 import com.frnholding.pocketaccount.interpretation.domain.*;
 import com.frnholding.pocketaccount.interpretation.repository.InterpretationJobRepository;
 import com.frnholding.pocketaccount.interpretation.repository.InterpretationResultRepository;
+import com.frnholding.pocketaccount.interpretation.pipeline.InterpretationPipeline;
+import com.frnholding.pocketaccount.interpretation.pipeline.InterpretationOptions;
+import com.frnholding.pocketaccount.interpretation.pipeline.DocumentType;
 import com.frnholding.pocketaccount.domain.Document;
 import com.frnholding.pocketaccount.service.DocumentService;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.time.Instant;
-import java.time.LocalDate;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.UUID;
 
 @Slf4j
 @Component
@@ -27,7 +29,11 @@ public class InterpretationJobRunner {
 
     @Autowired
     private DocumentService documentService;
+    
+    @Autowired
+    private InterpretationPipeline interpretationPipeline;
 
+    @Async
     @Transactional
     public void runJob(String jobId, boolean useOcr, boolean useAi, String languageHint) {
         log.info("Starting interpretation job: {} with useOcr={}, useAi={}, languageHint={}", 
@@ -50,6 +56,7 @@ public class InterpretationJobRunner {
 
             // Perform interpretation based on configuration
             InterpretationResult result = performInterpretation(
+                    jobId,
                     job.getDocumentId(),
                     job.getDocumentType(),
                     useOcr,
@@ -81,6 +88,7 @@ public class InterpretationJobRunner {
     }
 
     private InterpretationResult performInterpretation(
+            String jobId,
             String documentId,
             String documentType,
             boolean useOcr,
@@ -89,72 +97,45 @@ public class InterpretationJobRunner {
 
         log.info("Performing interpretation for document: {} with type: {}", documentId, documentType);
 
-        InterpretationResult result = new InterpretationResult();
-        result.setDocumentId(documentId);
-        result.setDocumentType(documentType);
-        result.setInterpretedAt(Instant.now());
+        try {
+            // Convert documentType string to enum
+            DocumentType hintedType = null;
+            if (documentType != null) {
+                try {
+                    hintedType = DocumentType.valueOf(documentType);
+                } catch (IllegalArgumentException e) {
+                    log.warn("Invalid document type: {}, will auto-detect", documentType);
+                }
+            }
 
-        if ("INVOICE".equals(documentType)) {
-            result.setInvoiceFields(extractInvoiceFields(documentId, useOcr, useAi, languageHint));
-        } else if ("STATEMENT".equals(documentType)) {
-            result.setStatementTransactions(extractStatementTransactions(result, documentId, useOcr, useAi, languageHint));
+            // Build interpretation options
+            InterpretationOptions options = InterpretationOptions.builder()
+                    .useOcr(useOcr)
+                    .useAi(useAi)
+                    .languageHint(languageHint)
+                    .hintedType(hintedType)
+                    .build();
+
+            // Execute the interpretation pipeline
+            InterpretationResult result = interpretationPipeline.execute(
+                    UUID.fromString(documentId),
+                    options
+            );
+
+            // Set the jobId for this result
+            result.setJobId(jobId);
+            
+            // Ensure StatementTransactions are linked to the result
+            if (result.getStatementTransactions() != null) {
+                result.getStatementTransactions().forEach(t -> t.setInterpretationResult(result));
+            }
+
+            log.info("Interpretation completed for document: {} with type: {}", documentId, result.getDocumentType());
+            return result;
+
+        } catch (Exception e) {
+            log.error("Error performing interpretation for document: {}", documentId, e);
+            throw new RuntimeException("Interpretation failed: " + e.getMessage(), e);
         }
-
-        return result;
-    }
-
-    private InvoiceFields extractInvoiceFields(String documentId, boolean useOcr, boolean useAi, String languageHint) {
-        // TODO: Implement actual OCR and AI-based extraction
-        // For now, return mock data with higher accuracy if AI is enabled
-        
-        double amount = useAi ? 12450.00 : 12400.00;
-        String description = useAi ? "Faktura strøm januar - AI enhanced" : "Faktura strøm januar";
-        
-        log.debug("Extracted invoice fields with OCR={}, AI={}, language={}", useOcr, useAi, languageHint);
-        
-        return new InvoiceFields(
-                amount,
-                "NOK",
-                LocalDate.parse("2026-01-02"),
-                description,
-                "Strøm AS"
-        );
-    }
-
-    private List<StatementTransaction> extractStatementTransactions(
-            InterpretationResult result,
-            String documentId,
-            boolean useOcr,
-            boolean useAi,
-            String languageHint) {
-        
-        // TODO: Implement actual OCR and AI-based extraction
-        // For now, return mock data
-        
-        List<StatementTransaction> transactions = new ArrayList<>();
-        
-        StatementTransaction transaction1 = new StatementTransaction();
-        transaction1.setInterpretationResult(result);
-        transaction1.setAmount(-399.00);
-        transaction1.setCurrency("NOK");
-        transaction1.setDate(LocalDate.parse("2026-01-03"));
-        transaction1.setDescription(useAi ? "KIWI 123 - Groceries" : "KIWI 123");
-        transactions.add(transaction1);
-
-        if (useAi) {
-            // AI mode extracts more transactions
-            StatementTransaction transaction2 = new StatementTransaction();
-            transaction2.setInterpretationResult(result);
-            transaction2.setAmount(-150.00);
-            transaction2.setCurrency("NOK");
-            transaction2.setDate(LocalDate.parse("2026-01-04"));
-            transaction2.setDescription("Circle K - Fuel");
-            transactions.add(transaction2);
-        }
-
-        log.debug("Extracted {} transactions with OCR={}, AI={}, language={}", 
-                transactions.size(), useOcr, useAi, languageHint);
-        
-        return transactions;
     }
 }

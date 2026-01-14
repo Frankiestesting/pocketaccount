@@ -19,8 +19,11 @@ public class InterpretationResult {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @Column(nullable = false, unique = true)
+    @Column(nullable = false)
     private String documentId;
+    
+    @Column(unique = true)
+    private String jobId;
     
     @Column(nullable = false)
     private String documentType;

@@ -28,6 +28,9 @@ public class InterpretationService {
 
     @Autowired
     private DocumentService documentService;
+    
+    @Autowired
+    private InterpretationJobRunner interpretationJobRunner;
 
     @Transactional
     public InterpretationJob startInterpretation(String documentId) {
@@ -125,9 +128,13 @@ public class InterpretationService {
 
         interpretationJobRepository.save(job);
 
-        // TODO: Trigger async interpretation process with options
-        // For now, create mock results
-        createMockInterpretationResult(documentId, document.getDocumentType());
+        // Trigger async interpretation process
+        interpretationJobRunner.runJob(
+                jobId,
+                request.isUseOcr(),
+                request.isUseAi(),
+                request.getLanguageHint()
+        );
 
         return new StartExtractionResponse(
                 job.getId(),
@@ -201,6 +208,20 @@ public class InterpretationService {
         InterpretationResult result = interpretationResultRepository.findByDocumentId(documentId)
                 .orElseThrow(() -> new IllegalArgumentException("No interpretation result found for document: " + documentId));
 
+        return buildExtractionResultResponse(result);
+    }
+
+    /**
+     * Get extraction results for a specific job.
+     */
+    public ExtractionResultResponse getJobResult(String jobId) {
+        InterpretationResult result = interpretationResultRepository.findByJobId(jobId)
+                .orElseThrow(() -> new IllegalArgumentException("No interpretation result found for job: " + jobId));
+
+        return buildExtractionResultResponse(result);
+    }
+
+    private ExtractionResultResponse buildExtractionResultResponse(InterpretationResult result) {
         ExtractionResultResponse response = new ExtractionResultResponse();
         response.setDocumentId(result.getDocumentId());
         response.setDocumentType(result.getDocumentType());
