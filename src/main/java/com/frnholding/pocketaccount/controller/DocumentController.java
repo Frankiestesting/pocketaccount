@@ -30,6 +30,26 @@ public class DocumentController {
     @Autowired
     private DocumentService documentService;
 
+    @GetMapping("/documents")
+    public ResponseEntity<java.util.List<DocumentResponse>> getAllDocuments() {
+        try {
+            java.util.List<Document> documents = documentService.getAllDocuments();
+            java.util.List<DocumentResponse> responses = documents.stream()
+                    .map(doc -> new DocumentResponse(
+                            doc.getId(),
+                            doc.getStatus(),
+                            doc.getDocumentType(),
+                            doc.getCreated(),
+                            doc.getOriginalFilename()
+                    ))
+                    .collect(java.util.stream.Collectors.toList());
+            return ResponseEntity.ok(responses);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
     @PostMapping(value = "/documents", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
     public ResponseEntity<DocumentUploadResponse> uploadDocument(
             @RequestParam("file") MultipartFile file,
@@ -43,7 +63,9 @@ public class DocumentController {
                     document.getId(),
                     document.getStatus(),
                     document.getCreated(),
-                    document.getOriginalFilename()
+                    document.getOriginalFilename(),
+                    document.getDocumentType(),
+                    file.getSize()
             );
             return ResponseEntity.ok(response);
         } catch (Exception e) {
@@ -124,6 +146,35 @@ public class DocumentController {
                     job.getError()
             );
             return ResponseEntity.ok(response);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return ResponseEntity.internalServerError().build();
+        }
+    }
+
+    @GetMapping("/jobs")
+    public ResponseEntity<java.util.List<JobStatusResponse>> getAllJobs() {
+        try {
+            java.util.List<Job> jobs = documentService.getAllJobs();
+            java.util.List<JobStatusResponse> responses = jobs.stream()
+                    .map(job -> {
+                        Document doc = documentService.getDocument(job.getDocumentId());
+                        JobStatusResponse response = new JobStatusResponse(
+                                job.getId(),
+                                job.getDocumentId(),
+                                job.getStatus(),
+                                job.getStartedAt(),
+                                job.getFinishedAt(),
+                                job.getError()
+                        );
+                        if (doc != null) {
+                            response.setDocumentType(doc.getDocumentType());
+                            response.setOriginalFilename(doc.getOriginalFilename());
+                        }
+                        return response;
+                    })
+                    .collect(java.util.stream.Collectors.toList());
+            return ResponseEntity.ok(responses);
         } catch (Exception e) {
             e.printStackTrace();
             return ResponseEntity.internalServerError().build();

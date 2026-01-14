@@ -5,6 +5,7 @@ import com.frnholding.pocketaccount.interpretation.domain.InvoiceFields;
 import com.frnholding.pocketaccount.interpretation.domain.StatementTransaction;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import java.time.Instant;
@@ -17,6 +18,7 @@ import java.util.UUID;
 public class InterpretationPipeline {
 
     @Autowired(required = false)
+    @Qualifier("compositeTextExtractor")
     private DocumentTextInterpreter documentTextInterpreter;
 
     @Autowired(required = false)

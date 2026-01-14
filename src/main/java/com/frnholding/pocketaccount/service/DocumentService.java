@@ -88,6 +88,13 @@ public class DocumentService {
         return entity != null ? entity.toDomain() : null;
     }
 
+    public List<Document> getAllDocuments() {
+        List<DocumentEntity> entities = documentRepository.findAll();
+        return entities.stream()
+                .map(DocumentEntity::toDomain)
+                .collect(java.util.stream.Collectors.toList());
+    }
+
     public Resource getDocumentFile(String documentId) throws IOException {
         Document document = getDocument(documentId);
         if (document == null) {
@@ -125,6 +132,13 @@ public class DocumentService {
     public Job getJob(String jobId) {
         JobEntity entity = jobRepository.findById(jobId).orElse(null);
         return entity != null ? entity.toDomain() : null;
+    }
+
+    public List<Job> getAllJobs() {
+        List<JobEntity> entities = jobRepository.findAll();
+        return entities.stream()
+                .map(JobEntity::toDomain)
+                .collect(java.util.stream.Collectors.toList());
     }
 
     public Job cancelJob(String jobId) {

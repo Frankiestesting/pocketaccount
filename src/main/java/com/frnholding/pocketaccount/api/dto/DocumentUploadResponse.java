@@ -14,4 +14,6 @@ public class DocumentUploadResponse {
     private String status;
     private Instant created;
     private String originalFilename;
+    private String documentType;
+    private Long fileSize;
 }

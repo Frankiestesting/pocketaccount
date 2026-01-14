@@ -27,6 +27,23 @@
 	let correctionFields = '{"date": "2026-01-02", "amount": 12450.00, "currency": "NOK", "sender": "Strøm AS", "description": "Strøm - januar 2026"}';
 	let correctionNote = 'Rettet beskrivelse';
 
+	// Interpretation API variables
+	let interpretationJobResponse = null;
+	let interpretationJobError = null;
+	let interpretationUseOcr = false;
+	let interpretationUseAi = true;
+	let interpretationLanguageHint = 'eng+deu+fra';
+	let interpretationHintedType = 'INVOICE';
+	let interpretationJobId = '';
+	let interpretationJobStatus = null;
+	let interpretationJobStatusError = null;
+	let interpretationExtractionResult = null;
+	let interpretationExtractionError = null;
+	let interpretationCorrectionFields = '{"amount": 1234.56, "currency": "EUR", "date": "2026-01-14", "description": "Professional services", "sender": "ACME Corp"}';
+	let interpretationCorrectionTransactions = '[]';
+	let interpretationCorrectionDocumentType = 'INVOICE';
+	let interpretationCorrectionNote = 'AI-corrected data';
+
 	$: file = files[0];
 
 	async function handleSubmit(event) {
@@ -269,6 +286,141 @@
 			correctionResponse = null;
 		}
 	}
+
+	// Interpretation API functions
+	async function startInterpretationJob() {
+		if (!documentId.trim()) {
+			interpretationJobError = 'Please enter a document ID';
+			return;
+		}
+
+		const request = {
+			useOcr: interpretationUseOcr,
+			useAi: interpretationUseAi,
+			languageHint: interpretationLanguageHint,
+			hintedType: interpretationHintedType
+		};
+
+		try {
+			const res = await fetch(`/api/v1/interpretation/documents/${documentId}/jobs`, {
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(request)
+			});
+			if (res.ok) {
+				interpretationJobResponse = await res.json();
+				interpretationJobId = interpretationJobResponse.jobId;
+				interpretationJobError = null;
+			} else if (res.status === 404) {
+				interpretationJobError = 'Document not found';
+				interpretationJobResponse = null;
+			} else {
+				interpretationJobError = `Error: ${res.status} ${res.statusText}`;
+				interpretationJobResponse = null;
+			}
+		} catch (err) {
+			interpretationJobError = `Network error: ${err.message}`;
+			interpretationJobResponse = null;
+		}
+	}
+
+	async function getInterpretationJobStatus() {
+		if (!interpretationJobId.trim()) {
+			interpretationJobStatusError = 'Please enter a job ID';
+			return;
+		}
+
+		try {
+			const res = await fetch(`/api/v1/interpretation/jobs/${interpretationJobId}`);
+			if (res.ok) {
+				interpretationJobStatus = await res.json();
+				interpretationJobStatusError = null;
+			} else if (res.status === 404) {
+				interpretationJobStatusError = 'Job not found';
+				interpretationJobStatus = null;
+			} else {
+				interpretationJobStatusError = `Error: ${res.status} ${res.statusText}`;
+				interpretationJobStatus = null;
+			}
+		} catch (err) {
+			interpretationJobStatusError = `Network error: ${err.message}`;
+			interpretationJobStatus = null;
+		}
+	}
+
+	async function getInterpretationResult() {
+		if (!documentId.trim()) {
+			interpretationExtractionError = 'Please enter a document ID';
+			return;
+		}
+
+		try {
+			const res = await fetch(`/api/v1/interpretation/documents/${documentId}/result`);
+			if (res.ok) {
+				interpretationExtractionResult = await res.json();
+				interpretationExtractionError = null;
+			} else if (res.status === 404) {
+				interpretationExtractionError = 'Document not found or no interpretation result available';
+				interpretationExtractionResult = null;
+			} else {
+				interpretationExtractionError = `Error: ${res.status} ${res.statusText}`;
+				interpretationExtractionResult = null;
+			}
+		} catch (err) {
+			interpretationExtractionError = `Network error: ${err.message}`;
+			interpretationExtractionResult = null;
+		}
+	}
+
+	async function saveInterpretationCorrection() {
+		if (!documentId.trim()) {
+			interpretationExtractionError = 'Please enter a document ID';
+			return;
+		}
+
+		let invoiceFields = null;
+		let transactions = null;
+
+		try {
+			if (interpretationCorrectionDocumentType === 'INVOICE') {
+				invoiceFields = JSON.parse(interpretationCorrectionFields);
+			} else {
+				transactions = JSON.parse(interpretationCorrectionTransactions);
+			}
+		} catch (e) {
+			interpretationExtractionError = 'Invalid JSON';
+			return;
+		}
+
+		const request = {
+			documentType: interpretationCorrectionDocumentType,
+			invoiceFields: invoiceFields,
+			transactions: transactions,
+			note: interpretationCorrectionNote
+		};
+
+		try {
+			const res = await fetch(`/api/v1/interpretation/documents/${documentId}/correction`, {
+				method: 'PUT',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify(request)
+			});
+			if (res.ok) {
+				interpretationExtractionError = null;
+				alert('Correction saved successfully');
+			} else if (res.status === 404) {
+				interpretationExtractionError = 'Document not found';
+			} else {
+				interpretationExtractionError = `Error: ${res.status} ${res.statusText}`;
+			}
+		} catch (err) {
+			interpretationExtractionError = `Network error: ${err.message}`;
+		}
+	}
 </script>
 
 <svelte:head>
@@ -420,7 +572,165 @@
 		<input type="text" id="cancelJobId" bind:value={jobId} placeholder="Enter job ID to cancel" />
 		<button on:click={cancelJob}>Cancel Job</button>
 	</div>
+ection>
+	<h1>Interpretation API Tests</h1>
+	<p style="background: #e0f0ff; padding: 10px; border-radius: 5px;">
+		<strong>New AI-powered interpretation endpoints with advanced options</strong>
+	</p>
 
+	<h2>Start Interpretation Job</h2>
+	<div>
+		<label for="interpretationDocId">Document ID:</label>
+		<input type="text" id="interpretationDocId" bind:value={documentId} placeholder="Enter document ID" />
+	</div>
+	<div>
+		<label>
+			<input type="checkbox" bind:checked={interpretationUseOcr} />
+			Use OCR (for scanned documents)
+		</label>
+	</div>
+	<div>
+		<label>
+			<input type="checkbox" bind:checked={interpretationUseAi} />
+			Use AI (OpenAI for extraction)
+		</label>
+	</div>
+	<div>
+		<label for="interpretationLanguageHint">Language Hint:</label>
+		<input type="text" id="interpretationLanguageHint" bind:value={interpretationLanguageHint} placeholder="e.g. eng+deu+fra" />
+	</div>
+	<div>
+		<label for="interpretationHintedType">Hinted Document Type:</label>
+		<select id="interpretationHintedType" bind:value={interpretationHintedType}>
+			<option value="INVOICE">Invoice</option>
+			<option value="STATEMENT">Statement</option>
+			<option value="RECEIPT">Receipt</option>
+			<option value="UNKNOWN">Unknown</option>
+		</select>
+	</div>
+	<button on:click={startInterpretationJob}>Start Interpretation Job</button>
+
+	{#if interpretationJobError}
+		<p style="color: red;">{interpretationJobError}</p>
+	{/if}
+
+	{#if interpretationJobResponse}
+		<div style="background: #f0f0f0; padding: 10px; margin-top: 10px;">
+			<h3>Job Started</h3>
+			<p><strong>Job ID:</strong> {interpretationJobResponse.jobId}</p>
+			<p><strong>Document ID:</strong> {interpretationJobResponse.documentId}</p>
+			<p><strong>Status:</strong> {interpretationJobResponse.status}</p>
+			<p><strong>Document Type:</strong> {interpretationJobResponse.documentType}</p>
+			<p><strong>Created:</strong> {interpretationJobResponse.created}</p>
+		</div>
+	{/if}
+
+	<h2>Get Interpretation Job Status</h2>
+	<div>
+		<label for="interpretationJobId">Job ID:</label>
+		<input type="text" id="interpretationJobId" bind:value={interpretationJobId} placeholder="Enter job ID" />
+	</div>
+	<button on:click={getInterpretationJobStatus}>Get Job Status</button>
+
+	{#if interpretationJobStatusError}
+		<p style="color: red;">{interpretationJobStatusError}</p>
+	{/if}
+
+	{#if interpretationJobStatus}
+		<div style="background: #f0f0f0; padding: 10px; margin-top: 10px;">
+			<h3>Job Status</h3>
+			<p><strong>Job ID:</strong> {interpretationJobStatus.jobId}</p>
+			<p><strong>Document ID:</strong> {interpretationJobStatus.documentId}</p>
+			<p><strong>Status:</strong> {interpretationJobStatus.status}</p>
+			<p><strong>Document Type:</strong> {interpretationJobStatus.documentType}</p>
+			<p><strong>Created:</strong> {interpretationJobStatus.created}</p>
+			{#if interpretationJobStatus.startedAt}
+				<p><strong>Started At:</strong> {interpretationJobStatus.startedAt}</p>
+			{/if}
+			{#if interpretationJobStatus.finishedAt}
+				<p><strong>Finished At:</strong> {interpretationJobStatus.finishedAt}</p>
+			{/if}
+			{#if interpretationJobStatus.error}
+				<p style="color: red;"><strong>Error:</strong> {interpretationJobStatus.error}</p>
+			{/if}
+		</div>
+	{/if}
+
+	<h2>Get Interpretation Result</h2>
+	<div>
+		<label for="interpretationResultDocId">Document ID:</label>
+		<input type="text" id="interpretationResultDocId" bind:value={documentId} placeholder="Enter document ID" />
+	</div>
+	<button on:click={getInterpretationResult}>Get Interpretation Result</button>
+
+	{#if interpretationExtractionError}
+		<p style="color: red;">{interpretationExtractionError}</p>
+	{/if}
+
+	{#if interpretationExtractionResult}
+		<div style="background: #f0f0f0; padding: 10px; margin-top: 10px;">
+			<h3>Interpretation Result</h3>
+			<p><strong>Document ID:</strong> {interpretationExtractionResult.documentId}</p>
+			<p><strong>Document Type:</strong> {interpretationExtractionResult.documentType}</p>
+			<p><strong>Interpreted At:</strong> {interpretationExtractionResult.interpretedAt}</p>
+
+			{#if interpretationExtractionResult.invoiceFields}
+				<h4>Invoice Fields</h4>
+				<p><strong>Amount:</strong> {interpretationExtractionResult.invoiceFields.amount}</p>
+				<p><strong>Currency:</strong> {interpretationExtractionResult.invoiceFields.currency}</p>
+				<p><strong>Date:</strong> {interpretationExtractionResult.invoiceFields.date}</p>
+				<p><strong>Description:</strong> {interpretationExtractionResult.invoiceFields.description}</p>
+				<p><strong>Sender:</strong> {interpretationExtractionResult.invoiceFields.sender}</p>
+			{/if}
+
+			{#if interpretationExtractionResult.transactions && interpretationExtractionResult.transactions.length > 0}
+				<h4>Transactions ({interpretationExtractionResult.transactions.length})</h4>
+				{#each interpretationExtractionResult.transactions as txn, i}
+					<div style="border-left: 3px solid #007bff; padding-left: 10px; margin: 5px 0;">
+						<p><strong>#{i + 1}</strong></p>
+						<p>Amount: {txn.amount} {txn.currency}</p>
+						<p>Date: {txn.date}</p>
+						<p>Description: {txn.description}</p>
+					</div>
+				{/each}
+			{/if}
+		</div>
+	{/if}
+
+	<h2>Save Interpretation Correction</h2>
+	<div>
+		<label for="interpretationCorrectionDocId">Document ID:</label>
+		<input type="text" id="interpretationCorrectionDocId" bind:value={documentId} placeholder="Enter document ID" />
+	</div>
+	<div>
+		<label for="interpretationCorrectionDocType">Document Type:</label>
+		<select id="interpretationCorrectionDocType" bind:value={interpretationCorrectionDocumentType}>
+			<option value="INVOICE">Invoice</option>
+			<option value="STATEMENT">Statement</option>
+		</select>
+	</div>
+
+	{#if interpretationCorrectionDocumentType === 'INVOICE'}
+		<div>
+			<label for="interpretationCorrectionFields">Invoice Fields (JSON):</label>
+			<textarea id="interpretationCorrectionFields" bind:value={interpretationCorrectionFields} rows="6" placeholder='Enter JSON with amount, currency, date, sender, description'></textarea>
+		</div>
+	{:else}
+		<div>
+			<label for="interpretationCorrectionTransactions">Transactions (JSON Array):</label>
+			<textarea id="interpretationCorrectionTransactions" bind:value={interpretationCorrectionTransactions} rows="6" placeholder='Enter JSON array of transactions with amount, currency, date, description'></textarea>
+		</div>
+	{/if}
+
+	<div>
+		<label for="interpretationCorrectionNote">Note:</label>
+		<input type="text" id="interpretationCorrectionNote" bind:value={interpretationCorrectionNote} placeholder="Correction note" />
+	</div>
+	<button on:click={saveInterpretationCorrection}>Save Correction</button>
+</section>
+
+<section>
+	<h2>Cancel Job</h2>
 	{#if cancelJobError}
 		<p style="color: red;">{cancelJobError}</p>
 	{/if}

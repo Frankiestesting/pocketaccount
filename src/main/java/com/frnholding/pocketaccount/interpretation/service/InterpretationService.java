@@ -1,5 +1,6 @@
 package com.frnholding.pocketaccount.interpretation.service;
 
+import com.frnholding.pocketaccount.interpretation.api.dto.*;
 import com.frnholding.pocketaccount.interpretation.domain.*;
 import com.frnholding.pocketaccount.interpretation.repository.InterpretationJobRepository;
 import com.frnholding.pocketaccount.interpretation.repository.InterpretationResultRepository;
@@ -14,6 +15,7 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class InterpretationService {
@@ -92,6 +94,198 @@ public class InterpretationService {
             transactions.add(transaction);
             
             result.setStatementTransactions(transactions);
+        }
+
+        interpretationResultRepository.save(result);
+    }
+
+    /**
+     * Start a new extraction job with configuration options.
+     */
+    @Transactional
+    public StartExtractionResponse startExtraction(String documentId, StartExtractionRequest request) {
+        // Validate document exists
+        Document document = documentService.getDocument(documentId);
+        if (document == null) {
+            throw new IllegalArgumentException("Document not found: " + documentId);
+        }
+
+        // Create interpretation job
+        String jobId = UUID.randomUUID().toString();
+        InterpretationJob job = new InterpretationJob(
+                jobId,
+                documentId,
+                "PENDING",
+                Instant.now(),
+                null,
+                null,
+                null,
+                document.getDocumentType()
+        );
+
+        interpretationJobRepository.save(job);
+
+        // TODO: Trigger async interpretation process with options
+        // For now, create mock results
+        createMockInterpretationResult(documentId, document.getDocumentType());
+
+        return new StartExtractionResponse(
+                job.getId(),
+                job.getDocumentId(),
+                job.getStatus(),
+                job.getCreated(),
+                job.getDocumentType()
+        );
+    }
+
+    /**
+     * Get job status.
+     */
+    public JobStatusResponse getJobStatus(String jobId) {
+        InterpretationJob job = interpretationJobRepository.findById(jobId)
+                .orElseThrow(() -> new IllegalArgumentException("Job not found: " + jobId));
+
+        JobStatusResponse response = new JobStatusResponse(
+                job.getId(),
+                job.getDocumentId(),
+                job.getStatus(),
+                job.getDocumentType(),
+                job.getCreated(),
+                job.getStartedAt(),
+                job.getFinishedAt(),
+                job.getError(),
+                null // originalFilename
+        );
+        
+        // Fetch document to get original filename
+        Document doc = documentService.getDocument(job.getDocumentId());
+        if (doc != null) {
+            response.setOriginalFilename(doc.getOriginalFilename());
+        }
+        
+        return response;
+    }
+
+    /**
+     * Get all interpretation jobs with document information.
+     */
+    public List<JobStatusResponse> getAllJobs() {
+        List<InterpretationJob> jobs = interpretationJobRepository.findAll();
+        
+        return jobs.stream()
+                .map(job -> {
+                    Document doc = documentService.getDocument(job.getDocumentId());
+                    JobStatusResponse response = new JobStatusResponse(
+                            job.getId(),
+                            job.getDocumentId(),
+                            job.getStatus(),
+                            job.getDocumentType(),
+                            job.getCreated(),
+                            job.getStartedAt(),
+                            job.getFinishedAt(),
+                            job.getError(),
+                            null // originalFilename
+                    );
+                    if (doc != null) {
+                        response.setOriginalFilename(doc.getOriginalFilename());
+                    }
+                    return response;
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * Get extraction results for a document.
+     */
+    public ExtractionResultResponse getExtractionResult(String documentId) {
+        InterpretationResult result = interpretationResultRepository.findByDocumentId(documentId)
+                .orElseThrow(() -> new IllegalArgumentException("No interpretation result found for document: " + documentId));
+
+        ExtractionResultResponse response = new ExtractionResultResponse();
+        response.setDocumentId(result.getDocumentId());
+        response.setDocumentType(result.getDocumentType());
+        response.setInterpretedAt(result.getInterpretedAt());
+
+        // Populate invoice fields if present
+        if (result.getInvoiceFields() != null) {
+            InvoiceFields fields = result.getInvoiceFields();
+            response.setInvoiceFields(new ExtractionResultResponse.InvoiceFieldsDto(
+                    fields.getAmount(),
+                    fields.getCurrency(),
+                    fields.getDate(),
+                    fields.getDescription(),
+                    fields.getSender()
+            ));
+        }
+
+        // Populate transactions if present
+        if (result.getStatementTransactions() != null && !result.getStatementTransactions().isEmpty()) {
+            List<ExtractionResultResponse.TransactionDto> transactions = result.getStatementTransactions().stream()
+                    .map(t -> new ExtractionResultResponse.TransactionDto(
+                            t.getAmount(),
+                            t.getCurrency(),
+                            t.getDate(),
+                            t.getDescription()
+                    ))
+                    .collect(Collectors.toList());
+            response.setTransactions(transactions);
+        }
+
+        return response;
+    }
+
+    /**
+     * Save corrections to interpretation results.
+     */
+    @Transactional
+    public void saveCorrection(String documentId, SaveCorrectionRequest request) {
+        // Validate document exists
+        Document document = documentService.getDocument(documentId);
+        if (document == null) {
+            throw new IllegalArgumentException("Document not found: " + documentId);
+        }
+
+        // Find or create interpretation result
+        InterpretationResult result = interpretationResultRepository.findByDocumentId(documentId)
+                .orElseGet(() -> {
+                    InterpretationResult newResult = new InterpretationResult();
+                    newResult.setDocumentId(documentId);
+                    newResult.setDocumentType(request.getDocumentType());
+                    newResult.setInterpretedAt(Instant.now());
+                    return newResult;
+                });
+
+        // Update with corrected data
+        result.setDocumentType(request.getDocumentType());
+
+        if (request.getInvoiceFields() != null) {
+            SaveCorrectionRequest.InvoiceFieldsDto dto = request.getInvoiceFields();
+            InvoiceFields fields = new InvoiceFields(
+                    dto.getAmount(),
+                    dto.getCurrency(),
+                    dto.getDate(),
+                    dto.getDescription(),
+                    dto.getSender()
+            );
+            result.setInvoiceFields(fields);
+            result.setStatementTransactions(new ArrayList<>()); // Clear transactions for invoice
+        }
+
+        if (request.getTransactions() != null && !request.getTransactions().isEmpty()) {
+            // Clear existing transactions
+            result.getStatementTransactions().clear();
+
+            // Add corrected transactions
+            for (SaveCorrectionRequest.TransactionDto dto : request.getTransactions()) {
+                StatementTransaction transaction = new StatementTransaction();
+                transaction.setInterpretationResult(result);
+                transaction.setAmount(dto.getAmount());
+                transaction.setCurrency(dto.getCurrency());
+                transaction.setDate(dto.getDate());
+                transaction.setDescription(dto.getDescription());
+                result.getStatementTransactions().add(transaction);
+            }
+            result.setInvoiceFields(null); // Clear invoice fields for statement
         }
 
         interpretationResultRepository.save(result);

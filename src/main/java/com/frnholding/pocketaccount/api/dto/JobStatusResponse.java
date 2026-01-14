@@ -16,4 +16,15 @@ public class JobStatusResponse {
     private Instant startedAt;
     private Instant finishedAt;
     private String error;
+    private String documentType;
+    private String originalFilename;
+
+    public JobStatusResponse(String jobId, String documentId, String status, Instant startedAt, Instant finishedAt, String error) {
+        this.jobId = jobId;
+        this.documentId = documentId;
+        this.status = status;
+        this.startedAt = startedAt;
+        this.finishedAt = finishedAt;
+        this.error = error;
+    }
 }
