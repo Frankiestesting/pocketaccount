@@ -31,6 +31,9 @@ public class InterpretationResult {
     @Column(nullable = false)
     private Instant interpretedAt;
     
+    @Column(length = 500)
+    private String extractionMethods;
+    
     @Embedded
     private InvoiceFields invoiceFields;
     

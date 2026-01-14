@@ -1,0 +1,50 @@
+            ┌───────────────────────────────┐
+            │           REST API            │
+            │  ExtractionController         │
+            └───────────────┬───────────────┘
+                            │ start job / get status / get result
+                            ▼
+            ┌───────────────────────────────┐
+            │        ExtractionService       │
+            │  - startExtraction(docId)      │
+            │  - getLatestResult(docId)      │
+            └───────────────┬───────────────┘
+                            │ creates/updates
+                            ▼
+     ┌───────────────────────────────┐     ┌───────────────────────────────┐
+     │    ExtractionJobRepository     │     │   ExtractionResultRepository   │
+     └───────────────┬───────────────┘     └───────────────┬───────────────┘
+                     │                                     │
+                     ▼                                     ▼
+              ┌───────────────┐                     ┌───────────────┐
+              │  Job (DB)      │                     │ Result (DB)    │
+              └───────┬───────┘                     └───────┬───────┘
+                      │                                     ▲
+                      │ worker picks job                    │ saves
+                      ▼                                     │
+            ┌───────────────────────────────┐              │
+            │       ExtractionJobRunner      │──────────────┘
+            └───────────────┬───────────────┘
+                            │ runs pipeline
+                            ▼
+            ┌───────────────────────────────┐
+            │        ExtractionPipeline       │
+            │  1) Extract text               │
+            │  2) Classify                   │
+            │  3) Extract fields/tx          │
+            │  4) Normalize + confidence     │
+            └───────┬───────────┬───────────┘
+                    │           │
+                    │           │
+        ┌───────────▼───┐   ┌──▼────────────────┐
+        │ TextExtractor  │   │   Extractors       │
+        │ - PdfBox...    │   │ - RegexInvoice...  │
+        │ - Ocr...       │   │ - HeuristicStmt... │
+        └───────┬────────┘   │ - OpenAi... (opt)  │
+                │            └────────────────────┘
+                │ reads PDF
+                ▼
+        ┌───────────────────────────────┐
+        │      Document / PdfStorage      │
+        │ (document table + pdf bytes)    │
+        └───────────────────────────────┘

@@ -50,6 +50,7 @@ public class CompositeTextExtractor implements DocumentTextInterpreter {
             
             if (pdfBoxSuccessful) {
                 log.info("PDFBox extraction successful for document {}, OCR not needed", documentId);
+                pdfBoxResult.setTextExtractorUsed("PDFBox");
                 enrichMetadata(pdfBoxResult, "PDFBox", false);
                 return pdfBoxResult;
             } else {
@@ -70,6 +71,7 @@ public class CompositeTextExtractor implements DocumentTextInterpreter {
             log.info("OCR extraction completed for document {}, extracted {} chars in {} lines",
                     documentId, ocrResult.getRawText().length(), ocrResult.getLines().size());
             
+            ocrResult.setTextExtractorUsed("Composite(OCR)");
             enrichMetadata(ocrResult, "OCR", true);
             
             // Include PDFBox attempt info in metadata

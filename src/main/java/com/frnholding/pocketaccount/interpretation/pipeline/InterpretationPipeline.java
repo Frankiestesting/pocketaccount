@@ -62,15 +62,28 @@ public class InterpretationPipeline {
             result.setDocumentType(documentType.name());
             result.setInterpretedAt(Instant.now());
 
+            // Track extraction methods used
+            StringBuilder extractionMethods = new StringBuilder();
+            if (interpretedText.getTextExtractorUsed() != null) {
+                extractionMethods.append(interpretedText.getTextExtractorUsed());
+            }
+            if (interpretedText.isOcrUsed()) {
+                if (extractionMethods.length() > 0) extractionMethods.append(", ");
+                extractionMethods.append("OCR");
+            }
+
             if (documentType == DocumentType.INVOICE) {
-                InvoiceFields invoiceFields = extractInvoiceFields(interpretedText);
+                InvoiceFields invoiceFields = extractInvoiceFields(interpretedText, options.isUseAi(), extractionMethods);
                 result.setInvoiceFields(invoiceFields);
                 log.debug("Invoice fields extracted: {}", invoiceFields);
             } else if (documentType == DocumentType.STATEMENT) {
-                List<StatementTransaction> transactions = extractStatementTransactions(interpretedText, result);
+                List<StatementTransaction> transactions = extractStatementTransactions(interpretedText, result, options.isUseAi(), extractionMethods);
                 result.setStatementTransactions(transactions);
                 log.debug("Statement transactions extracted: {} transactions", transactions.size());
             }
+
+            // Set the extraction methods used
+            result.setExtractionMethods(extractionMethods.toString());
 
             // Step 4: Calculate confidence scores (if available)
             if (confidenceScorer != null) {
@@ -103,19 +116,31 @@ public class InterpretationPipeline {
         return documentClassifier.classify(text, hintedType);
     }
 
-    private InvoiceFields extractInvoiceFields(InterpretedText text) {
+    private InvoiceFields extractInvoiceFields(InterpretedText text, boolean useAi, StringBuilder extractionMethods) {
         if (invoiceExtractor == null) {
             log.warn("InvoiceExtractor not available, returning null");
             return null;
         }
+        
+        // Track which extractor is being used
+        String extractorType = useAi ? "AI" : "Heuristic";
+        if (extractionMethods.length() > 0) extractionMethods.append(", ");
+        extractionMethods.append(extractorType).append("InvoiceExtractor");
+        
         return invoiceExtractor.extract(text);
     }
 
-    private List<StatementTransaction> extractStatementTransactions(InterpretedText text, InterpretationResult result) {
+    private List<StatementTransaction> extractStatementTransactions(InterpretedText text, InterpretationResult result, boolean useAi, StringBuilder extractionMethods) {
         if (statementExtractor == null) {
             log.warn("StatementExtractor not available, returning empty list");
             return List.of();
         }
+        
+        // Track which extractor is being used
+        String extractorType = useAi ? "AI" : "Heuristic";
+        if (extractionMethods.length() > 0) extractionMethods.append(", ");
+        extractionMethods.append(extractorType).append("StatementExtractor");
+        
         return statementExtractor.extract(text);
     }
 
@@ -130,6 +155,7 @@ public class InterpretationPipeline {
         text.setLines(List.of("Line 1", "Line 2"));
         text.setOcrUsed(false);
         text.setLanguageDetected("nb");
+        text.setTextExtractorUsed("Mock");
         return text;
     }
 }

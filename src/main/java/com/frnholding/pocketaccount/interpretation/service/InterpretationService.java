@@ -226,6 +226,7 @@ public class InterpretationService {
         response.setDocumentId(result.getDocumentId());
         response.setDocumentType(result.getDocumentType());
         response.setInterpretedAt(result.getInterpretedAt());
+        response.setExtractionMethods(result.getExtractionMethods());
 
         // Populate invoice fields if present
         if (result.getInvoiceFields() != null) {

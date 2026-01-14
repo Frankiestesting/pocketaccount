@@ -89,13 +89,16 @@ public class OcrTextExtractor implements DocumentTextInterpreter {
 
             log.info("Successfully extracted {} lines from document using OCR", allLines.size());
 
-            return new InterpretedText(
+            InterpretedText result = new InterpretedText(
                     rawText,
                     allLines,
                     metadata,
                     true, // OCR used
-                    detectLanguageFromOcr(rawText)
+                    detectLanguageFromOcr(rawText),
+                    null  // textExtractorUsed set below
             );
+            result.setTextExtractorUsed("Tesseract");
+            return result;
 
         } catch (IOException | TesseractException e) {
             log.error("Failed to extract text using OCR: {}", e.getMessage(), e);

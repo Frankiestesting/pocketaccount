@@ -20,4 +20,5 @@ public class InterpretedText {
     private Map<String, Object> metadata;
     private boolean ocrUsed;
     private String languageDetected;
+    private String textExtractorUsed; // e.g., "PDFBox", "OCR", "Composite"
 }

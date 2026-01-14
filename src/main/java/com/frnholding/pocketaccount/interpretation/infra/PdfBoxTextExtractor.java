@@ -61,13 +61,16 @@ public class PdfBoxTextExtractor implements DocumentTextInterpreter {
             log.info("Successfully extracted {} lines from {} pages using PDFBox", 
                     lines.size(), pdDocument.getNumberOfPages());
 
-            return new InterpretedText(
+            InterpretedText result = new InterpretedText(
                     rawText.trim(),
                     lines,
                     metadata,
                     false, // OCR not used
-                    detectLanguage(rawText)
+                    detectLanguage(rawText),
+                    null  // textExtractorUsed set below
             );
+            result.setTextExtractorUsed("PDFBox");
+            return result;
 
         } catch (IOException e) {
             log.error("Failed to extract text from PDF using PDFBox: {}", e.getMessage(), e);

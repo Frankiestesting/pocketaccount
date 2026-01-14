@@ -33,6 +33,11 @@ public class ExtractionResultResponse {
     private Instant interpretedAt;
     
     /**
+     * Extraction methods used (e.g., "PDFBox, HeuristicInvoiceExtractor" or "Tesseract, AIInvoiceExtractor").
+     */
+    private String extractionMethods;
+    
+    /**
      * Invoice fields (populated only for INVOICE document type).
      */
     private InvoiceFieldsDto invoiceFields;
