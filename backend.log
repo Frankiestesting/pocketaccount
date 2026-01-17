@@ -74,3 +74,11 @@
 2026-01-17T08:47:35.686+01:00  INFO 40373 --- [demo] [nio-8080-exec-3] c.f.p.i.pipeline.InterpretationPipeline  : Interpretation pipeline completed successfully for document: 4af48746-0463-4d0f-a5d1-499f9ddeac42
 2026-01-17T08:47:35.686+01:00  INFO 40373 --- [demo] [nio-8080-exec-3] c.f.p.i.service.InterpretationJobRunner  : Interpretation completed for document: 4af48746-0463-4d0f-a5d1-499f9ddeac42 with type: STATEMENT
 2026-01-17T08:47:35.692+01:00  INFO 40373 --- [demo] [nio-8080-exec-3] c.f.p.i.service.InterpretationJobRunner  : Interpretation job completed successfully: 8b761a5e-9a1b-492f-9db2-7d5a92309dd0
+2026-01-17T08:56:22.535+01:00  WARN 40373 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=7m36s12ms).
+2026-01-17T08:59:12.194+01:00  WARN 40373 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=1m43s434ms).
+2026-01-17T09:15:14.892+01:00  WARN 40373 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=16m2s698ms).
+2026-01-17T09:29:31.477+01:00  WARN 40373 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=13m46s576ms).
+2026-01-17T09:40:17.315+01:00  WARN 40373 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=10m45s838ms).
+2026-01-17T10:12:49.888+01:00  WARN 40373 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=32m32s573ms).
+2026-01-17T10:29:19.696+01:00  WARN 40373 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=16m29s808ms).
+2026-01-17T10:52:05.883+01:00  WARN 40373 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=22m46s187ms).

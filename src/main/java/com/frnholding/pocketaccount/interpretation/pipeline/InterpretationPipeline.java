@@ -25,10 +25,20 @@ public class InterpretationPipeline {
     private DocumentClassifier documentClassifier;
 
     @Autowired(required = false)
-    private InvoiceExtractor invoiceExtractor;
+    @Qualifier("regexInvoiceExtractor")
+    private InvoiceExtractor heuristicInvoiceExtractor;
 
     @Autowired(required = false)
-    private StatementExtractor statementExtractor;
+    @Qualifier("openAiInvoiceExtractor")
+    private InvoiceExtractor aiInvoiceExtractor;
+
+    @Autowired(required = false)
+    @Qualifier("heuristicStatementExtractor")
+    private StatementExtractor heuristicStatementExtractor;
+
+    @Autowired(required = false)
+    @Qualifier("openAiStatementExtractor")
+    private StatementExtractor aiStatementExtractor;
 
     @Autowired(required = false)
     private FieldNormalizer fieldNormalizer;
@@ -117,8 +127,10 @@ public class InterpretationPipeline {
     }
 
     private InvoiceFieldsDTO extractInvoiceFields(InterpretedText text, boolean useAi, StringBuilder extractionMethods) {
-        if (invoiceExtractor == null) {
-            log.warn("InvoiceExtractor not available, returning null");
+        InvoiceExtractor extractor = useAi ? aiInvoiceExtractor : heuristicInvoiceExtractor;
+        
+        if (extractor == null) {
+            log.warn("InvoiceExtractor ({}) not available, returning null", useAi ? "AI" : "Heuristic");
             return null;
         }
         
@@ -127,12 +139,14 @@ public class InterpretationPipeline {
         if (extractionMethods.length() > 0) extractionMethods.append(", ");
         extractionMethods.append(extractorType).append("InvoiceExtractor");
         
-        return invoiceExtractor.extract(text);
+        return extractor.extract(text);
     }
 
     private List<StatementTransaction> extractStatementTransactions(InterpretedText text, InterpretationResult result, boolean useAi, StringBuilder extractionMethods) {
-        if (statementExtractor == null) {
-            log.warn("StatementExtractor not available, returning empty list");
+        StatementExtractor extractor = useAi ? aiStatementExtractor : heuristicStatementExtractor;
+        
+        if (extractor == null) {
+            log.warn("StatementExtractor ({}) not available, returning empty list", useAi ? "AI" : "Heuristic");
             return List.of();
         }
         
@@ -141,7 +155,7 @@ public class InterpretationPipeline {
         if (extractionMethods.length() > 0) extractionMethods.append(", ");
         extractionMethods.append(extractorType).append("StatementExtractor");
         
-        return statementExtractor.extract(text);
+        return extractor.extract(text);
     }
 
     private Map<String, Double> calculateConfidenceScores(InterpretationResult result, InterpretedText text) {

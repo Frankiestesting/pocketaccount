@@ -4,7 +4,6 @@ import com.frnholding.pocketaccount.interpretation.domain.StatementTransaction;
 import com.frnholding.pocketaccount.interpretation.pipeline.InterpretedText;
 import com.frnholding.pocketaccount.interpretation.pipeline.StatementExtractor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -22,7 +21,6 @@ import java.util.regex.Pattern;
  */
 @Slf4j
 @Component
-@Primary
 public class HeuristicStatementExtractor implements StatementExtractor {
 
     // Transaction line patterns - matches typical statement formats

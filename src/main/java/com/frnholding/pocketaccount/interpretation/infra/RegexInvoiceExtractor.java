@@ -4,12 +4,10 @@ import com.frnholding.pocketaccount.interpretation.domain.InvoiceFieldsDTO;
 import com.frnholding.pocketaccount.interpretation.pipeline.InterpretedText;
 import com.frnholding.pocketaccount.interpretation.pipeline.InvoiceExtractor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.context.annotation.Primary;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
-import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.regex.Matcher;
@@ -22,7 +20,6 @@ import java.util.regex.Pattern;
  */
 @Slf4j
 @Component
-@Primary
 public class RegexInvoiceExtractor implements InvoiceExtractor {
 
     // Currency patterns
