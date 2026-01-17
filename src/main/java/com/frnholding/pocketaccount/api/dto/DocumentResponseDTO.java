@@ -7,14 +7,14 @@ import java.time.Instant;
 
 @Data
 @NoArgsConstructor
-public class DocumentResponse {
+public class DocumentResponseDTO {
     private String id;
     private String status;
     private String documentType;
     private Instant uploadedAt;
     private String originalFilename;
 
-    public DocumentResponse(String id, String status, String documentType, Instant uploadedAt, String originalFilename) {
+    public DocumentResponseDTO(String id, String status, String documentType, Instant uploadedAt, String originalFilename) {
         this.id = id;
         this.status = status;
         this.documentType = documentType;

@@ -12,7 +12,7 @@ import java.time.Instant;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class StartExtractionResponse {
+public class StartExtractionResponseDTO {
     /**
      * Unique identifier for the interpretation job.
      */

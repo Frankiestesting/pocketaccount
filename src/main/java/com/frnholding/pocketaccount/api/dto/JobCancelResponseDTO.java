@@ -4,12 +4,13 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
+
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class JobCreationRequest {
-    private String pipeline;
-    private boolean useOcr;
-    private boolean useAi;
-    private String languageHint;
+public class JobCancelResponseDTO {
+    private String jobId;
+    private String status;
+    private Instant cancelledAt;
 }

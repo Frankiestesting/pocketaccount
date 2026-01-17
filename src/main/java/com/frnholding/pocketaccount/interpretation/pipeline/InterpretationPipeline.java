@@ -1,7 +1,7 @@
 package com.frnholding.pocketaccount.interpretation.pipeline;
 
 import com.frnholding.pocketaccount.interpretation.domain.InterpretationResult;
-import com.frnholding.pocketaccount.interpretation.domain.InvoiceFields;
+import com.frnholding.pocketaccount.interpretation.domain.InvoiceFieldsDTO;
 import com.frnholding.pocketaccount.interpretation.domain.StatementTransaction;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -73,7 +73,7 @@ public class InterpretationPipeline {
             }
 
             if (documentType == DocumentType.INVOICE) {
-                InvoiceFields invoiceFields = extractInvoiceFields(interpretedText, options.isUseAi(), extractionMethods);
+                InvoiceFieldsDTO invoiceFields = extractInvoiceFields(interpretedText, options.isUseAi(), extractionMethods);
                 result.setInvoiceFields(invoiceFields);
                 log.debug("Invoice fields extracted: {}", invoiceFields);
             } else if (documentType == DocumentType.STATEMENT) {
@@ -116,7 +116,7 @@ public class InterpretationPipeline {
         return documentClassifier.classify(text, hintedType);
     }
 
-    private InvoiceFields extractInvoiceFields(InterpretedText text, boolean useAi, StringBuilder extractionMethods) {
+    private InvoiceFieldsDTO extractInvoiceFields(InterpretedText text, boolean useAi, StringBuilder extractionMethods) {
         if (invoiceExtractor == null) {
             log.warn("InvoiceExtractor not available, returning null");
             return null;

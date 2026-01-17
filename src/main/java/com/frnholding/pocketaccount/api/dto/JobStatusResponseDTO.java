@@ -9,7 +9,7 @@ import java.time.Instant;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class JobStatusResponse {
+public class JobStatusResponseDTO {
     private String jobId;
     private String documentId;
     private String status;
@@ -19,7 +19,7 @@ public class JobStatusResponse {
     private String documentType;
     private String originalFilename;
 
-    public JobStatusResponse(String jobId, String documentId, String status, Instant startedAt, Instant finishedAt, String error) {
+    public JobStatusResponseDTO(String jobId, String documentId, String status, Instant startedAt, Instant finishedAt, String error) {
         this.jobId = jobId;
         this.documentId = documentId;
         this.status = status;

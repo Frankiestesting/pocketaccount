@@ -9,11 +9,9 @@ import java.time.Instant;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class DocumentUploadResponse {
+public class JobCreationResponseDTO {
+    private String jobId;
     private String documentId;
     private String status;
     private Instant created;
-    private String originalFilename;
-    private String documentType;
-    private Long fileSize;
 }

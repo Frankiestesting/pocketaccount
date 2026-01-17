@@ -77,7 +77,7 @@ public class InterpretationService {
 
         if ("INVOICE".equals(documentType)) {
             // Create mock invoice fields
-            InvoiceFields invoiceFields = new InvoiceFields(
+            InvoiceFieldsDTO invoiceFields = new InvoiceFieldsDTO(
                     12450.00,
                     "NOK",
                     LocalDate.parse("2026-01-02"),
@@ -106,7 +106,7 @@ public class InterpretationService {
      * Start a new extraction job with configuration options.
      */
     @Transactional
-    public StartExtractionResponse startExtraction(String documentId, StartExtractionRequest request) {
+    public StartExtractionResponseDTO startExtraction(String documentId, StartExtractionRequestDTO request) {
         // Validate document exists
         Document document = documentService.getDocument(documentId);
         if (document == null) {
@@ -136,7 +136,7 @@ public class InterpretationService {
                 request.getLanguageHint()
         );
 
-        return new StartExtractionResponse(
+        return new StartExtractionResponseDTO(
                 job.getId(),
                 job.getDocumentId(),
                 job.getStatus(),
@@ -148,11 +148,11 @@ public class InterpretationService {
     /**
      * Get job status.
      */
-    public JobStatusResponse getJobStatus(String jobId) {
+    public JobStatusResponseDTO getJobStatus(String jobId) {
         InterpretationJob job = interpretationJobRepository.findById(jobId)
                 .orElseThrow(() -> new IllegalArgumentException("Job not found: " + jobId));
 
-        JobStatusResponse response = new JobStatusResponse(
+        JobStatusResponseDTO response = new JobStatusResponseDTO(
                 job.getId(),
                 job.getDocumentId(),
                 job.getStatus(),
@@ -176,13 +176,13 @@ public class InterpretationService {
     /**
      * Get all interpretation jobs with document information.
      */
-    public List<JobStatusResponse> getAllJobs() {
+    public List<JobStatusResponseDTO> getAllJobs() {
         List<InterpretationJob> jobs = interpretationJobRepository.findAll();
         
         return jobs.stream()
                 .map(job -> {
                     Document doc = documentService.getDocument(job.getDocumentId());
-                    JobStatusResponse response = new JobStatusResponse(
+                    JobStatusResponseDTO response = new JobStatusResponseDTO(
                             job.getId(),
                             job.getDocumentId(),
                             job.getStatus(),
@@ -204,7 +204,7 @@ public class InterpretationService {
     /**
      * Get extraction results for a document.
      */
-    public ExtractionResultResponse getExtractionResult(String documentId) {
+    public ExtractionResultResponseDTO getExtractionResult(String documentId) {
         InterpretationResult result = interpretationResultRepository.findByDocumentId(documentId)
                 .orElseThrow(() -> new IllegalArgumentException("No interpretation result found for document: " + documentId));
 
@@ -214,15 +214,15 @@ public class InterpretationService {
     /**
      * Get extraction results for a specific job.
      */
-    public ExtractionResultResponse getJobResult(String jobId) {
+    public ExtractionResultResponseDTO getJobResult(String jobId) {
         InterpretationResult result = interpretationResultRepository.findByJobId(jobId)
                 .orElseThrow(() -> new IllegalArgumentException("No interpretation result found for job: " + jobId));
 
         return buildExtractionResultResponse(result);
     }
 
-    private ExtractionResultResponse buildExtractionResultResponse(InterpretationResult result) {
-        ExtractionResultResponse response = new ExtractionResultResponse();
+    private ExtractionResultResponseDTO buildExtractionResultResponse(InterpretationResult result) {
+        ExtractionResultResponseDTO response = new ExtractionResultResponseDTO();
         response.setDocumentId(result.getDocumentId());
         response.setDocumentType(result.getDocumentType());
         response.setInterpretedAt(result.getInterpretedAt());
@@ -230,8 +230,8 @@ public class InterpretationService {
 
         // Populate invoice fields if present
         if (result.getInvoiceFields() != null) {
-            InvoiceFields fields = result.getInvoiceFields();
-            response.setInvoiceFields(new ExtractionResultResponse.InvoiceFieldsDto(
+            InvoiceFieldsDTO fields = result.getInvoiceFields();
+            response.setInvoiceFields(new ExtractionResultResponseDTO.InvoiceFieldsDto(
                     fields.getAmount(),
                     fields.getCurrency(),
                     fields.getDate(),
@@ -242,8 +242,8 @@ public class InterpretationService {
 
         // Populate transactions if present
         if (result.getStatementTransactions() != null && !result.getStatementTransactions().isEmpty()) {
-            List<ExtractionResultResponse.TransactionDto> transactions = result.getStatementTransactions().stream()
-                    .map(t -> new ExtractionResultResponse.TransactionDto(
+            List<ExtractionResultResponseDTO.TransactionDto> transactions = result.getStatementTransactions().stream()
+                    .map(t -> new ExtractionResultResponseDTO.TransactionDto(
                             t.getAmount(),
                             t.getCurrency(),
                             t.getDate(),
@@ -260,7 +260,7 @@ public class InterpretationService {
      * Save corrections to interpretation results.
      */
     @Transactional
-    public void saveCorrection(String documentId, SaveCorrectionRequest request) {
+    public void saveCorrection(String documentId, SaveCorrectionRequestDTO request) {
         // Validate document exists
         Document document = documentService.getDocument(documentId);
         if (document == null) {
@@ -281,8 +281,8 @@ public class InterpretationService {
         result.setDocumentType(request.getDocumentType());
 
         if (request.getInvoiceFields() != null) {
-            SaveCorrectionRequest.InvoiceFieldsDto dto = request.getInvoiceFields();
-            InvoiceFields fields = new InvoiceFields(
+            SaveCorrectionRequestDTO.InvoiceFieldsDto dto = request.getInvoiceFields();
+            InvoiceFieldsDTO fields = new InvoiceFieldsDTO(
                     dto.getAmount(),
                     dto.getCurrency(),
                     dto.getDate(),
@@ -298,7 +298,7 @@ public class InterpretationService {
             result.getStatementTransactions().clear();
 
             // Add corrected transactions
-            for (SaveCorrectionRequest.TransactionDto dto : request.getTransactions()) {
+            for (SaveCorrectionRequestDTO.TransactionDto dto : request.getTransactions()) {
                 StatementTransaction transaction = new StatementTransaction();
                 transaction.setInterpretationResult(result);
                 transaction.setAmount(dto.getAmount());

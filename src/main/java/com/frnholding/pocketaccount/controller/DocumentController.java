@@ -1,14 +1,14 @@
 package com.frnholding.pocketaccount.controller;
 
-import com.frnholding.pocketaccount.api.dto.DocumentCorrectionRequest;
-import com.frnholding.pocketaccount.api.dto.JobCreationRequest;
-import com.frnholding.pocketaccount.api.dto.DocumentCorrectionResponse;
-import com.frnholding.pocketaccount.api.dto.DocumentResponse;
-import com.frnholding.pocketaccount.api.dto.DocumentUploadResponse;
-import com.frnholding.pocketaccount.api.dto.ExtractionResultResponse;
-import com.frnholding.pocketaccount.api.dto.JobCancelResponse;
-import com.frnholding.pocketaccount.api.dto.JobCreationResponse;
-import com.frnholding.pocketaccount.api.dto.JobStatusResponse;
+import com.frnholding.pocketaccount.api.dto.DocumentCorrectionRequestDTO;
+import com.frnholding.pocketaccount.api.dto.JobCreationRequestDTO;
+import com.frnholding.pocketaccount.api.dto.DocumentCorrectionResponseDTO;
+import com.frnholding.pocketaccount.api.dto.DocumentResponseDTO;
+import com.frnholding.pocketaccount.api.dto.DocumentUploadResponseDTO;
+import com.frnholding.pocketaccount.api.dto.ExtractionResultResponseDTO;
+import com.frnholding.pocketaccount.api.dto.JobCancelResponseDTO;
+import com.frnholding.pocketaccount.api.dto.JobCreationResponseDTO;
+import com.frnholding.pocketaccount.api.dto.JobStatusResponseDTO;
 import com.frnholding.pocketaccount.domain.Document;
 import com.frnholding.pocketaccount.domain.Job;
 import com.frnholding.pocketaccount.service.DocumentService;
@@ -31,11 +31,11 @@ public class DocumentController {
     private DocumentService documentService;
 
     @GetMapping("/documents")
-    public ResponseEntity<java.util.List<DocumentResponse>> getAllDocuments() {
+    public ResponseEntity<java.util.List<DocumentResponseDTO>> getAllDocuments() {
         try {
             java.util.List<Document> documents = documentService.getAllDocuments();
-            java.util.List<DocumentResponse> responses = documents.stream()
-                    .map(doc -> new DocumentResponse(
+            java.util.List<DocumentResponseDTO> responses = documents.stream()
+                    .map(doc -> new DocumentResponseDTO(
                             doc.getId(),
                             doc.getStatus(),
                             doc.getDocumentType(),
@@ -51,7 +51,7 @@ public class DocumentController {
     }
 
     @PostMapping(value = "/documents", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    public ResponseEntity<DocumentUploadResponse> uploadDocument(
+    public ResponseEntity<DocumentUploadResponseDTO> uploadDocument(
             @RequestParam("file") MultipartFile file,
             @RequestParam("source") String source,
             @RequestParam("originalFilename") String originalFilename,
@@ -59,7 +59,7 @@ public class DocumentController {
 
         try {
             Document document = documentService.uploadDocument(file, source, originalFilename, documentType);
-            DocumentUploadResponse response = new DocumentUploadResponse(
+            DocumentUploadResponseDTO response = new DocumentUploadResponseDTO(
                     document.getId(),
                     document.getStatus(),
                     document.getCreated(),
@@ -75,13 +75,13 @@ public class DocumentController {
     }
 
     @GetMapping("/documents/{documentId}")
-    public ResponseEntity<DocumentResponse> getDocument(@PathVariable String documentId) {
+    public ResponseEntity<DocumentResponseDTO> getDocument(@PathVariable String documentId) {
         try {
             Document document = documentService.getDocument(documentId);
             if (document == null) {
                 return ResponseEntity.notFound().build();
             }
-            DocumentResponse response = new DocumentResponse(
+            DocumentResponseDTO response = new DocumentResponseDTO(
                     document.getId(),
                     document.getStatus(),
                     document.getDocumentType(),
@@ -112,10 +112,10 @@ public class DocumentController {
     }
 
     @PostMapping("/documents/{documentId}/jobs")
-    public ResponseEntity<JobCreationResponse> createJob(@PathVariable String documentId, @RequestBody JobCreationRequest request) {
+    public ResponseEntity<JobCreationResponseDTO> createJob(@PathVariable String documentId, @RequestBody JobCreationRequestDTO request) {
         try {
             Job job = documentService.createJob(documentId, request.getPipeline(), request.isUseOcr(), request.isUseAi(), request.getLanguageHint());
-            JobCreationResponse response = new JobCreationResponse(
+            JobCreationResponseDTO response = new JobCreationResponseDTO(
                     job.getId(),
                     job.getDocumentId(),
                     job.getStatus(),
@@ -131,13 +131,13 @@ public class DocumentController {
     }
 
     @GetMapping("/jobs/{jobId}")
-    public ResponseEntity<JobStatusResponse> getJobStatus(@PathVariable String jobId) {
+    public ResponseEntity<JobStatusResponseDTO> getJobStatus(@PathVariable String jobId) {
         try {
             Job job = documentService.getJob(jobId);
             if (job == null) {
                 return ResponseEntity.notFound().build();
             }
-            JobStatusResponse response = new JobStatusResponse(
+            JobStatusResponseDTO response = new JobStatusResponseDTO(
                     job.getId(),
                     job.getDocumentId(),
                     job.getStatus(),
@@ -153,13 +153,13 @@ public class DocumentController {
     }
 
     @GetMapping("/jobs")
-    public ResponseEntity<java.util.List<JobStatusResponse>> getAllJobs() {
+    public ResponseEntity<java.util.List<JobStatusResponseDTO>> getAllJobs() {
         try {
             java.util.List<Job> jobs = documentService.getAllJobs();
-            java.util.List<JobStatusResponse> responses = jobs.stream()
+            java.util.List<JobStatusResponseDTO> responses = jobs.stream()
                     .map(job -> {
                         Document doc = documentService.getDocument(job.getDocumentId());
-                        JobStatusResponse response = new JobStatusResponse(
+                        JobStatusResponseDTO response = new JobStatusResponseDTO(
                                 job.getId(),
                                 job.getDocumentId(),
                                 job.getStatus(),
@@ -182,10 +182,10 @@ public class DocumentController {
     }
 
     @PostMapping("/jobs/{jobId}/cancel")
-    public ResponseEntity<JobCancelResponse> cancelJob(@PathVariable String jobId) {
+    public ResponseEntity<JobCancelResponseDTO> cancelJob(@PathVariable String jobId) {
         try {
             Job job = documentService.cancelJob(jobId);
-            JobCancelResponse response = new JobCancelResponse(
+            JobCancelResponseDTO response = new JobCancelResponseDTO(
                     job.getId(),
                     job.getStatus(),
                     job.getFinishedAt()
@@ -202,9 +202,9 @@ public class DocumentController {
     }
 
     @GetMapping("/documents/{documentId}/result")
-    public ResponseEntity<ExtractionResultResponse> getExtractionResult(@PathVariable String documentId) {
+    public ResponseEntity<ExtractionResultResponseDTO> getExtractionResult(@PathVariable String documentId) {
         try {
-            ExtractionResultResponse result = documentService.getExtractionResult(documentId);
+            ExtractionResultResponseDTO result = documentService.getExtractionResult(documentId);
             return ResponseEntity.ok(result);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();
@@ -215,11 +215,11 @@ public class DocumentController {
     }
 
     @PutMapping("/documents/{documentId}/correction")
-    public ResponseEntity<DocumentCorrectionResponse> saveCorrection(
+    public ResponseEntity<DocumentCorrectionResponseDTO> saveCorrection(
             @PathVariable String documentId,
-            @RequestBody DocumentCorrectionRequest request) {
+            @RequestBody DocumentCorrectionRequestDTO request) {
         try {
-            DocumentCorrectionResponse response = documentService.saveCorrection(documentId, request);
+            DocumentCorrectionResponseDTO response = documentService.saveCorrection(documentId, request);
             return ResponseEntity.ok(response);
         } catch (IllegalArgumentException e) {
             return ResponseEntity.notFound().build();

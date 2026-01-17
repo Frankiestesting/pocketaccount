@@ -9,8 +9,11 @@ import java.time.Instant;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class JobCancelResponse {
-    private String jobId;
+public class DocumentUploadResponseDTO {
+    private String documentId;
     private String status;
-    private Instant cancelledAt;
+    private Instant created;
+    private String originalFilename;
+    private String documentType;
+    private Long fileSize;
 }

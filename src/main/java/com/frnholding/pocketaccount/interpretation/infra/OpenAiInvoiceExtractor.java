@@ -1,7 +1,7 @@
 package com.frnholding.pocketaccount.interpretation.infra;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.frnholding.pocketaccount.interpretation.domain.InvoiceFields;
+import com.frnholding.pocketaccount.interpretation.domain.InvoiceFieldsDTO;
 import com.frnholding.pocketaccount.interpretation.pipeline.InterpretedText;
 import com.frnholding.pocketaccount.interpretation.pipeline.InvoiceExtractor;
 import com.theokanning.openai.completion.chat.ChatCompletionRequest;
@@ -45,12 +45,12 @@ public class OpenAiInvoiceExtractor implements InvoiceExtractor {
     private final ObjectMapper objectMapper = new ObjectMapper();
 
     @Override
-    public InvoiceFields extract(InterpretedText text) {
+    public InvoiceFieldsDTO extract(InterpretedText text) {
         log.info("Extracting invoice fields using OpenAI");
 
         if (!enabled || apiKey == null || apiKey.isEmpty()) {
             log.warn("OpenAI is not enabled or API key not configured, returning empty fields");
-            return new InvoiceFields();
+            return new InvoiceFieldsDTO();
         }
 
         try {
@@ -81,7 +81,7 @@ public class OpenAiInvoiceExtractor implements InvoiceExtractor {
 
             log.debug("OpenAI response: {}", response);
 
-            InvoiceFields fields = parseInvoiceResponse(response);
+            InvoiceFieldsDTO fields = parseInvoiceResponse(response);
             service.shutdownExecutor();
             
             log.info("Successfully extracted invoice fields: amount={}, date={}, sender={}", 
@@ -92,7 +92,7 @@ public class OpenAiInvoiceExtractor implements InvoiceExtractor {
         } catch (Exception e) {
             log.error("Failed to extract invoice fields using OpenAI: {}", e.getMessage(), e);
             // Return empty fields on error rather than failing
-            return new InvoiceFields();
+            return new InvoiceFieldsDTO();
         }
     }
 
@@ -117,7 +117,7 @@ public class OpenAiInvoiceExtractor implements InvoiceExtractor {
         return prompt.toString();
     }
 
-    private InvoiceFields parseInvoiceResponse(String response) {
+    private InvoiceFieldsDTO parseInvoiceResponse(String response) {
         try {
             // Clean response - remove markdown code blocks if present
             String jsonStr = response.trim();
@@ -135,7 +135,7 @@ public class OpenAiInvoiceExtractor implements InvoiceExtractor {
             @SuppressWarnings("unchecked")
             Map<String, Object> map = objectMapper.readValue(jsonStr, Map.class);
 
-            InvoiceFields fields = new InvoiceFields();
+            InvoiceFieldsDTO fields = new InvoiceFieldsDTO();
             
             // Extract amount
             if (map.containsKey("amount") && map.get("amount") != null) {
@@ -176,7 +176,7 @@ public class OpenAiInvoiceExtractor implements InvoiceExtractor {
 
         } catch (Exception e) {
             log.error("Failed to parse OpenAI response: {}", e.getMessage(), e);
-            return new InvoiceFields();
+            return new InvoiceFieldsDTO();
         }
     }
 

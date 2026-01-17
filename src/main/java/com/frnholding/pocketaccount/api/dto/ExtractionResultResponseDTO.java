@@ -11,7 +11,7 @@ import java.util.List;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class ExtractionResultResponse {
+public class ExtractionResultResponseDTO {
     private String documentId;
     private String documentType;
     private Integer extractionVersion;

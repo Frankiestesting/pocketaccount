@@ -9,7 +9,7 @@ import java.time.Instant;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class DocumentCorrectionResponse {
+public class DocumentCorrectionResponseDTO {
     private String documentId;
     private Integer correctionVersion;
     private Instant savedAt;

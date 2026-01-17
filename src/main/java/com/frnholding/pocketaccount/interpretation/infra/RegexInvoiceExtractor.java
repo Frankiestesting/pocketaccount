@@ -1,6 +1,6 @@
 package com.frnholding.pocketaccount.interpretation.infra;
 
-import com.frnholding.pocketaccount.interpretation.domain.InvoiceFields;
+import com.frnholding.pocketaccount.interpretation.domain.InvoiceFieldsDTO;
 import com.frnholding.pocketaccount.interpretation.pipeline.InterpretedText;
 import com.frnholding.pocketaccount.interpretation.pipeline.InvoiceExtractor;
 import lombok.extern.slf4j.Slf4j;
@@ -73,16 +73,16 @@ public class RegexInvoiceExtractor implements InvoiceExtractor {
     );
 
     @Override
-    public InvoiceFields extract(InterpretedText text) {
+    public InvoiceFieldsDTO extract(InterpretedText text) {
         log.info("Extracting invoice fields using regex-based rules");
 
         if (text == null || text.getRawText() == null || text.getRawText().isEmpty()) {
             log.warn("No text provided for invoice extraction");
-            return new InvoiceFields();
+            return new InvoiceFieldsDTO();
         }
 
         String content = text.getRawText();
-        InvoiceFields fields = new InvoiceFields();
+        InvoiceFieldsDTO fields = new InvoiceFieldsDTO();
 
         // Extract amount
         Double amount = extractAmount(content);

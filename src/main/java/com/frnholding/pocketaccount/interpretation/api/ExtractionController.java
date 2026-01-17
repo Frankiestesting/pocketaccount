@@ -1,6 +1,10 @@
 package com.frnholding.pocketaccount.interpretation.api;
 
-import com.frnholding.pocketaccount.interpretation.api.dto.*;
+import com.frnholding.pocketaccount.interpretation.api.dto.StartExtractionRequestDTO;
+import com.frnholding.pocketaccount.interpretation.api.dto.StartExtractionResponseDTO;
+import com.frnholding.pocketaccount.interpretation.api.dto.JobStatusResponseDTO;
+import com.frnholding.pocketaccount.interpretation.api.dto.ExtractionResultResponseDTO;
+import com.frnholding.pocketaccount.interpretation.api.dto.SaveCorrectionRequestDTO;
 import com.frnholding.pocketaccount.interpretation.service.InterpretationService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -29,15 +33,15 @@ public class ExtractionController {
      * @return Job creation response with job ID and status
      */
     @PostMapping("/documents/{id}/jobs")
-    public ResponseEntity<StartExtractionResponse> startExtraction(
+    public ResponseEntity<StartExtractionResponseDTO> startExtraction(
             @PathVariable String id,
-            @RequestBody StartExtractionRequest request) {
+            @RequestBody StartExtractionRequestDTO request) {
         
         log.info("Starting extraction job for document {} with options: useOcr={}, useAi={}, languageHint={}, hintedType={}", 
                 id, request.isUseOcr(), request.isUseAi(), request.getLanguageHint(), request.getHintedType());
         
         try {
-            StartExtractionResponse response = interpretationService.startExtraction(id, request);
+            StartExtractionResponseDTO response = interpretationService.startExtraction(id, request);
             return ResponseEntity.accepted().body(response);
             
         } catch (IllegalArgumentException e) {
@@ -57,12 +61,12 @@ public class ExtractionController {
      * @return List of all interpretation jobs
      */
     @GetMapping("/jobs")
-    public ResponseEntity<java.util.List<JobStatusResponse>> getAllJobs() {
+    public ResponseEntity<java.util.List<JobStatusResponseDTO>> getAllJobs() {
         
         log.debug("Getting all interpretation jobs");
         
         try {
-            java.util.List<JobStatusResponse> jobs = interpretationService.getAllJobs();
+            java.util.List<JobStatusResponseDTO> jobs = interpretationService.getAllJobs();
             return ResponseEntity.ok(jobs);
             
         } catch (Exception e) {
@@ -79,12 +83,12 @@ public class ExtractionController {
      * @return Job status response with progress and results
      */
     @GetMapping("/jobs/{jobId}")
-    public ResponseEntity<JobStatusResponse> getJobStatus(@PathVariable String jobId) {
+    public ResponseEntity<JobStatusResponseDTO> getJobStatus(@PathVariable String jobId) {
         
         log.debug("Getting status for interpretation job {}", jobId);
         
         try {
-            JobStatusResponse response = interpretationService.getJobStatus(jobId);
+            JobStatusResponseDTO response = interpretationService.getJobStatus(jobId);
             return ResponseEntity.ok(response);
             
         } catch (IllegalArgumentException e) {
@@ -105,12 +109,12 @@ public class ExtractionController {
      * @return Extraction results (invoice fields or statement transactions)
      */
     @GetMapping("/documents/{id}/result")
-    public ResponseEntity<ExtractionResultResponse> getExtractionResult(@PathVariable String id) {
+    public ResponseEntity<ExtractionResultResponseDTO> getExtractionResult(@PathVariable String id) {
         
         log.debug("Getting extraction result for document {}", id);
         
         try {
-            ExtractionResultResponse response = interpretationService.getExtractionResult(id);
+            ExtractionResultResponseDTO response = interpretationService.getExtractionResult(id);
             return ResponseEntity.ok(response);
             
         } catch (IllegalArgumentException e) {
@@ -131,12 +135,12 @@ public class ExtractionController {
      * @return Extraction results (invoice fields or statement transactions)
      */
     @GetMapping("/jobs/{jobId}/result")
-    public ResponseEntity<ExtractionResultResponse> getJobResult(@PathVariable String jobId) {
+    public ResponseEntity<ExtractionResultResponseDTO> getJobResult(@PathVariable String jobId) {
         
         log.debug("Getting extraction result for job {}", jobId);
         
         try {
-            ExtractionResultResponse response = interpretationService.getJobResult(jobId);
+            ExtractionResultResponseDTO response = interpretationService.getJobResult(jobId);
             return ResponseEntity.ok(response);
             
         } catch (IllegalArgumentException e) {
@@ -160,7 +164,7 @@ public class ExtractionController {
     @PutMapping("/documents/{id}/correction")
     public ResponseEntity<Void> saveCorrection(
             @PathVariable String id,
-            @RequestBody SaveCorrectionRequest request) {
+            @RequestBody SaveCorrectionRequestDTO request) {
         
         log.info("Saving correction for document {} of type {}", id, request.getDocumentType());
         

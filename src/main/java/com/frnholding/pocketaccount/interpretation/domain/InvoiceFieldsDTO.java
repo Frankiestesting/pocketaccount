@@ -11,7 +11,7 @@ import java.time.LocalDate;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class InvoiceFields {
+public class InvoiceFieldsDTO {
     private Double amount;
     private String currency;
     private LocalDate date;

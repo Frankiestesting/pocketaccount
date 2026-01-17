@@ -4,36 +4,48 @@ import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
 
+import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 
 /**
- * Request DTO for saving corrections to interpretation results.
+ * Response DTO for interpretation/extraction results.
+ * Contains either invoice fields or statement transactions based on document type.
  */
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class SaveCorrectionRequest {
+public class ExtractionResultResponseDTO {
     /**
-     * Document type being corrected.
+     * Document ID that was interpreted.
+     */
+    private String documentId;
+    
+    /**
+     * Type of document interpreted.
      * Values: "INVOICE", "STATEMENT", "RECEIPT", "UNKNOWN"
      */
     private String documentType;
     
     /**
-     * Corrected invoice fields (only for INVOICE type).
+     * Timestamp when the interpretation was performed.
+     */
+    private Instant interpretedAt;
+    
+    /**
+     * Extraction methods used (e.g., "PDFBox, HeuristicInvoiceExtractor" or "Tesseract, AIInvoiceExtractor").
+     */
+    private String extractionMethods;
+    
+    /**
+     * Invoice fields (populated only for INVOICE document type).
      */
     private InvoiceFieldsDto invoiceFields;
     
     /**
-     * Corrected statement transactions (only for STATEMENT type).
+     * Statement transactions (populated only for STATEMENT document type).
      */
     private List<TransactionDto> transactions;
-    
-    /**
-     * Optional note about the correction.
-     */
-    private String note;
     
     /**
      * DTO for invoice-specific fields.

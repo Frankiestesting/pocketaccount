@@ -8,22 +8,22 @@
 
  :: Spring Boot ::                (v4.0.1)
 
-2026-01-14T15:47:01.604+01:00  INFO 81946 --- [demo] [           main] c.f.pocketaccount.DemoApplication        : Starting DemoApplication v0.0.1-SNAPSHOT using Java 25.0.1 with PID 81946 (/Users/frank/Documents/Vscode-java/pocketaccount/target/pocketaccount-0.0.1-SNAPSHOT.jar started by frank in /Users/frank/Documents/Vscode-java/pocketaccount)
-2026-01-14T15:47:01.606+01:00  INFO 81946 --- [demo] [           main] c.f.pocketaccount.DemoApplication        : No active profile set, falling back to 1 default profile: "default"
-2026-01-14T15:47:01.926+01:00  INFO 81946 --- [demo] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
-2026-01-14T15:47:01.954+01:00  INFO 81946 --- [demo] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 23 ms. Found 5 JPA repository interfaces.
-2026-01-14T15:47:02.188+01:00  INFO 81946 --- [demo] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
-2026-01-14T15:47:02.197+01:00  INFO 81946 --- [demo] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
-2026-01-14T15:47:02.197+01:00  INFO 81946 --- [demo] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.15]
-2026-01-14T15:47:02.208+01:00  INFO 81946 --- [demo] [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 570 ms
-2026-01-14T15:47:02.281+01:00  INFO 81946 --- [demo] [           main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
-2026-01-14T15:47:02.304+01:00  INFO 81946 --- [demo] [           main] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.2.0.Final
-2026-01-14T15:47:02.515+01:00  INFO 81946 --- [demo] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
-2026-01-14T15:47:02.527+01:00  INFO 81946 --- [demo] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
-2026-01-14T15:47:02.638+01:00  INFO 81946 --- [demo] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@5896b9f5
-2026-01-14T15:47:02.638+01:00  INFO 81946 --- [demo] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
-2026-01-14T15:47:02.653+01:00  WARN 81946 --- [demo] [           main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
-2026-01-14T15:47:02.666+01:00  INFO 81946 --- [demo] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
+2026-01-17T08:44:15.276+01:00  INFO 40373 --- [demo] [           main] c.f.pocketaccount.DemoApplication        : Starting DemoApplication v0.0.1-SNAPSHOT using Java 25.0.1 with PID 40373 (/Users/frank/Documents/Vscode-java/pocketaccount/target/pocketaccount-0.0.1-SNAPSHOT.jar started by frank in /Users/frank/Documents/Vscode-java/pocketaccount)
+2026-01-17T08:44:15.278+01:00  INFO 40373 --- [demo] [           main] c.f.pocketaccount.DemoApplication        : No active profile set, falling back to 1 default profile: "default"
+2026-01-17T08:44:15.640+01:00  INFO 40373 --- [demo] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Bootstrapping Spring Data JPA repositories in DEFAULT mode.
+2026-01-17T08:44:15.665+01:00  INFO 40373 --- [demo] [           main] .s.d.r.c.RepositoryConfigurationDelegate : Finished Spring Data repository scanning in 20 ms. Found 5 JPA repository interfaces.
+2026-01-17T08:44:15.908+01:00  INFO 40373 --- [demo] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat initialized with port 8080 (http)
+2026-01-17T08:44:15.917+01:00  INFO 40373 --- [demo] [           main] o.apache.catalina.core.StandardService   : Starting service [Tomcat]
+2026-01-17T08:44:15.917+01:00  INFO 40373 --- [demo] [           main] o.apache.catalina.core.StandardEngine    : Starting Servlet engine: [Apache Tomcat/11.0.15]
+2026-01-17T08:44:15.931+01:00  INFO 40373 --- [demo] [           main] b.w.c.s.WebApplicationContextInitializer : Root WebApplicationContext: initialization completed in 626 ms
+2026-01-17T08:44:16.005+01:00  INFO 40373 --- [demo] [           main] org.hibernate.orm.jpa                    : HHH008540: Processing PersistenceUnitInfo [name: default]
+2026-01-17T08:44:16.030+01:00  INFO 40373 --- [demo] [           main] org.hibernate.orm.core                   : HHH000001: Hibernate ORM core version 7.2.0.Final
+2026-01-17T08:44:16.266+01:00  INFO 40373 --- [demo] [           main] o.s.o.j.p.SpringPersistenceUnitInfo      : No LoadTimeWeaver setup: ignoring JPA class transformer
+2026-01-17T08:44:16.280+01:00  INFO 40373 --- [demo] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Starting...
+2026-01-17T08:44:16.379+01:00  INFO 40373 --- [demo] [           main] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Added connection org.postgresql.jdbc.PgConnection@5d0e703a
+2026-01-17T08:44:16.379+01:00  INFO 40373 --- [demo] [           main] com.zaxxer.hikari.HikariDataSource       : HikariPool-1 - Start completed.
+2026-01-17T08:44:16.394+01:00  WARN 40373 --- [demo] [           main] org.hibernate.orm.deprecation            : HHH90000025: PostgreSQLDialect does not need to be specified explicitly using 'hibernate.dialect' (remove the property setting and it will be selected by default)
+2026-01-17T08:44:16.403+01:00  INFO 40373 --- [demo] [           main] org.hibernate.orm.connections.pooling    : HHH10001005: Database info:
 	Database JDBC URL [jdbc:postgresql://localhost:5432/PocketAccount]
 	Database driver: PostgreSQL JDBC Driver
 	Database dialect: PostgreSQLDialect
@@ -35,28 +35,42 @@
 	Pool: DataSourceConnectionProvider
 	Minimum pool size: undefined/unknown
 	Maximum pool size: undefined/unknown
-2026-01-14T15:47:03.133+01:00  INFO 81946 --- [demo] [           main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
-2026-01-14T15:47:03.184+01:00  INFO 81946 --- [demo] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
-2026-01-14T15:47:03.219+01:00  INFO 81946 --- [demo] [           main] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
-2026-01-14T15:47:03.585+01:00  WARN 81946 --- [demo] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
-2026-01-14T15:47:03.726+01:00  INFO 81946 --- [demo] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
-2026-01-14T15:47:03.729+01:00  INFO 81946 --- [demo] [           main] c.f.pocketaccount.DemoApplication        : Started DemoApplication in 2.289 seconds (process running for 2.527)
-2026-01-14T15:47:56.960+01:00  INFO 81946 --- [demo] [nio-8080-exec-2] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
-2026-01-14T15:47:56.961+01:00  INFO 81946 --- [demo] [nio-8080-exec-2] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
-2026-01-14T15:47:56.963+01:00  INFO 81946 --- [demo] [nio-8080-exec-2] o.s.web.servlet.DispatcherServlet        : Completed initialization in 2 ms
-2026-01-14T16:05:01.291+01:00  WARN 81946 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=58s383ms).
-2026-01-14T16:11:11.117+01:00  WARN 81946 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=6m9s827ms).
-2026-01-14T16:12:30.040+01:00  WARN 81946 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=48s914ms).
-2026-01-14T16:19:46.350+01:00  WARN 81946 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=6m46s298ms).
-2026-01-14T16:21:44.385+01:00  WARN 81946 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=58s12ms).
-2026-01-14T17:31:57.914+01:00  WARN 81946 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=9m42s654ms).
-2026-01-14T18:49:57.880+01:00  WARN 81946 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=17m59s34ms).
-2026-01-14T19:00:25.860+01:00  WARN 81946 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=9m57s962ms).
-2026-01-14T19:18:31.905+01:00  WARN 81946 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=18m6s45ms).
-2026-01-14T19:19:50.473+01:00  WARN 81946 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=48s572ms).
-2026-01-14T20:32:05.883+01:00  WARN 81946 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=2m14s368ms).
-2026-01-14T20:34:41.918+01:00  WARN 81946 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=2m6s34ms).
-2026-01-14T20:38:57.309+01:00  WARN 81946 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=4m15s391ms).
-2026-01-14T20:56:05.685+01:00  WARN 81946 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=16m38s367ms).
-2026-01-14T21:00:58.703+01:00  WARN 81946 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=4m53s17ms).
-2026-01-14T21:02:33.972+01:00  WARN 81946 --- [demo] [l-1:housekeeper] com.zaxxer.hikari.pool.HikariPool        : HikariPool-1 - Thread starvation or clock leap detected (housekeeper delta=1m5s258ms).
+2026-01-17T08:44:16.865+01:00  INFO 40373 --- [demo] [           main] org.hibernate.orm.core                   : HHH000489: No JTA platform available (set 'hibernate.transaction.jta.platform' to enable JTA platform integration)
+2026-01-17T08:44:16.915+01:00  INFO 40373 --- [demo] [           main] j.LocalContainerEntityManagerFactoryBean : Initialized JPA EntityManagerFactory for persistence unit 'default'
+2026-01-17T08:44:16.953+01:00  INFO 40373 --- [demo] [           main] o.s.d.j.r.query.QueryEnhancerFactories   : Hibernate is in classpath; If applicable, HQL parser will be used.
+2026-01-17T08:44:17.484+01:00  WARN 40373 --- [demo] [           main] JpaBaseConfiguration$JpaWebConfiguration : spring.jpa.open-in-view is enabled by default. Therefore, database queries may be performed during view rendering. Explicitly configure spring.jpa.open-in-view to disable this warning
+2026-01-17T08:44:17.662+01:00  INFO 40373 --- [demo] [           main] o.s.boot.tomcat.TomcatWebServer          : Tomcat started on port 8080 (http) with context path '/'
+2026-01-17T08:44:17.666+01:00  INFO 40373 --- [demo] [           main] c.f.pocketaccount.DemoApplication        : Started DemoApplication in 2.55 seconds (process running for 2.782)
+2026-01-17T08:44:31.280+01:00  INFO 40373 --- [demo] [nio-8080-exec-1] o.a.c.c.C.[Tomcat].[localhost].[/]       : Initializing Spring DispatcherServlet 'dispatcherServlet'
+2026-01-17T08:44:31.280+01:00  INFO 40373 --- [demo] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Initializing Servlet 'dispatcherServlet'
+2026-01-17T08:44:31.281+01:00  INFO 40373 --- [demo] [nio-8080-exec-1] o.s.web.servlet.DispatcherServlet        : Completed initialization in 1 ms
+2026-01-17T08:44:52.063+01:00  INFO 40373 --- [demo] [nio-8080-exec-6] c.f.p.i.api.ExtractionController         : Starting extraction job for document 4af48746-0463-4d0f-a5d1-499f9ddeac42 with options: useOcr=false, useAi=true, languageHint=nb, hintedType=STATEMENT
+2026-01-17T08:44:52.071+01:00  INFO 40373 --- [demo] [nio-8080-exec-6] c.f.p.i.service.InterpretationJobRunner  : Starting interpretation job: 86f9d0fa-f3f2-4f3f-b06a-e4908aa56edb with useOcr=false, useAi=true, languageHint=nb
+2026-01-17T08:44:52.072+01:00  INFO 40373 --- [demo] [nio-8080-exec-6] c.f.p.i.service.InterpretationJobRunner  : Performing interpretation for document: 4af48746-0463-4d0f-a5d1-499f9ddeac42 with type: STATEMENT
+2026-01-17T08:44:52.072+01:00  INFO 40373 --- [demo] [nio-8080-exec-6] c.f.p.i.pipeline.InterpretationPipeline  : Starting interpretation pipeline for document: 4af48746-0463-4d0f-a5d1-499f9ddeac42 with options: InterpretationOptions(useOcr=false, useAi=true, languageHint=nb, hintedType=STATEMENT)
+2026-01-17T08:44:52.073+01:00  INFO 40373 --- [demo] [nio-8080-exec-6] c.f.p.i.infra.CompositeTextExtractor     : Starting composite text extraction for document 4af48746-0463-4d0f-a5d1-499f9ddeac42
+2026-01-17T08:44:52.073+01:00  INFO 40373 --- [demo] [nio-8080-exec-6] c.f.p.i.infra.PdfBoxTextExtractor        : Extracting text from document 4af48746-0463-4d0f-a5d1-499f9ddeac42 using PDFBox
+2026-01-17T08:44:52.250+01:00  INFO 40373 --- [demo] [nio-8080-exec-6] c.f.p.i.infra.PdfBoxTextExtractor        : Successfully extracted 89 lines from 2 pages using PDFBox
+2026-01-17T08:44:52.251+01:00  INFO 40373 --- [demo] [nio-8080-exec-6] c.f.p.i.infra.CompositeTextExtractor     : PDFBox extraction successful for document 4af48746-0463-4d0f-a5d1-499f9ddeac42, OCR not needed
+2026-01-17T08:44:52.251+01:00  WARN 40373 --- [demo] [nio-8080-exec-6] c.f.p.i.pipeline.InterpretationPipeline  : DocumentClassifier not available, using hinted type or default
+2026-01-17T08:44:52.251+01:00  INFO 40373 --- [demo] [nio-8080-exec-6] c.f.p.i.pipeline.InterpretationPipeline  : Document classified as: STATEMENT
+2026-01-17T08:44:52.251+01:00  INFO 40373 --- [demo] [nio-8080-exec-6] c.f.p.i.i.HeuristicStatementExtractor    : Extracting statement transactions using heuristic rules
+2026-01-17T08:44:52.257+01:00  INFO 40373 --- [demo] [nio-8080-exec-6] c.f.p.i.i.HeuristicStatementExtractor    : Extracted 4 valid transactions using heuristics
+2026-01-17T08:44:52.257+01:00  INFO 40373 --- [demo] [nio-8080-exec-6] c.f.p.i.pipeline.InterpretationPipeline  : Interpretation pipeline completed successfully for document: 4af48746-0463-4d0f-a5d1-499f9ddeac42
+2026-01-17T08:44:52.257+01:00  INFO 40373 --- [demo] [nio-8080-exec-6] c.f.p.i.service.InterpretationJobRunner  : Interpretation completed for document: 4af48746-0463-4d0f-a5d1-499f9ddeac42 with type: STATEMENT
+2026-01-17T08:44:52.275+01:00  INFO 40373 --- [demo] [nio-8080-exec-6] c.f.p.i.service.InterpretationJobRunner  : Interpretation job completed successfully: 86f9d0fa-f3f2-4f3f-b06a-e4908aa56edb
+2026-01-17T08:47:35.654+01:00  INFO 40373 --- [demo] [nio-8080-exec-3] c.f.p.i.api.ExtractionController         : Starting extraction job for document 4af48746-0463-4d0f-a5d1-499f9ddeac42 with options: useOcr=false, useAi=true, languageHint=nb, hintedType=STATEMENT
+2026-01-17T08:47:35.660+01:00  INFO 40373 --- [demo] [nio-8080-exec-3] c.f.p.i.service.InterpretationJobRunner  : Starting interpretation job: 8b761a5e-9a1b-492f-9db2-7d5a92309dd0 with useOcr=false, useAi=true, languageHint=nb
+2026-01-17T08:47:35.661+01:00  INFO 40373 --- [demo] [nio-8080-exec-3] c.f.p.i.service.InterpretationJobRunner  : Performing interpretation for document: 4af48746-0463-4d0f-a5d1-499f9ddeac42 with type: STATEMENT
+2026-01-17T08:47:35.661+01:00  INFO 40373 --- [demo] [nio-8080-exec-3] c.f.p.i.pipeline.InterpretationPipeline  : Starting interpretation pipeline for document: 4af48746-0463-4d0f-a5d1-499f9ddeac42 with options: InterpretationOptions(useOcr=false, useAi=true, languageHint=nb, hintedType=STATEMENT)
+2026-01-17T08:47:35.661+01:00  INFO 40373 --- [demo] [nio-8080-exec-3] c.f.p.i.infra.CompositeTextExtractor     : Starting composite text extraction for document 4af48746-0463-4d0f-a5d1-499f9ddeac42
+2026-01-17T08:47:35.661+01:00  INFO 40373 --- [demo] [nio-8080-exec-3] c.f.p.i.infra.PdfBoxTextExtractor        : Extracting text from document 4af48746-0463-4d0f-a5d1-499f9ddeac42 using PDFBox
+2026-01-17T08:47:35.683+01:00  INFO 40373 --- [demo] [nio-8080-exec-3] c.f.p.i.infra.PdfBoxTextExtractor        : Successfully extracted 89 lines from 2 pages using PDFBox
+2026-01-17T08:47:35.684+01:00  INFO 40373 --- [demo] [nio-8080-exec-3] c.f.p.i.infra.CompositeTextExtractor     : PDFBox extraction successful for document 4af48746-0463-4d0f-a5d1-499f9ddeac42, OCR not needed
+2026-01-17T08:47:35.684+01:00  WARN 40373 --- [demo] [nio-8080-exec-3] c.f.p.i.pipeline.InterpretationPipeline  : DocumentClassifier not available, using hinted type or default
+2026-01-17T08:47:35.684+01:00  INFO 40373 --- [demo] [nio-8080-exec-3] c.f.p.i.pipeline.InterpretationPipeline  : Document classified as: STATEMENT
+2026-01-17T08:47:35.684+01:00  INFO 40373 --- [demo] [nio-8080-exec-3] c.f.p.i.i.HeuristicStatementExtractor    : Extracting statement transactions using heuristic rules
+2026-01-17T08:47:35.686+01:00  INFO 40373 --- [demo] [nio-8080-exec-3] c.f.p.i.i.HeuristicStatementExtractor    : Extracted 4 valid transactions using heuristics
+2026-01-17T08:47:35.686+01:00  INFO 40373 --- [demo] [nio-8080-exec-3] c.f.p.i.pipeline.InterpretationPipeline  : Interpretation pipeline completed successfully for document: 4af48746-0463-4d0f-a5d1-499f9ddeac42
+2026-01-17T08:47:35.686+01:00  INFO 40373 --- [demo] [nio-8080-exec-3] c.f.p.i.service.InterpretationJobRunner  : Interpretation completed for document: 4af48746-0463-4d0f-a5d1-499f9ddeac42 with type: STATEMENT
+2026-01-17T08:47:35.692+01:00  INFO 40373 --- [demo] [nio-8080-exec-3] c.f.p.i.service.InterpretationJobRunner  : Interpretation job completed successfully: 8b761a5e-9a1b-492f-9db2-7d5a92309dd0

@@ -10,7 +10,7 @@ import lombok.NoArgsConstructor;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class StartExtractionRequest {
+public class StartExtractionRequestDTO {
     /**
      * Whether to use OCR for text extraction.
      * Set to true for scanned documents or images.

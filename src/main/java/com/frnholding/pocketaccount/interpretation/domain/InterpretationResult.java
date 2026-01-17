@@ -35,7 +35,7 @@ public class InterpretationResult {
     private String extractionMethods;
     
     @Embedded
-    private InvoiceFields invoiceFields;
+    private InvoiceFieldsDTO invoiceFields;
     
     @OneToMany(mappedBy = "interpretationResult", cascade = CascadeType.ALL, orphanRemoval = true)
     private List<StatementTransaction> statementTransactions = new ArrayList<>();

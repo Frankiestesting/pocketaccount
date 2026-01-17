@@ -12,7 +12,7 @@ import java.time.Instant;
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
-public class JobStatusResponse {
+public class JobStatusResponseDTO {
     /**
      * Unique identifier for the interpretation job.
      */

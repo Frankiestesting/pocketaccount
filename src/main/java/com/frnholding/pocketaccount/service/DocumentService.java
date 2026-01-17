@@ -1,8 +1,8 @@
 package com.frnholding.pocketaccount.service;
 
-import com.frnholding.pocketaccount.api.dto.ExtractionResultResponse;
-import com.frnholding.pocketaccount.api.dto.DocumentCorrectionRequest;
-import com.frnholding.pocketaccount.api.dto.DocumentCorrectionResponse;
+import com.frnholding.pocketaccount.api.dto.ExtractionResultResponseDTO;
+import com.frnholding.pocketaccount.api.dto.DocumentCorrectionRequestDTO;
+import com.frnholding.pocketaccount.api.dto.DocumentCorrectionResponseDTO;
 import com.frnholding.pocketaccount.domain.Correction;
 import com.frnholding.pocketaccount.domain.CorrectionEntity;
 import com.frnholding.pocketaccount.domain.Document;
@@ -160,7 +160,7 @@ public class DocumentService {
         return entity.toDomain();
     }
 
-    public ExtractionResultResponse getExtractionResult(String documentId) {
+    public ExtractionResultResponseDTO getExtractionResult(String documentId) {
         // Validate document exists
         Document document = getDocument(documentId);
         if (document == null) {
@@ -171,8 +171,8 @@ public class DocumentService {
         
         if ("STATEMENT".equals(documentType)) {
             // Return STATEMENT structure with transactions
-            List<ExtractionResultResponse.Transaction> transactions = List.of(
-                new ExtractionResultResponse.Transaction(
+            List<ExtractionResultResponseDTO.Transaction> transactions = List.of(
+                new ExtractionResultResponseDTO.Transaction(
                     "2026-01-03",
                     -399.00,
                     "NOK",
@@ -181,7 +181,7 @@ public class DocumentService {
                 )
             );
             
-            return new ExtractionResultResponse(
+            return new ExtractionResultResponseDTO(
                 documentId,
                 "STATEMENT",
                 1,
@@ -210,7 +210,7 @@ public class DocumentService {
 
             List<String> warnings = List.of("Sender confidence low");
 
-            return new ExtractionResultResponse(
+            return new ExtractionResultResponseDTO(
                 documentId,
                 "INVOICE",
                 3,
@@ -223,7 +223,7 @@ public class DocumentService {
         }
     }
 
-    public DocumentCorrectionResponse saveCorrection(String documentId, DocumentCorrectionRequest request) {
+    public DocumentCorrectionResponseDTO saveCorrection(String documentId, DocumentCorrectionRequestDTO request) {
         // Validate document exists
         Document document = getDocument(documentId);
         if (document == null) {
@@ -252,7 +252,7 @@ public class DocumentService {
         CorrectionEntity entity = CorrectionEntity.fromDomain(correction);
         CorrectionEntity savedEntity = correctionRepository.save(entity);
 
-        return new DocumentCorrectionResponse(
+        return new DocumentCorrectionResponseDTO(
             documentId,
             nextVersion,
             now,
