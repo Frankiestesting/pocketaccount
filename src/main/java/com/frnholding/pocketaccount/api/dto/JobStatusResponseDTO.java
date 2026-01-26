@@ -18,6 +18,8 @@ public class JobStatusResponseDTO {
     private String error;
     private String documentType;
     private String originalFilename;
+    private String pipeline;
+    private boolean useAi;
 
     public JobStatusResponseDTO(String jobId, String documentId, String status, Instant startedAt, Instant finishedAt, String error) {
         this.jobId = jobId;

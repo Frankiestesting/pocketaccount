@@ -1,5 +1,5 @@
 <script>
-	let files = [];
+	let files;
 	let originalFilename = '';
 	let documentType = 'INVOICE';
 	let source = 'web';
@@ -7,7 +7,7 @@
 	let response = null;
 	let error = null;
 
-	$: file = files[0];
+	$: file = files?.[0];
 
 	async function handleUpload() {
 		if (!file) {

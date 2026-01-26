@@ -152,22 +152,26 @@ public class InterpretationService {
         InterpretationJob job = interpretationJobRepository.findById(jobId)
                 .orElseThrow(() -> new IllegalArgumentException("Job not found: " + jobId));
 
-        JobStatusResponseDTO response = new JobStatusResponseDTO(
-                job.getId(),
-                job.getDocumentId(),
-                job.getStatus(),
-                job.getDocumentType(),
-                job.getCreated(),
-                job.getStartedAt(),
-                job.getFinishedAt(),
-                job.getError(),
-                null // originalFilename
-        );
+        JobStatusResponseDTO response = new JobStatusResponseDTO();
+        response.setJobId(job.getId());
+        response.setDocumentId(job.getDocumentId());
+        response.setStatus(job.getStatus());
+        response.setDocumentType(job.getDocumentType());
+        response.setCreated(job.getCreated());
+        response.setStartedAt(job.getStartedAt());
+        response.setFinishedAt(job.getFinishedAt());
+        response.setError(job.getError());
         
         // Fetch document to get original filename
         Document doc = documentService.getDocument(job.getDocumentId());
         if (doc != null) {
             response.setOriginalFilename(doc.getOriginalFilename());
+        }
+        
+        // Fetch extraction methods from result if job is completed
+        if ("COMPLETED".equals(job.getStatus())) {
+            interpretationResultRepository.findByJobId(job.getId())
+                .ifPresent(result -> response.setExtractionMethods(result.getExtractionMethods()));
         }
         
         return response;
@@ -182,19 +186,23 @@ public class InterpretationService {
         return jobs.stream()
                 .map(job -> {
                     Document doc = documentService.getDocument(job.getDocumentId());
-                    JobStatusResponseDTO response = new JobStatusResponseDTO(
-                            job.getId(),
-                            job.getDocumentId(),
-                            job.getStatus(),
-                            job.getDocumentType(),
-                            job.getCreated(),
-                            job.getStartedAt(),
-                            job.getFinishedAt(),
-                            job.getError(),
-                            null // originalFilename
-                    );
+                    JobStatusResponseDTO response = new JobStatusResponseDTO();
+                    response.setJobId(job.getId());
+                    response.setDocumentId(job.getDocumentId());
+                    response.setStatus(job.getStatus());
+                    response.setDocumentType(job.getDocumentType());
+                    response.setCreated(job.getCreated());
+                    response.setStartedAt(job.getStartedAt());
+                    response.setFinishedAt(job.getFinishedAt());
+                    response.setError(job.getError());
+                    
                     if (doc != null) {
                         response.setOriginalFilename(doc.getOriginalFilename());
+                    }
+                    // Fetch extraction methods from result if job is completed
+                    if ("COMPLETED".equals(job.getStatus())) {
+                        interpretationResultRepository.findByJobId(job.getId())
+                            .ifPresent(result -> response.setExtractionMethods(result.getExtractionMethods()));
                     }
                     return response;
                 })

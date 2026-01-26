@@ -59,4 +59,9 @@ public class JobStatusResponseDTO {
      * Original filename of the document being interpreted.
      */
     private String originalFilename;
+    
+    /**
+     * Extraction methods used for interpretation (e.g., "PDFBox, AIStatementExtractor").
+     */
+    private String extractionMethods;
 }

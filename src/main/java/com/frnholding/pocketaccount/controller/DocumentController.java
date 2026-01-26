@@ -167,6 +167,8 @@ public class DocumentController {
                                 job.getFinishedAt(),
                                 job.getError()
                         );
+                        response.setPipeline(job.getPipeline());
+                        response.setUseAi(job.isUseAi());
                         if (doc != null) {
                             response.setDocumentType(doc.getDocumentType());
                             response.setOriginalFilename(doc.getOriginalFilename());

@@ -22,32 +22,32 @@ import java.util.regex.Pattern;
 @Component
 public class RegexInvoiceExtractor implements InvoiceExtractor {
 
-    // Currency patterns
+    // Currency patterns (including Norwegian)
     private static final Pattern CURRENCY_PATTERN = Pattern.compile(
-        "\\b(USD|EUR|GBP|CHF|CAD|AUD|JPY|CNY)\\b",
+        "\\b(USD|EUR|GBP|CHF|CAD|AUD|JPY|CNY|NOK|SEK|DKK)\\b",
         Pattern.CASE_INSENSITIVE
     );
 
-    // Amount patterns - matches various currency formats
+    // Amount patterns - matches various currency formats including Norwegian
     private static final Pattern AMOUNT_PATTERN = Pattern.compile(
-        "(?:total|amount|sum|balance|grand\\s+total|invoice\\s+total|due)\\s*:?\\s*" +
+        "(?:total|amount|sum|balance|grand\\s+total|invoice\\s+total|due|totalt|beløp|til\\s+betaling)\\s*:?\\s*" +
         "(?:[A-Z]{3}\\s*)?" +  // Optional currency code
-        "([€$£¥₣])?\\s*" +  // Optional currency symbol
-        "([\\d,']+\\.\\d{2})" +  // Amount with 2 decimal places
-        "(?:\\s*([A-Z]{3}))?",  // Optional currency code after
+        "([€$£¥₣kr])?\\s*" +  // Optional currency symbol (including kr)
+        "([\\d,' .]+[,.]\\d{2})" +  // Amount with 2 decimal places (supports both comma and dot decimals)
+        "(?:\\s*([A-Z]{3}|kr|NOK))?",  // Optional currency code after (including kr, NOK)
         Pattern.CASE_INSENSITIVE | Pattern.MULTILINE
     );
 
-    // Simple amount pattern as fallback
+    // Simple amount pattern as fallback (including Norwegian format)
     private static final Pattern SIMPLE_AMOUNT_PATTERN = Pattern.compile(
-        "([€$£¥₣])?\\s*([\\d,']+\\.\\d{2})(?:\\s*([A-Z]{3}))?\\b"
+        "([€$£¥₣kr])?\\s*([\\d,' .]+[,.]\\d{2})(?:\\s*([A-Z]{3}|kr|NOK))?\\b"
     );
 
-    // Date patterns - supports multiple formats
+    // Date patterns - supports multiple formats including Norwegian
     private static final Pattern DATE_PATTERN = Pattern.compile(
-        "(?:invoice\\s+date|date|issued|dated)\\s*:?\\s*" +
+        "(?:invoice\\s+date|date|issued|dated|fakturadato|dato)\\s*:?\\s*" +
         "(?:(\\d{4})[-/](\\d{1,2})[-/](\\d{1,2})|" +  // YYYY-MM-DD or YYYY/MM/DD
-        "(\\d{1,2})[-/.](\\d{1,2})[-/.](\\d{4})|" +  // DD-MM-YYYY or DD.MM.YYYY
+        "(\\d{1,2})[-/.](\\d{1,2})[-/.](\\d{4})|" +  // DD-MM-YYYY or DD.MM.YYYY (Norwegian standard)
         "(\\d{1,2})\\s+(Jan|Feb|Mar|Apr|May|Jun|Jul|Aug|Sep|Oct|Nov|Dec)[a-z]*\\s+(\\d{4}))",  // DD Month YYYY
         Pattern.CASE_INSENSITIVE | Pattern.MULTILINE
     );
@@ -58,14 +58,14 @@ public class RegexInvoiceExtractor implements InvoiceExtractor {
         Pattern.CASE_INSENSITIVE
     );
 
-    // Company/sender patterns - look for common invoice sender indicators
+    // Company/sender patterns - look for common invoice sender indicators (including Norwegian)
     private static final Pattern SENDER_PATTERN = Pattern.compile(
-        "^(?:from|issued\\s+by|billed\\s+by|seller|vendor|company|corporation)\\s*:?\\s*([A-Z][A-Za-z0-9\\s&.,'-]+?)(?:\\n|$)",
+        "^(?:from|issued\\s+by|billed\\s+by|seller|vendor|company|corporation|fra|utstedt\\s+av|selger)\\s*:?\\s*([A-Z][A-Za-z0-9\\s&.,'-]+?)(?:\\n|$)",
         Pattern.CASE_INSENSITIVE | Pattern.MULTILINE
     );
 
     private static final Pattern COMPANY_NAME_PATTERN = Pattern.compile(
-        "^([A-Z][A-Za-z0-9\\s&.,'-]+(?:Inc|LLC|Ltd|GmbH|AG|SA|Corp|Corporation|Company))\\s*$",
+        "^([A-Z][A-Za-z0-9\\s&.,'-]+(?:Inc|LLC|Ltd|GmbH|AG|SA|Corp|Corporation|Company|AS|ASA))\\s*$",
         Pattern.MULTILINE
     );
 
@@ -131,11 +131,23 @@ public class RegexInvoiceExtractor implements InvoiceExtractor {
             String amountStr = matcher.group(2);
             if (amountStr != null) {
                 try {
-                    // Remove thousand separators
-                    amountStr = amountStr.replace(",", "").replace("'", "");
-                    double amount = Double.parseDouble(amountStr);
-                    amounts.add(amount);
-                } catch (NumberFormatException e) {
+                    // Parse Norwegian format (comma decimal) or standard format (dot decimal)
+                    amountStr = amountStr.trim();
+                    double amount;
+                    
+                    if (amountStr.contains(",") && amountStr.lastIndexOf(',') > amountStr.lastIndexOf('.')) {
+                        // Norwegian format: 1.234,56 or 1 234,56
+                        amount = parseNorwegianAmount(amountStr);
+                    } else {
+                        // Standard format: 1,234.56
+                        amountStr = amountStr.replace(",", "").replace("'", "").replace(" ", "");
+                        amount = Double.parseDouble(amountStr);
+                    }
+                    
+                    if (amount > 0) {
+                        amounts.add(amount);
+                    }
+                } catch (Exception e) {
                     log.debug("Could not parse amount: {}", amountStr);
                 }
             }
@@ -152,12 +164,22 @@ public class RegexInvoiceExtractor implements InvoiceExtractor {
             String amountStr = matcher.group(2);
             if (amountStr != null) {
                 try {
-                    amountStr = amountStr.replace(",", "").replace("'", "");
-                    double amount = Double.parseDouble(amountStr);
+                    amountStr = amountStr.trim();
+                    double amount;
+                    
+                    if (amountStr.contains(",") && amountStr.lastIndexOf(',') > amountStr.lastIndexOf('.')) {
+                        // Norwegian format
+                        amount = parseNorwegianAmount(amountStr);
+                    } else {
+                        // Standard format
+                        amountStr = amountStr.replace(",", "").replace("'", "").replace(" ", "");
+                        amount = Double.parseDouble(amountStr);
+                    }
+                    
                     if (amount > 0) {
                         amounts.add(amount);
                     }
-                } catch (NumberFormatException e) {
+                } catch (Exception e) {
                     log.debug("Could not parse fallback amount: {}", amountStr);
                 }
             }
@@ -166,8 +188,29 @@ public class RegexInvoiceExtractor implements InvoiceExtractor {
         // Return largest amount from fallback
         return amounts.stream().max(Double::compareTo).orElse(null);
     }
+    
+    private double parseNorwegianAmount(String amountStr) throws NumberFormatException {
+        // Remove "kr" and "NOK" suffix/prefix
+        amountStr = amountStr.trim()
+            .replaceAll("(?i)\\s*(kr|NOK)\\s*", "");
+        
+        // Remove space and dot thousand separators, change comma to dot decimal
+        // Example: "26.903,00" or "26 903,00" -> "26903.00"
+        amountStr = amountStr
+            .replace(" ", "")  // Remove space thousand separator
+            .replace(".", "")  // Remove dot thousand separator  
+            .replace(",", "."); // Change comma decimal to dot
+        
+        return Double.parseDouble(amountStr);
+    }
 
     private String extractCurrency(String content) {
+        // Check for Norwegian currency first
+        if (content.contains("kr") || content.toLowerCase().contains("nok") || 
+            content.toLowerCase().contains("kroner")) {
+            return "NOK";
+        }
+        
         Matcher matcher = CURRENCY_PATTERN.matcher(content);
         if (matcher.find()) {
             return matcher.group(1).toUpperCase();
@@ -180,7 +223,7 @@ public class RegexInvoiceExtractor implements InvoiceExtractor {
         if (content.contains("¥")) return "JPY";
         if (content.contains("₣") || content.contains("CHF")) return "CHF";
 
-        return null;
+        return "NOK"; // Default to NOK for Norwegian invoices
     }
 
     private LocalDate extractDate(String content) {

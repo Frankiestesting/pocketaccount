@@ -1,5 +1,5 @@
 <script>
-	let files = [];
+	let files;
 	let source = 'mobile';
 	let originalFilename = '';
 	let documentType = 'INVOICE';
