@@ -6,6 +6,11 @@ import com.frnholding.pocketaccount.interpretation.api.dto.JobStatusResponseDTO;
 import com.frnholding.pocketaccount.interpretation.api.dto.ExtractionResultResponseDTO;
 import com.frnholding.pocketaccount.interpretation.api.dto.SaveCorrectionRequestDTO;
 import com.frnholding.pocketaccount.interpretation.service.InterpretationService;
+import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.responses.ApiResponse;
+import io.swagger.v3.oas.annotations.responses.ApiResponses;
+import io.swagger.v3.oas.annotations.tags.Tag;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.http.ResponseEntity;
@@ -20,22 +25,22 @@ import org.springframework.web.bind.annotation.*;
 @RequestMapping("/api/v1/interpretation")
 @CrossOrigin(origins = "*")
 @RequiredArgsConstructor
+@Tag(name = "Interpretation", description = "Document interpretation and field extraction API")
 public class ExtractionController {
 
     private final InterpretationService interpretationService;
 
-    /**
-     * Start a new interpretation/extraction job for a document.
-     * POST /api/v1/interpretation/documents/{id}/jobs
-     *
-     * @param id Document ID to interpret
-     * @param request Extraction configuration (OCR, AI, language hints)
-     * @return Job creation response with job ID and status
-     */
     @PostMapping("/documents/{id}/jobs")
+    @Operation(summary = "Start document extraction", 
+            description = "Create a new extraction job for a document using PDFBox, OCR, and/or AI")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "202", description = "Extraction job started successfully"),
+            @ApiResponse(responseCode = "404", description = "Document not found"),
+            @ApiResponse(responseCode = "500", description = "Server error starting extraction")
+    })
     public ResponseEntity<StartExtractionResponseDTO> startExtraction(
-            @PathVariable String id,
-            @RequestBody StartExtractionRequestDTO request) {
+            @PathVariable @Parameter(description = "Document ID") String id,
+            @RequestBody @Parameter(description = "Extraction configuration") StartExtractionRequestDTO request) {
         
         log.info("Starting extraction job for document {} with options: useOcr={}, useAi={}, languageHint={}, hintedType={}", 
                 id, request.isUseOcr(), request.isUseAi(), request.getLanguageHint(), request.getHintedType());
@@ -54,13 +59,9 @@ public class ExtractionController {
         }
     }
 
-    /**
-     * Get all interpretation jobs.
-     * GET /api/v1/interpretation/jobs
-     *
-     * @return List of all interpretation jobs
-     */
     @GetMapping("/jobs")
+    @Operation(summary = "List all extraction jobs", description = "Get all extraction jobs across all documents")
+    @ApiResponse(responseCode = "200", description = "List of jobs retrieved successfully")
     public ResponseEntity<java.util.List<JobStatusResponseDTO>> getAllJobs() {
         
         log.debug("Getting all interpretation jobs");
@@ -75,15 +76,13 @@ public class ExtractionController {
         }
     }
 
-    /**
-     * Get the status of an interpretation job.
-     * GET /api/v1/interpretation/jobs/{jobId}
-     *
-     * @param jobId Job ID to query
-     * @return Job status response with progress and results
-     */
     @GetMapping("/jobs/{jobId}")
-    public ResponseEntity<JobStatusResponseDTO> getJobStatus(@PathVariable String jobId) {
+    @Operation(summary = "Get job status", description = "Get the current status of an extraction job (PENDING, COMPLETED, FAILED)")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Job status retrieved successfully"),
+            @ApiResponse(responseCode = "404", description = "Job not found")
+    })
+    public ResponseEntity<JobStatusResponseDTO> getJobStatus(@PathVariable @Parameter(description = "Job ID") String jobId) {
         
         log.debug("Getting status for interpretation job {}", jobId);
         
@@ -101,15 +100,13 @@ public class ExtractionController {
         }
     }
 
-    /**
-     * Get the interpretation/extraction results for a document.
-     * GET /api/v1/interpretation/documents/{id}/result
-     *
-     * @param id Document ID to get results for
-     * @return Extraction results (invoice fields or statement transactions)
-     */
     @GetMapping("/documents/{id}/result")
-    public ResponseEntity<ExtractionResultResponseDTO> getExtractionResult(@PathVariable String id) {
+    @Operation(summary = "Get extraction results by document", description = "Get extracted fields or transactions for a document")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Extraction results retrieved successfully"),
+            @ApiResponse(responseCode = "404", description = "Document or results not found")
+    })
+    public ResponseEntity<ExtractionResultResponseDTO> getExtractionResult(@PathVariable @Parameter(description = "Document ID") String id) {
         
         log.debug("Getting extraction result for document {}", id);
         
@@ -127,15 +124,13 @@ public class ExtractionController {
         }
     }
 
-    /**
-     * Get the interpretation/extraction results for a specific job.
-     * GET /api/v1/interpretation/jobs/{jobId}/result
-     *
-     * @param jobId Job ID to get results for
-     * @return Extraction results (invoice fields or statement transactions)
-     */
     @GetMapping("/jobs/{jobId}/result")
-    public ResponseEntity<ExtractionResultResponseDTO> getJobResult(@PathVariable String jobId) {
+    @Operation(summary = "Get extraction results by job", description = "Get extracted fields or transactions for a specific job")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Extraction results retrieved successfully"),
+            @ApiResponse(responseCode = "404", description = "Job or results not found")
+    })
+    public ResponseEntity<ExtractionResultResponseDTO> getJobResult(@PathVariable @Parameter(description = "Job ID") String jobId) {
         
         log.debug("Getting extraction result for job {}", jobId);
         
@@ -153,18 +148,16 @@ public class ExtractionController {
         }
     }
 
-    /**
-     * Save corrections to interpretation results.
-     * PUT /api/v1/interpretation/documents/{id}/correction
-     *
-     * @param id Document ID to correct
-     * @param request Corrected fields and transactions
-     * @return Confirmation of saved corrections
-     */
     @PutMapping("/documents/{id}/correction")
+    @Operation(summary = "Save extraction corrections", description = "Save user corrections to extracted fields or transactions")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Corrections saved successfully"),
+            @ApiResponse(responseCode = "404", description = "Document not found"),
+            @ApiResponse(responseCode = "500", description = "Server error saving corrections")
+    })
     public ResponseEntity<Void> saveCorrection(
-            @PathVariable String id,
-            @RequestBody SaveCorrectionRequestDTO request) {
+            @PathVariable @Parameter(description = "Document ID") String id,
+            @RequestBody @Parameter(description = "Corrected extraction data") SaveCorrectionRequestDTO request) {
         
         log.info("Saving correction for document {} of type {}", id, request.getDocumentType());
         
