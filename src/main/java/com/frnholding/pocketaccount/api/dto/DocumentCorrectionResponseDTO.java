@@ -1,18 +1,63 @@
 package com.frnholding.pocketaccount.api.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.time.Instant;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class DocumentCorrectionResponseDTO {
     private String documentId;
     private Integer correctionVersion;
     private Instant savedAt;
     private String savedBy;
     private Integer normalizedTransactionsCreated;
+
+    public DocumentCorrectionResponseDTO() {
+    }
+
+    public DocumentCorrectionResponseDTO(String documentId, Integer correctionVersion, Instant savedAt, 
+                                         String savedBy, Integer normalizedTransactionsCreated) {
+        this.documentId = documentId;
+        this.correctionVersion = correctionVersion;
+        this.savedAt = savedAt;
+        this.savedBy = savedBy;
+        this.normalizedTransactionsCreated = normalizedTransactionsCreated;
+    }
+
+    public String getDocumentId() {
+        return documentId;
+    }
+
+    public void setDocumentId(String documentId) {
+        this.documentId = documentId;
+    }
+
+    public Integer getCorrectionVersion() {
+        return correctionVersion;
+    }
+
+    public void setCorrectionVersion(Integer correctionVersion) {
+        this.correctionVersion = correctionVersion;
+    }
+
+    public Instant getSavedAt() {
+        return savedAt;
+    }
+
+    public void setSavedAt(Instant savedAt) {
+        this.savedAt = savedAt;
+    }
+
+    public String getSavedBy() {
+        return savedBy;
+    }
+
+    public void setSavedBy(String savedBy) {
+        this.savedBy = savedBy;
+    }
+
+    public Integer getNormalizedTransactionsCreated() {
+        return normalizedTransactionsCreated;
+    }
+
+    public void setNormalizedTransactionsCreated(Integer normalizedTransactionsCreated) {
+        this.normalizedTransactionsCreated = normalizedTransactionsCreated;
+    }
 }

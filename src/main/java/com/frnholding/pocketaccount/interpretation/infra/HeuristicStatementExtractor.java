@@ -3,7 +3,8 @@ package com.frnholding.pocketaccount.interpretation.infra;
 import com.frnholding.pocketaccount.interpretation.domain.StatementTransaction;
 import com.frnholding.pocketaccount.interpretation.pipeline.InterpretedText;
 import com.frnholding.pocketaccount.interpretation.pipeline.StatementExtractor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Component;
 
 import java.time.LocalDate;
@@ -19,9 +20,10 @@ import java.util.regex.Pattern;
  * Fast, deterministic extraction without external dependencies.
  * Works well for standardized statement formats.
  */
-@Slf4j
 @Component
 public class HeuristicStatementExtractor implements StatementExtractor {
+
+    private static final Logger log = LoggerFactory.getLogger(HeuristicStatementExtractor.class);
 
     // Norwegian bank statement pattern with separate withdrawal/deposit columns
     // Columns: Description | Buy_Date(ddMM) | Withdrawal | Deposit | Bank_Date(ddMM) | Ref1 | Ref2

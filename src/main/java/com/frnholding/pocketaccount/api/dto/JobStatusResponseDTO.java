@@ -1,14 +1,7 @@
 package com.frnholding.pocketaccount.api.dto;
 
-import lombok.AllArgsConstructor;
-import lombok.Data;
-import lombok.NoArgsConstructor;
-
 import java.time.Instant;
 
-@Data
-@NoArgsConstructor
-@AllArgsConstructor
 public class JobStatusResponseDTO {
     private String jobId;
     private String documentId;
@@ -21,6 +14,9 @@ public class JobStatusResponseDTO {
     private String pipeline;
     private boolean useAi;
 
+    public JobStatusResponseDTO() {
+    }
+
     public JobStatusResponseDTO(String jobId, String documentId, String status, Instant startedAt, Instant finishedAt, String error) {
         this.jobId = jobId;
         this.documentId = documentId;
@@ -28,5 +24,100 @@ public class JobStatusResponseDTO {
         this.startedAt = startedAt;
         this.finishedAt = finishedAt;
         this.error = error;
+    }
+
+    public JobStatusResponseDTO(String jobId, String documentId, String status, Instant startedAt, 
+                                Instant finishedAt, String error, String documentType, 
+                                String originalFilename, String pipeline, boolean useAi) {
+        this.jobId = jobId;
+        this.documentId = documentId;
+        this.status = status;
+        this.startedAt = startedAt;
+        this.finishedAt = finishedAt;
+        this.error = error;
+        this.documentType = documentType;
+        this.originalFilename = originalFilename;
+        this.pipeline = pipeline;
+        this.useAi = useAi;
+    }
+
+    public String getJobId() {
+        return jobId;
+    }
+
+    public void setJobId(String jobId) {
+        this.jobId = jobId;
+    }
+
+    public String getDocumentId() {
+        return documentId;
+    }
+
+    public void setDocumentId(String documentId) {
+        this.documentId = documentId;
+    }
+
+    public String getStatus() {
+        return status;
+    }
+
+    public void setStatus(String status) {
+        this.status = status;
+    }
+
+    public Instant getStartedAt() {
+        return startedAt;
+    }
+
+    public void setStartedAt(Instant startedAt) {
+        this.startedAt = startedAt;
+    }
+
+    public Instant getFinishedAt() {
+        return finishedAt;
+    }
+
+    public void setFinishedAt(Instant finishedAt) {
+        this.finishedAt = finishedAt;
+    }
+
+    public String getError() {
+        return error;
+    }
+
+    public void setError(String error) {
+        this.error = error;
+    }
+
+    public String getDocumentType() {
+        return documentType;
+    }
+
+    public void setDocumentType(String documentType) {
+        this.documentType = documentType;
+    }
+
+    public String getOriginalFilename() {
+        return originalFilename;
+    }
+
+    public void setOriginalFilename(String originalFilename) {
+        this.originalFilename = originalFilename;
+    }
+
+    public String getPipeline() {
+        return pipeline;
+    }
+
+    public void setPipeline(String pipeline) {
+        this.pipeline = pipeline;
+    }
+
+    public boolean isUseAi() {
+        return useAi;
+    }
+
+    public void setUseAi(boolean useAi) {
+        this.useAi = useAi;
     }
 }

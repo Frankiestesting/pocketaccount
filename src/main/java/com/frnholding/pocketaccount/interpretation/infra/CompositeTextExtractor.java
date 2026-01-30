@@ -2,8 +2,8 @@ package com.frnholding.pocketaccount.interpretation.infra;
 
 import com.frnholding.pocketaccount.interpretation.pipeline.DocumentTextInterpreter;
 import com.frnholding.pocketaccount.interpretation.pipeline.InterpretedText;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -19,13 +19,18 @@ import java.util.UUID;
  * - PDFBox for native PDF text (fast, accurate)
  * - OCR for scanned documents or poor quality PDFs (slower, but necessary)
  */
-@Slf4j
 @Component("compositeTextExtractor")
-@RequiredArgsConstructor
 public class CompositeTextExtractor implements DocumentTextInterpreter {
+
+    private static final Logger log = LoggerFactory.getLogger(CompositeTextExtractor.class);
 
     private final PdfBoxTextExtractor pdfBoxExtractor;
     private final OcrTextExtractor ocrExtractor;
+
+    public CompositeTextExtractor(PdfBoxTextExtractor pdfBoxExtractor, OcrTextExtractor ocrExtractor) {
+        this.pdfBoxExtractor = pdfBoxExtractor;
+        this.ocrExtractor = ocrExtractor;
+    }
 
     @Value("${ocr.fallback.min-text-length:100}")
     private int minTextLength;

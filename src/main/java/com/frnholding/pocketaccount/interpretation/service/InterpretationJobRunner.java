@@ -8,7 +8,8 @@ import com.frnholding.pocketaccount.interpretation.pipeline.InterpretationOption
 import com.frnholding.pocketaccount.interpretation.pipeline.DocumentType;
 import com.frnholding.pocketaccount.domain.Document;
 import com.frnholding.pocketaccount.service.DocumentService;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Component;
@@ -17,9 +18,10 @@ import org.springframework.transaction.annotation.Transactional;
 import java.time.Instant;
 import java.util.UUID;
 
-@Slf4j
 @Component
 public class InterpretationJobRunner {
+
+    private static final Logger log = LoggerFactory.getLogger(InterpretationJobRunner.class);
 
     @Autowired
     private InterpretationJobRepository interpretationJobRepository;

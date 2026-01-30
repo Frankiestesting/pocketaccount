@@ -3,8 +3,8 @@ package com.frnholding.pocketaccount.interpretation.infra;
 import com.frnholding.pocketaccount.repository.DocumentRepository;
 import com.frnholding.pocketaccount.interpretation.pipeline.DocumentTextInterpreter;
 import com.frnholding.pocketaccount.interpretation.pipeline.InterpretedText;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
@@ -18,12 +18,15 @@ import java.util.*;
  * Extracts text from PDF documents using Apache PDFBox.
  * This extractor works well for PDFs with selectable text layers.
  */
-@Slf4j
 @Component
-@RequiredArgsConstructor
 public class PdfBoxTextExtractor implements DocumentTextInterpreter {
 
+    private static final Logger log = LoggerFactory.getLogger(PdfBoxTextExtractor.class);
     private final DocumentRepository documentRepository;
+
+    public PdfBoxTextExtractor(DocumentRepository documentRepository) {
+        this.documentRepository = documentRepository;
+    }
 
     @Override
     public InterpretedText extract(UUID documentId) {

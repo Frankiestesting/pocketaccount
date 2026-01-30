@@ -11,8 +11,8 @@ import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
-import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
@@ -20,15 +20,18 @@ import org.springframework.web.bind.annotation.*;
  * REST controller for document interpretation and extraction operations.
  * Handles AI-powered and rule-based document interpretation.
  */
-@Slf4j
 @RestController
 @RequestMapping("/api/v1/interpretation")
 @CrossOrigin(origins = "*")
-@RequiredArgsConstructor
 @Tag(name = "Interpretation", description = "Document interpretation and field extraction API")
 public class ExtractionController {
 
+    private static final Logger log = LoggerFactory.getLogger(ExtractionController.class);
     private final InterpretationService interpretationService;
+
+    public ExtractionController(InterpretationService interpretationService) {
+        this.interpretationService = interpretationService;
+    }
 
     @PostMapping("/documents/{id}/jobs")
     @Operation(summary = "Start document extraction", 
