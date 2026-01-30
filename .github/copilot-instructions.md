@@ -1,170 +1,124 @@
-# PocketAccount AI Copilot Instructions
+# Copilot Instructions (PocketAccount Brain)
 
-## Project Overview
-**PocketAccount** is a full-stack document intelligence system combining Spring Boot backend with Svelte frontend. It automatically extracts structured data from PDFs using multiple strategies: PDFBox native text extraction, OCR (Tesseract), and AI-powered extraction (OpenAI GPT-4o).
+Base package: java.com.frnholding.pocketaccount
+Language: Java
+Framework: Spring Boot (Spring Web, Spring Data JPA, Validation)
+Database: PostgreSQL
 
-Core use cases: invoice/bank statement processing with smart method selection and multi-interpretation support.
+This backend:
+- Stores PDF documents categorized as INVOICE or STATEMENT
+- Runs async interpretation jobs to produce structured JSON results
+- Allows user corrections linked to the PDF/document
+- Provides accounting: bank transactions, receipts, matching, reconciliation exports
 
-## Architecture Overview
+## Global Coding Rules
+- IDs: UUID everywhere
+- Dates: LocalDate
+- Timestamps: OffsetDateTime
+- Money: BigDecimal (never double/float)
+- Prefer immutable DTOs where practical, but keep it simple
+- NO Lombok on JPA entities or core business logic classes
+- Lombok allowed only in DTOs (optional). If unsure: do not use Lombok.
 
-### Backend Stack (Spring Boot 4.0.1, Java 21)
-- **Document Pipeline**: Upload → Extraction → Interpretation → Corrections
-- **Database**: PostgreSQL 17 (Flyway migrations in `src/main/resources/db/migration/`)
-- **Key Dependencies**:
-  - Apache PDFBox 3.0.3 (native PDF text)
-  - Tesseract/Tess4J 5.13.0 (OCR)
-  - OpenAI API (gpt-4o, gpt-4o-mini)
-  - Spring Data JPA + Hibernate
-  - Lombok for boilerplate reduction
+## Package Structure (feature-first REQUIRED)
+Use feature packages under the base package:
 
-### Frontend Stack (Svelte Kit)
-- Build tool: Vite
-- Testing: Playwright (integration) + Vitest (unit)
-- Routes in `test-ui/src/routes/`: upload, interpret, compare, results
-- Entry point: `+page.svelte` components with `+page.js` loaders
+java.com.frnholding.pocketaccount
+  common/
+  document/
+  interpretation/
+  accounting/
 
-### Service Boundaries
-1. **DocumentService** (`src/.../service/DocumentService.java`): File upload, storage, retrieval
-2. **InterpretationService** (`src/.../interpretation/service/InterpretationService.java`): Job orchestration, interpretation results
-3. **Text Extractors** (`src/.../interpretation/infra/`): PDFBox, OCR, CompositeTextExtractor (fallback logic)
-4. **Field Extractors** (`src/.../interpretation/infra/`): OpenAI-powered invoice/statement extractors
+Each feature should use:
+- controller/       : HTTP only, thin controllers
+- api/dto/          : request/response DTOs only
+- service/          : use cases + orchestration + @Transactional boundaries
+- domain/           : domain objects (avoid JPA + Spring dependencies where possible)
+- repository/       : Spring Data repositories
+- repository/entity/: JPA entities only
+- infra/            : external integrations (PDFBox, OCR, OpenAI, file storage)
+- (interpretation only) pipeline/ : interpretation pipeline interfaces + orchestrator
 
-## Critical Data Flow Patterns
+Never place DTOs in root packages. Never place entities outside repository/entity.
 
-### Document Processing Pipeline
-```
-File Upload → DocumentService.uploadDocument() → PDF saved to disk
-→ InterpretationService.startInterpretation(documentId) → Creates InterpretationJob
-→ InterpretationJobRunner (async) → Selects extraction strategy → Persists InterpretationResult
-```
+## Naming Conventions
+### DTO naming (use-case based)
+Use verbs and clear intent:
+- CreateAccountRequest, AccountResponse
+- ImportBankStatementRequest, ImportBankStatementResponse
+- CreateReceiptRequest, ReceiptResponse
+- CreateReceiptMatchRequest, MatchStatusResponse
+- StartInterpretationRequest, StartInterpretationResponse
+Avoid generic names like:
+- JobRequest, DocumentRequest, GenericResponse, DataDTO
 
-### Text Extraction Strategy (CompositeTextExtractor)
-1. **Try PDFBox first** (fast path for native PDFs)
-2. **Evaluate quality**: min text 100 chars, min 5 lines, 10+ chars/line average, >50% alphanumeric
-3. **Fallback to OCR** if quality metrics fail
-4. Config in `application.properties`: `ocr.fallback.*` properties control thresholds
+### Entity naming
+Entity classes end with Entity:
+- DocumentEntity, InterpretationJobEntity, BankTransactionEntity, ReceiptEntity
 
-### Multi-Interpretation Support
-- Document → Multiple InterpretationResults (different extractors can produce different results)
-- Users can save corrections → Creates versioned correction records
-- Data model tracks `extraction_method` (PDFBox, OCR, AI, Heuristic) for each result
+## Entity Rules (JPA)
+- Map with @Table(name="snake_case")
+- Avoid bidirectional relations unless necessary
+- No @Data on entities
+- equals/hashCode should be ID-only OR omit for MVP
+- Keep entities persistence-focused (no heavy business logic)
 
-## Configuration Management
+## API Rules
+- Base path: /api/v1
+- Status codes:
+  - POST create: 201 Created
+  - POST start job: 202 Accepted
+  - DELETE: 204 No Content
+  - Validation: 400 with field errors
+  - Not found: 404
+  - Conflicts/unique constraint: 409
+- Controllers must NOT access repositories directly; always call a service.
+- Controllers return DTOs only.
 
-**application.properties** structure:
-- **Database**: `spring.datasource.*` (PostgreSQL localhost:5432)
-- **OCR**: `ocr.tesseract.language=eng+deu+fra+nor`, `ocr.dpi=300`
-- **OpenAI**: `openai.api.key=${OPENAI_API_KEY}` (env var required), `openai.model=gpt-4o`
-- **File upload limits**: `spring.servlet.multipart.max-file-size=50MB`
+## Error Handling
+Use a single error response DTO:
+ApiErrorResponse { String code; String message; Map<String,String> details; }
 
-**Never commit API keys**—use environment variables: `export OPENAI_API_KEY=sk-...`
+Use @ControllerAdvice to map:
+- MethodArgumentNotValidException -> 400
+- EntityNotFoundException -> 404
+- DataIntegrityViolationException -> 409
 
-## Development Workflows
+Do not expose raw DB error messages or stack traces to clients.
 
-### Building & Running Backend
-```bash
-# Maven build
-./mvnw clean install
+## Performance Rules
+- Avoid N+1 queries
+- Prefer bulk operations for imports
+- Use pagination on list endpoints where data can grow
 
-# Run Spring Boot
-./mvnw spring-boot:run
-# Server on http://localhost:8080
+## Accounting Domain Rules
+Tables/entities:
+- account
+- bank_transaction (idempotent import; unique(account_id, source_line_hash))
+- receipt
+- receipt_match (supports partial matches using matched_amount)
 
-# Test
-./mvnw test
-```
+Idempotent import:
+- Must not insert duplicates by (accountId, sourceLineHash)
+- Prefer bulk lookup of existing hashes instead of per-row exists() calls when feasible
 
-### Frontend Development
-```bash
-cd test-ui
-npm install
-npm run dev        # Dev server with hot reload
-npm run build      # Production build
-npm run test       # Run all tests (integration + unit)
-npm run test:integration  # Playwright tests
-npm run test:unit  # Vitest unit tests
-```
+Matching:
+- receipt_match supports partial matching
+- Match status is derived:
+  UNMATCHED, PARTIAL, MATCHED, OVER
+- Derived from abs(bank_transaction.amount) vs sum(receipt_match.matched_amount)
 
-### Database Management
-- Flyway migrations auto-run on startup (configured in pom.xml)
-- New migrations: `src/main/resources/db/migration/V{N}__Description.sql`
-- Schema: `documents` table (id, status, created, original_filename, file_path, document_type)
+## Interpretation Rules
+Interpretation is async job-based:
+- Start job -> store job row -> worker runs pipeline -> store result row
+Pipeline steps:
+1) Extract text (PDFBox; OCR fallback optional)
+2) Classify (Invoice/Statement/Unknown)
+3) Extract fields/transactions (regex/heuristics; AI optional)
+4) Normalize + confidence + warnings
 
-## Codebase Conventions
+Store:
+- raw interpretation result
+- corrected result (user "final")
 
-### Package Organization
-- **api/dto/**: Data transfer objects (DTO suffix: `DocumentUploadResponseDTO`, `InvoiceFieldsDTO`)
-- **domain/**: Entity classes (JPA entities, represent DB tables)
-- **repository/**: Spring Data JPA interfaces extending `JpaRepository<Entity, ID>`
-- **service/**: Business logic layer with `@Service` annotation
-- **controller/**: REST endpoints with `@RestController`, `@RequestMapping("/api/v1")`
-
-### Interpretation Module Structure
-```
-interpretation/
-├── api/          # REST controllers (ExtractionController)
-├── domain/       # InterpretationJob, InterpretationResult entities
-├── service/      # InterpretationService, InterpretationJobRunner
-├── infra/        # Text/field extractors (PdfBoxTextExtractor, OcrTextExtractor, OpenAiInvoiceExtractor)
-├── pipeline/     # Job execution orchestration
-└── repository/   # Data access for interpretation entities
-```
-
-### Naming Conventions
-- Controllers: `*Controller` + `@RestController`
-- Services: `*Service` + `@Service`
-- Entities: Domain object names (Document, InterpretationJob, InterpretationResult)
-- DTOs: `*DTO` or `*ResponseDTO`, `*RequestDTO`
-- Extractors: `*Extractor` or `*TextExtractor`, `*FieldExtractor`
-
-### API Patterns
-- Base path: `/api/v1/*`
-- Document endpoints: `POST /documents` (upload), `GET /documents`, `GET /documents/{id}`
-- Interpretation endpoints: `POST /interpretations` (start job), `GET /interpretations/jobs/{id}` (status)
-- CORS enabled globally: `@CrossOrigin(origins = "*")`
-
-## Common Implementation Tasks
-
-### Adding New Document Type
-1. Update `documentType` enum/constants (domain/controller)
-2. Add new extractor: extend `FieldExtractor` interface in `interpretation/infra/`
-3. Update `InterpretationService.startInterpretation()` to route to new extractor
-4. Add DTO: create `*FieldsDTO` in `api/dto/`
-5. Test: use mock data first (see `createMockInterpretationResult()` example)
-
-### Adding OCR Language Support
-1. Install language pack: `brew install tesseract-lang` (macOS) or apt-get (Linux)
-2. Update `application.properties`: `ocr.tesseract.language=eng+deu+fra+nor+ita`
-3. Restart application
-
-### Debugging Extraction Issues
-1. Check extraction method used: Database stores `extraction_method` in InterpretationResult
-2. View extracted text in logs: extractors log text length and quality metrics
-3. Test fallback thresholds: lower `ocr.fallback.min-*` properties to debug PDFBox→OCR transitions
-4. OpenAI failures return empty fields (graceful degradation)
-
-## Integration Points
-
-### External Dependencies
-- **OpenAI**: REST calls for invoice/statement field extraction (timeout: 30s configurable)
-- **Tesseract**: System binary (requires installation), called via Tess4J
-- **PostgreSQL**: JDBC connection with HikariCP pooling
-
-### Frontend-Backend Communication
-- JSON REST API on `/api/v1/*`
-- Multipart form upload for PDFs (form-data with file + metadata)
-- Status polling for async jobs (frontend polls `/interpretations/jobs/{id}`)
-
-### Data Persistence Strategy
-- Document → file on disk (path stored in DB)
-- InterpretationJob → tracks async processing state (PENDING, COMPLETED, FAILED)
-- InterpretationResult → immutable extraction output, corrections tracked separately
-
-## Important Notes for AI Agents
-
-1. **Async Processing**: InterpretationJobRunner is placeholder—actual async orchestration needed
-2. **Error Handling**: Field extractors return empty/null gracefully; don't throw on AI failures
-3. **Multi-language**: Support eng+deu+fra+nor configured; extractors are language-agnostic
-4. **File Storage**: PDFs stored on disk; secure path handling required in production
-5. **Testing**: Mock extractors available; avoid external API calls in unit tests
-6. **Version Control**: Ignore `application.properties` API keys; use environment variables
+Always link results to documentId and version them.
