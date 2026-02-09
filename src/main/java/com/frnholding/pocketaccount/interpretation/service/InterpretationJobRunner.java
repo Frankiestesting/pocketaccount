@@ -1,6 +1,7 @@
 package com.frnholding.pocketaccount.interpretation.service;
 
 import com.frnholding.pocketaccount.interpretation.domain.*;
+import com.frnholding.pocketaccount.interpretation.infra.OpenAiAuthenticationException;
 import com.frnholding.pocketaccount.interpretation.repository.InterpretationJobRepository;
 import com.frnholding.pocketaccount.interpretation.repository.InterpretationResultRepository;
 import com.frnholding.pocketaccount.interpretation.pipeline.InterpretationPipeline;
@@ -135,6 +136,9 @@ public class InterpretationJobRunner {
             log.info("Interpretation completed for document: {} with type: {}", documentId, result.getDocumentType());
             return result;
 
+        } catch (OpenAiAuthenticationException e) {
+            log.error("OpenAI authentication failed for document: {}", documentId, e);
+            throw e;
         } catch (Exception e) {
             log.error("Error performing interpretation for document: {}", documentId, e);
             throw new RuntimeException("Interpretation failed: " + e.getMessage(), e);

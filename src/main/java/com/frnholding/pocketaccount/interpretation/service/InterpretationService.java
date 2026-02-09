@@ -5,10 +5,14 @@ import com.frnholding.pocketaccount.interpretation.domain.*;
 import com.frnholding.pocketaccount.interpretation.repository.InterpretationJobRepository;
 import com.frnholding.pocketaccount.interpretation.repository.InterpretationResultRepository;
 import com.frnholding.pocketaccount.domain.Document;
+import com.frnholding.pocketaccount.exception.EntityNotFoundException;
 import com.frnholding.pocketaccount.service.DocumentService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionSynchronization;
+import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
 import java.time.LocalDate;
@@ -37,7 +41,7 @@ public class InterpretationService {
         // Validate document exists
         Document document = documentService.getDocument(documentId);
         if (document == null) {
-            throw new IllegalArgumentException("Document not found: " + documentId);
+            throw new EntityNotFoundException("Document not found: " + documentId);
         }
 
         // Create interpretation job
@@ -65,7 +69,7 @@ public class InterpretationService {
 
     public InterpretationResult getInterpretationResult(String documentId) {
         return interpretationResultRepository.findByDocumentId(documentId)
-                .orElseThrow(() -> new IllegalArgumentException("No interpretation result found for document: " + documentId));
+                .orElseThrow(() -> new EntityNotFoundException("No interpretation result found for document: " + documentId));
     }
 
     @Transactional
@@ -110,7 +114,7 @@ public class InterpretationService {
         // Validate document exists
         Document document = documentService.getDocument(documentId);
         if (document == null) {
-            throw new IllegalArgumentException("Document not found: " + documentId);
+            throw new EntityNotFoundException("Document not found: " + documentId);
         }
 
         // Create interpretation job
@@ -128,13 +132,23 @@ public class InterpretationService {
 
         interpretationJobRepository.save(job);
 
-        // Trigger async interpretation process
-        interpretationJobRunner.runJob(
+        // Trigger async interpretation process after commit so the job exists for the async thread.
+        Runnable startJob = () -> interpretationJobRunner.runJob(
                 jobId,
                 request.isUseOcr(),
                 request.isUseAi(),
                 request.getLanguageHint()
         );
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    startJob.run();
+                }
+            });
+        } else {
+            startJob.run();
+        }
 
         return new StartExtractionResponseDTO(
                 job.getId(),
@@ -150,7 +164,7 @@ public class InterpretationService {
      */
     public JobStatusResponseDTO getJobStatus(String jobId) {
         InterpretationJob job = interpretationJobRepository.findById(jobId)
-                .orElseThrow(() -> new IllegalArgumentException("Job not found: " + jobId));
+            .orElseThrow(() -> new EntityNotFoundException("Job not found: " + jobId));
 
         JobStatusResponseDTO response = new JobStatusResponseDTO();
         response.setJobId(job.getId());
@@ -209,12 +223,40 @@ public class InterpretationService {
                 .collect(Collectors.toList());
     }
 
+    public List<JobStatusResponseDTO> getJobs(int page, int size) {
+        List<InterpretationJob> jobs = interpretationJobRepository.findAll(PageRequest.of(page, size)).getContent();
+
+        return jobs.stream()
+                .map(job -> {
+                    Document doc = documentService.getDocument(job.getDocumentId());
+                    JobStatusResponseDTO response = new JobStatusResponseDTO();
+                    response.setJobId(job.getId());
+                    response.setDocumentId(job.getDocumentId());
+                    response.setStatus(job.getStatus());
+                    response.setDocumentType(job.getDocumentType());
+                    response.setCreated(job.getCreated());
+                    response.setStartedAt(job.getStartedAt());
+                    response.setFinishedAt(job.getFinishedAt());
+                    response.setError(job.getError());
+
+                    if (doc != null) {
+                        response.setOriginalFilename(doc.getOriginalFilename());
+                    }
+                    if ("COMPLETED".equals(job.getStatus())) {
+                        interpretationResultRepository.findByJobId(job.getId())
+                            .ifPresent(result -> response.setExtractionMethods(result.getExtractionMethods()));
+                    }
+                    return response;
+                })
+                .collect(Collectors.toList());
+    }
+
     /**
      * Get extraction results for a document.
      */
     public ExtractionResultResponseDTO getExtractionResult(String documentId) {
         InterpretationResult result = interpretationResultRepository.findByDocumentId(documentId)
-                .orElseThrow(() -> new IllegalArgumentException("No interpretation result found for document: " + documentId));
+                .orElseThrow(() -> new EntityNotFoundException("No interpretation result found for document: " + documentId));
 
         return buildExtractionResultResponse(result);
     }
@@ -224,7 +266,7 @@ public class InterpretationService {
      */
     public ExtractionResultResponseDTO getJobResult(String jobId) {
         InterpretationResult result = interpretationResultRepository.findByJobId(jobId)
-                .orElseThrow(() -> new IllegalArgumentException("No interpretation result found for job: " + jobId));
+                .orElseThrow(() -> new EntityNotFoundException("No interpretation result found for job: " + jobId));
 
         return buildExtractionResultResponse(result);
     }
@@ -272,7 +314,7 @@ public class InterpretationService {
         // Validate document exists
         Document document = documentService.getDocument(documentId);
         if (document == null) {
-            throw new IllegalArgumentException("Document not found: " + documentId);
+            throw new EntityNotFoundException("Document not found: " + documentId);
         }
 
         // Find or create interpretation result

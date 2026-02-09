@@ -3,6 +3,7 @@ package com.frnholding.pocketaccount.interpretation.pipeline;
 import com.frnholding.pocketaccount.interpretation.domain.InterpretationResult;
 import com.frnholding.pocketaccount.interpretation.domain.InvoiceFieldsDTO;
 import com.frnholding.pocketaccount.interpretation.domain.StatementTransaction;
+import com.frnholding.pocketaccount.interpretation.infra.OpenAiAuthenticationException;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -90,6 +91,8 @@ public class InterpretationPipeline {
                 List<StatementTransaction> transactions = extractStatementTransactions(interpretedText, result, options.isUseAi(), extractionMethods);
                 result.setStatementTransactions(transactions);
                 log.debug("Statement transactions extracted: {} transactions", transactions.size());
+            } else {
+                log.info("Document type {} has no extraction step; result will be empty", documentType);
             }
 
             // Set the extraction methods used
@@ -104,6 +107,9 @@ public class InterpretationPipeline {
             log.info("Interpretation pipeline completed successfully for document: {}", documentId);
             return result;
 
+        } catch (OpenAiAuthenticationException e) {
+            log.error("OpenAI authentication failed in interpretation pipeline for document: {}", documentId, e);
+            throw e;
         } catch (Exception e) {
             log.error("Error in interpretation pipeline for document: {}", documentId, e);
             throw new RuntimeException("Interpretation pipeline failed: " + e.getMessage(), e);

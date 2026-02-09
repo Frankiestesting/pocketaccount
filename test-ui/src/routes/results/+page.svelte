@@ -106,6 +106,7 @@
 						<th>Filnavn</th>
 						<th>Startet</th>
 						<th>Status</th>
+						<th>Feil</th>
 						<th>Fullført</th>
 					</tr>
 				</thead>
@@ -130,11 +131,18 @@
 									{job.status}
 								</span>
 							</td>
+							<td>
+								{#if job.status === 'FAILED'}
+									<span class="error-text">{job.error || 'Ukjent feil'}</span>
+								{:else}
+									-
+								{/if}
+							</td>
 							<td>{job.finishedAt ? new Date(job.finishedAt).toLocaleString('nb-NO') : '-'}</td>
 						</tr>
 					{:else}
 						<tr>
-							<td colspan="7" class="no-data">Ingen jobber funnet</td>
+							<td colspan="8" class="no-data">Ingen jobber funnet</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -348,6 +356,15 @@
 	.status-cancelled {
 		background: #e2e3e5;
 		color: #383d41;
+	}
+
+	.error-text {
+		color: #c0392b;
+		font-weight: 600;
+		display: inline-block;
+		max-width: 420px;
+		white-space: normal;
+		word-break: break-word;
 	}
 
 	.no-data {

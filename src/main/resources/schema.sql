@@ -23,6 +23,7 @@ CREATE TABLE IF NOT EXISTS corrections (
     note TEXT,
     correction_version INTEGER NOT NULL,
     saved_at TIMESTAMP NOT NULL,
+    correction_placed_at TIMESTAMPTZ NOT NULL,
     saved_by VARCHAR(255),
     normalized_transactions_created INTEGER,
     CONSTRAINT fk_corrections_document FOREIGN KEY (document_id) REFERENCES documents(id)

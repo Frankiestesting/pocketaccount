@@ -9,25 +9,33 @@ import com.frnholding.pocketaccount.domain.Document;
 import com.frnholding.pocketaccount.domain.DocumentEntity;
 import com.frnholding.pocketaccount.domain.Job;
 import com.frnholding.pocketaccount.domain.JobEntity;
+import com.frnholding.pocketaccount.exception.EntityNotFoundException;
 import com.frnholding.pocketaccount.repository.CorrectionRepository;
 import com.frnholding.pocketaccount.repository.DocumentRepository;
 import com.frnholding.pocketaccount.repository.JobRepository;
+import com.frnholding.pocketaccount.interpretation.domain.InterpretationResult;
+import com.frnholding.pocketaccount.interpretation.domain.InvoiceFieldsDTO;
+import com.frnholding.pocketaccount.interpretation.domain.StatementTransaction;
+import com.frnholding.pocketaccount.interpretation.repository.InterpretationResultRepository;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.web.multipart.MultipartFile;
 
 import java.io.FileInputStream;
-import java.io.FileNotFoundException;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 @Service
 public class DocumentService {
@@ -42,6 +50,9 @@ public class DocumentService {
 
     @Autowired
     private CorrectionRepository correctionRepository;
+
+    @Autowired
+    private InterpretationResultRepository interpretationResultRepository;
 
     public Document uploadDocument(MultipartFile file, String source, String originalFilename, String documentType) throws IOException {
         // Validate source
@@ -92,15 +103,30 @@ public class DocumentService {
                 .collect(java.util.stream.Collectors.toList());
     }
 
+    public List<Document> getDocuments(int page, int size) {
+        return documentRepository.findAll(PageRequest.of(page, size)).stream()
+                .map(DocumentEntity::toDomain)
+                .collect(Collectors.toList());
+    }
+
+    public Map<String, Document> getDocumentsByIds(List<String> documentIds) {
+        if (documentIds == null || documentIds.isEmpty()) {
+            return Collections.emptyMap();
+        }
+        return documentRepository.findAllById(documentIds).stream()
+                .map(DocumentEntity::toDomain)
+                .collect(Collectors.toMap(Document::getId, document -> document));
+    }
+
     public Resource getDocumentFile(String documentId) throws IOException {
         Document document = getDocument(documentId);
         if (document == null) {
-            throw new FileNotFoundException("Document not found: " + documentId);
+            throw new EntityNotFoundException("Document not found: " + documentId);
         }
 
         Path filePath = Paths.get(document.getFilePath());
         if (!Files.exists(filePath)) {
-            throw new FileNotFoundException("File not found: " + document.getFilePath());
+            throw new EntityNotFoundException("File not found: " + document.getFilePath());
         }
 
         return new InputStreamResource(new FileInputStream(filePath.toFile()));
@@ -110,7 +136,7 @@ public class DocumentService {
         // Validate document exists
         Document document = getDocument(documentId);
         if (document == null) {
-            throw new IllegalArgumentException("Document not found: " + documentId);
+            throw new EntityNotFoundException("Document not found: " + documentId);
         }
 
         // Generate job ID
@@ -138,10 +164,16 @@ public class DocumentService {
                 .collect(java.util.stream.Collectors.toList());
     }
 
+    public List<Job> getJobs(int page, int size) {
+        return jobRepository.findAll(PageRequest.of(page, size)).stream()
+                .map(JobEntity::toDomain)
+                .collect(Collectors.toList());
+    }
+
     public Job cancelJob(String jobId) {
         JobEntity entity = jobRepository.findById(jobId).orElse(null);
         if (entity == null) {
-            throw new IllegalArgumentException("Job not found: " + jobId);
+            throw new EntityNotFoundException("Job not found: " + jobId);
         }
 
         // Only allow cancellation of pending or running jobs
@@ -161,70 +193,90 @@ public class DocumentService {
         // Validate document exists
         Document document = getDocument(documentId);
         if (document == null) {
-            throw new IllegalArgumentException("Document not found: " + documentId);
+            throw new EntityNotFoundException("Document not found: " + documentId);
         }
 
-        String documentType = document.getDocumentType();
+        CorrectionEntity latestCorrection = correctionRepository
+            .findTopByDocumentIdOrderByCorrectionVersionDesc(documentId)
+            .orElse(null);
+
+        Map<String, Object> correctedFields = latestCorrection != null
+            ? latestCorrection.getFields()
+            : null;
+        String correctedDocumentType = latestCorrection != null && latestCorrection.getDocumentType() != null
+            ? latestCorrection.getDocumentType()
+            : document.getDocumentType();
+
+        InterpretationResult interpretationResult = interpretationResultRepository
+            .findByDocumentId(documentId)
+            .orElse(null);
+
+        Map<String, Object> extractedFields = null;
+        List<ExtractionResultResponseDTO.Transaction> extractedTransactions = null;
+        Instant extractedAt = null;
+
+        if (interpretationResult != null) {
+            extractedAt = interpretationResult.getInterpretedAt();
+
+            InvoiceFieldsDTO invoiceFields = interpretationResult.getInvoiceFields();
+            if (invoiceFields != null) {
+                extractedFields = Map.of(
+                    "date", invoiceFields.getDate(),
+                    "amount", invoiceFields.getAmount(),
+                    "currency", invoiceFields.getCurrency(),
+                    "sender", invoiceFields.getSender(),
+                    "description", invoiceFields.getDescription()
+                );
+            }
+
+            List<StatementTransaction> statementTransactions = interpretationResult.getStatementTransactions();
+            if (statementTransactions != null && !statementTransactions.isEmpty()) {
+                extractedTransactions = statementTransactions.stream()
+                    .map(t -> new ExtractionResultResponseDTO.Transaction(
+                        t.getDate() != null ? t.getDate().toString() : null,
+                        t.getAmount(),
+                        t.getCurrency(),
+                        t.getDescription(),
+                        null
+                    ))
+                    .collect(Collectors.toList());
+            }
+        }
+
+        String documentType = correctedDocumentType;
         
         if ("STATEMENT".equals(documentType)) {
-            // Return STATEMENT structure with transactions
-            List<ExtractionResultResponseDTO.Transaction> transactions = List.of(
-                new ExtractionResultResponseDTO.Transaction(
-                    "2026-01-03",
-                    -399.00,
-                    "NOK",
-                    "KIWI 123",
-                    Map.of("date", 0.95, "amount", 0.91)
-                )
-            );
-            
             return new ExtractionResultResponseDTO(
                 documentId,
                 "STATEMENT",
                 1,
-                null, // extractedAt not needed for STATEMENT
+                extractedAt,
                 null, // fields not used for STATEMENT
+                correctedFields,
                 null, // confidence not used for STATEMENT
                 null, // warnings not used for STATEMENT
-                transactions
-            );
-        } else {
-            // Return INVOICE structure (existing logic)
-            Map<String, Object> fields = Map.of(
-                "date", "2026-01-02",
-                "amount", 12450.00,
-                "currency", "NOK",
-                "sender", "Strøm AS",
-                "description", "Faktura strøm januar"
-            );
-
-            Map<String, Double> confidence = Map.of(
-                "date", 0.86,
-                "amount", 0.93,
-                "sender", 0.72,
-                "description", 0.60
-            );
-
-            List<String> warnings = List.of("Sender confidence low");
-
-            return new ExtractionResultResponseDTO(
-                documentId,
-                "INVOICE",
-                3,
-                Instant.parse("2026-01-11T13:26:08Z"),
-                fields,
-                confidence,
-                warnings,
-                null // transactions not used for INVOICE
+                extractedTransactions
             );
         }
+
+        return new ExtractionResultResponseDTO(
+            documentId,
+            "INVOICE",
+            1,
+            extractedAt,
+            extractedFields,
+            correctedFields,
+            null,
+            null,
+            null // transactions not used for INVOICE
+        );
     }
 
     public DocumentCorrectionResponseDTO saveCorrection(String documentId, DocumentCorrectionRequestDTO request) {
         // Validate document exists
         Document document = getDocument(documentId);
         if (document == null) {
-            throw new IllegalArgumentException("Document not found: " + documentId);
+            throw new EntityNotFoundException("Document not found: " + documentId);
         }
 
         // Get next correction version
@@ -232,7 +284,8 @@ public class DocumentService {
         Integer nextVersion = maxVersion + 1;
 
         // Create correction
-        Instant now = Instant.now();
+        OffsetDateTime correctionPlacedAt = OffsetDateTime.now();
+        Instant now = correctionPlacedAt.toInstant();
         Correction correction = new Correction(
             null, // id will be generated
             documentId,
@@ -241,18 +294,20 @@ public class DocumentService {
             request.getNote(),
             nextVersion,
             now,
+            correctionPlacedAt,
             "user:123", // Mock user ID
             1 // Mock normalized transactions created
         );
 
         // Save to database
         CorrectionEntity entity = CorrectionEntity.fromDomain(correction);
-        CorrectionEntity savedEntity = correctionRepository.save(entity);
+        correctionRepository.save(entity);
 
         return new DocumentCorrectionResponseDTO(
             documentId,
             nextVersion,
             now,
+            correctionPlacedAt,
             "user:123",
             1
         );

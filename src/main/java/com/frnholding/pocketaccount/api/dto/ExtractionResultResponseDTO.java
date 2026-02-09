@@ -10,6 +10,7 @@ public class ExtractionResultResponseDTO {
     private Integer extractionVersion;
     private Instant extractedAt;
     private Map<String, Object> fields;
+    private Map<String, Object> correctedFields;
     private Map<String, Double> confidence;
     private List<String> warnings;
     private List<Transaction> transactions;
@@ -17,15 +18,17 @@ public class ExtractionResultResponseDTO {
     public ExtractionResultResponseDTO() {
     }
 
-    public ExtractionResultResponseDTO(String documentId, String documentType, Integer extractionVersion, 
-                                       Instant extractedAt, Map<String, Object> fields, 
-                                       Map<String, Double> confidence, List<String> warnings, 
+    public ExtractionResultResponseDTO(String documentId, String documentType, Integer extractionVersion,
+                                       Instant extractedAt, Map<String, Object> fields,
+                                       Map<String, Object> correctedFields,
+                                       Map<String, Double> confidence, List<String> warnings,
                                        List<Transaction> transactions) {
         this.documentId = documentId;
         this.documentType = documentType;
         this.extractionVersion = extractionVersion;
         this.extractedAt = extractedAt;
         this.fields = fields;
+        this.correctedFields = correctedFields;
         this.confidence = confidence;
         this.warnings = warnings;
         this.transactions = transactions;
@@ -69,6 +72,14 @@ public class ExtractionResultResponseDTO {
 
     public void setFields(Map<String, Object> fields) {
         this.fields = fields;
+    }
+
+    public Map<String, Object> getCorrectedFields() {
+        return correctedFields;
+    }
+
+    public void setCorrectedFields(Map<String, Object> correctedFields) {
+        this.correctedFields = correctedFields;
     }
 
     public Map<String, Double> getConfidence() {

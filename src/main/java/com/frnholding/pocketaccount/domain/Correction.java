@@ -1,6 +1,7 @@
 package com.frnholding.pocketaccount.domain;
 
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.Map;
 
 public class Correction {
@@ -11,6 +12,7 @@ public class Correction {
     private String note;
     private Integer correctionVersion;
     private Instant savedAt;
+    private OffsetDateTime correctionPlacedAt;
     private String savedBy;
     private Integer normalizedTransactionsCreated;
     
@@ -19,8 +21,9 @@ public class Correction {
     }
 
     // All-arguments constructor
-    public Correction(Long id, String documentId, String documentType, Map<String, Object> fields, 
-                      String note, Integer correctionVersion, Instant savedAt, String savedBy, 
+    public Correction(Long id, String documentId, String documentType, Map<String, Object> fields,
+                      String note, Integer correctionVersion, Instant savedAt,
+                      OffsetDateTime correctionPlacedAt, String savedBy,
                       Integer normalizedTransactionsCreated) {
         this.id = id;
         this.documentId = documentId;
@@ -29,6 +32,7 @@ public class Correction {
         this.note = note;
         this.correctionVersion = correctionVersion;
         this.savedAt = savedAt;
+        this.correctionPlacedAt = correctionPlacedAt;
         this.savedBy = savedBy;
         this.normalizedTransactionsCreated = normalizedTransactionsCreated;
     }
@@ -90,6 +94,14 @@ public class Correction {
         this.savedAt = savedAt;
     }
 
+    public OffsetDateTime getCorrectionPlacedAt() {
+        return correctionPlacedAt;
+    }
+
+    public void setCorrectionPlacedAt(OffsetDateTime correctionPlacedAt) {
+        this.correctionPlacedAt = correctionPlacedAt;
+    }
+
     public String getSavedBy() {
         return savedBy;
     }
@@ -120,6 +132,7 @@ public class Correction {
         if (!note.equals(that.note)) return false;
         if (!correctionVersion.equals(that.correctionVersion)) return false;
         if (!savedAt.equals(that.savedAt)) return false;
+        if (!correctionPlacedAt.equals(that.correctionPlacedAt)) return false;
         if (!savedBy.equals(that.savedBy)) return false;
         return normalizedTransactionsCreated.equals(that.normalizedTransactionsCreated);
     }
@@ -133,6 +146,7 @@ public class Correction {
         result = 31 * result + note.hashCode();
         result = 31 * result + correctionVersion.hashCode();
         result = 31 * result + savedAt.hashCode();
+        result = 31 * result + correctionPlacedAt.hashCode();
         result = 31 * result + savedBy.hashCode();
         result = 31 * result + normalizedTransactionsCreated.hashCode();
         return result;
@@ -148,6 +162,7 @@ public class Correction {
                 ", note='" + note + '\'' +
                 ", correctionVersion=" + correctionVersion +
                 ", savedAt=" + savedAt +
+                ", correctionPlacedAt=" + correctionPlacedAt +
                 ", savedBy='" + savedBy + '\'' +
                 ", normalizedTransactionsCreated=" + normalizedTransactionsCreated +
                 '}';

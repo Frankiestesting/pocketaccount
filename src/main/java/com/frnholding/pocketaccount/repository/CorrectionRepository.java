@@ -13,4 +13,6 @@ public interface CorrectionRepository extends JpaRepository<CorrectionEntity, Lo
 
     @Query("SELECT MAX(c.correctionVersion) FROM CorrectionEntity c WHERE c.documentId = :documentId")
     Optional<Integer> findMaxCorrectionVersionByDocumentId(@Param("documentId") String documentId);
+
+    Optional<CorrectionEntity> findTopByDocumentIdOrderByCorrectionVersionDesc(String documentId);
 }

@@ -24,10 +24,17 @@ import com.frnholding.pocketaccount.accounting.repository.ReceiptMatchRepository
 import com.frnholding.pocketaccount.accounting.repository.ReceiptRepository;
 import com.frnholding.pocketaccount.exception.EntityNotFoundException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+import org.apache.poi.ss.usermodel.Row;
+import org.apache.poi.ss.usermodel.Sheet;
+import org.apache.poi.ss.usermodel.Workbook;
+import org.apache.poi.xssf.usermodel.XSSFWorkbook;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
@@ -76,6 +83,14 @@ public class AccountingService {
                 .map(mapper::toResponse)
                 .collect(Collectors.toList());
     }
+
+    @Transactional(readOnly = true)
+    public List<AccountResponse> getAccounts(int page, int size) {
+        Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
+        return accountRepository.findAll(PageRequest.of(page, size, sort)).stream()
+                .map(mapper::toResponse)
+                .collect(Collectors.toList());
+    }
     
     @Transactional(readOnly = true)
     public AccountResponse getAccountById(UUID id) {
@@ -87,6 +102,14 @@ public class AccountingService {
     @Transactional(readOnly = true)
     public List<BankTransactionDTO> getTransactionsByAccountId(UUID accountId) {
         return bankTransactionRepository.findByAccountId(accountId).stream()
+                .map(mapper::toDTO)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<BankTransactionDTO> getTransactionsByAccountId(UUID accountId, int page, int size) {
+        Sort sort = Sort.by(Sort.Direction.DESC, "bookingDate");
+        return bankTransactionRepository.findByAccountId(accountId, PageRequest.of(page, size, sort)).stream()
                 .map(mapper::toDTO)
                 .collect(Collectors.toList());
     }
@@ -136,6 +159,18 @@ public class AccountingService {
                 .map(mapper::toBankTransactionResponse)
                 .collect(Collectors.toList());
     }
+
+            @Transactional(readOnly = true)
+            public List<BankTransactionResponse> getTransactionsByDateRange(UUID accountId, LocalDate from, LocalDate to, int page, int size) {
+            // Verify account exists
+            accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+
+            Sort sort = Sort.by(Sort.Direction.DESC, "bookingDate");
+            return bankTransactionRepository.findByAccountIdAndDateRange(accountId, from, to, PageRequest.of(page, size, sort)).stream()
+                .map(mapper::toBankTransactionResponse)
+                .collect(Collectors.toList());
+            }
     
     @Transactional
     public ReceiptResponse createReceipt(CreateReceiptRequest request) {
@@ -155,6 +190,14 @@ public class AccountingService {
     @Transactional(readOnly = true)
     public List<ReceiptResponse> getReceiptsByDateRange(LocalDate from, LocalDate to) {
         return receiptRepository.findByDateRange(from, to).stream()
+                .map(mapper::toReceiptResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReceiptResponse> getReceiptsByDateRange(LocalDate from, LocalDate to, int page, int size) {
+        Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
+        return receiptRepository.findByDateRange(from, to, PageRequest.of(page, size, sort)).stream()
                 .map(mapper::toReceiptResponse)
                 .collect(Collectors.toList());
     }
@@ -254,6 +297,48 @@ public class AccountingService {
                 })
                 .collect(Collectors.toList());
     }
+
+    @Transactional(readOnly = true)
+    public List<ReconciliationRowResponse> getReconciliationData(UUID accountId, LocalDate from, LocalDate to, int page, int size) {
+        // Verify account exists
+        accountRepository.findById(accountId)
+                .orElseThrow(() -> new IllegalArgumentException("Account not found: " + accountId));
+
+        Sort sort = Sort.by(Sort.Direction.DESC, "bookingDate");
+        List<BankTransaction> transactions = bankTransactionRepository.findByAccountIdAndDateRange(
+                accountId,
+                from,
+                to,
+                PageRequest.of(page, size, sort)
+        );
+
+        return transactions.stream()
+                .map(transaction -> {
+                    BigDecimal sumMatched = receiptMatchRepository.sumMatchedAmountByBankTransactionId(transaction.getId());
+                    BigDecimal transactionAmountAbs = transaction.getAmount().abs();
+
+                    String status;
+                    if (sumMatched.compareTo(BigDecimal.ZERO) == 0) {
+                        status = "UNMATCHED";
+                    } else if (sumMatched.compareTo(transactionAmountAbs) < 0) {
+                        status = "PARTIAL";
+                    } else if (sumMatched.compareTo(transactionAmountAbs) == 0) {
+                        status = "MATCHED";
+                    } else {
+                        status = "OVER";
+                    }
+
+                    return new ReconciliationRowResponse(
+                            transaction.getId(),
+                            transaction.getBookingDate(),
+                            transaction.getAmount(),
+                            transaction.getDescription(),
+                            sumMatched,
+                            status
+                    );
+                })
+                .collect(Collectors.toList());
+    }
     
     @Transactional(readOnly = true)
     public String getReconciliationCsv(UUID accountId, LocalDate from, LocalDate to) {
@@ -275,6 +360,43 @@ public class AccountingService {
         }
         
         return csv.toString();
+    }
+
+    @Transactional(readOnly = true)
+    public byte[] getReconciliationExcel(UUID accountId, LocalDate from, LocalDate to) {
+        List<ReconciliationRowResponse> rows = getReconciliationData(accountId, from, to);
+
+        try (Workbook workbook = new XSSFWorkbook(); ByteArrayOutputStream outputStream = new ByteArrayOutputStream()) {
+            Sheet sheet = workbook.createSheet("reconciliation");
+            int rowIndex = 0;
+
+            Row header = sheet.createRow(rowIndex++);
+            header.createCell(0).setCellValue("transactionId");
+            header.createCell(1).setCellValue("bookingDate");
+            header.createCell(2).setCellValue("amount");
+            header.createCell(3).setCellValue("description");
+            header.createCell(4).setCellValue("sumMatched");
+            header.createCell(5).setCellValue("status");
+
+            for (ReconciliationRowResponse row : rows) {
+                Row excelRow = sheet.createRow(rowIndex++);
+                excelRow.createCell(0).setCellValue(row.getTransactionId().toString());
+                excelRow.createCell(1).setCellValue(row.getBookingDate().toString());
+                excelRow.createCell(2).setCellValue(row.getAmount().toPlainString());
+                excelRow.createCell(3).setCellValue(row.getDescription());
+                excelRow.createCell(4).setCellValue(row.getSumMatched().toPlainString());
+                excelRow.createCell(5).setCellValue(row.getStatus());
+            }
+
+            for (int i = 0; i <= 5; i++) {
+                sheet.autoSizeColumn(i);
+            }
+
+            workbook.write(outputStream);
+            return outputStream.toByteArray();
+        } catch (IOException e) {
+            throw new IllegalStateException("Failed to generate reconciliation Excel export", e);
+        }
     }
     
     private String escapeCsvField(String field) {

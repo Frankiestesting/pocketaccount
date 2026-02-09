@@ -7,6 +7,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.apache.pdfbox.Loader;
 import org.apache.pdfbox.pdmodel.PDDocument;
 import org.apache.pdfbox.text.PDFTextStripper;
+import org.junit.jupiter.api.Assumptions;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
@@ -47,11 +48,10 @@ public class StatementInterpretationAiTest {
         System.out.println("=".repeat(80) + "\n");
 
         // Check if OpenAI is configured
-        if (!openAiEnabled || openAiApiKey == null || openAiApiKey.isEmpty()) {
-            System.err.println("ERROR: OpenAI is not enabled or API key not configured");
-            System.err.println("Set openai.enabled=true and openai.api.key in application.properties");
-            return;
-        }
+        Assumptions.assumeTrue(
+            openAiEnabled && openAiApiKey != null && !openAiApiKey.isEmpty(),
+            "OpenAI is not enabled or API key not configured"
+        );
 
         System.out.println("✓ OpenAI is enabled and configured\n");
 

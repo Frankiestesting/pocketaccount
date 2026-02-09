@@ -8,6 +8,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.http.*;
 import org.springframework.stereotype.Component;
+import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
 import java.time.LocalDate;
@@ -37,7 +38,13 @@ public class OpenAiInvoiceExtractor implements InvoiceExtractor {
 
     @Override
     public InvoiceFieldsDTO extract(InterpretedText text) {
-        log.info("Extracting invoice fields using OpenAI REST API");
+        log.info(
+            "Extracting invoice fields using OpenAI REST API (enabled={}, apiKeyPresent={}, model={}, textLength={})",
+            enabled,
+            apiKey != null && !apiKey.isEmpty(),
+            model,
+            text != null && text.getRawText() != null ? text.getRawText().length() : 0
+        );
 
         if (!enabled || apiKey == null || apiKey.isEmpty()) {
             log.warn("OpenAI is not enabled or API key not configured, returning empty fields");
@@ -57,6 +64,9 @@ public class OpenAiInvoiceExtractor implements InvoiceExtractor {
             
             return fields;
 
+        } catch (OpenAiAuthenticationException e) {
+            log.error("OpenAI authentication failed while extracting invoice fields: {}", e.getMessage());
+            throw e;
         } catch (Exception e) {
             log.error("Failed to extract invoice fields using OpenAI: {}", e.getMessage(), e);
             return new InvoiceFieldsDTO();
@@ -98,6 +108,11 @@ public class OpenAiInvoiceExtractor implements InvoiceExtractor {
             Map<String, Object> message = (Map<String, Object>) choices.get(0).get("message");
             
             return (String) message.get("content");
+        } catch (HttpClientErrorException.Unauthorized e) {
+            throw new OpenAiAuthenticationException(
+                    "OpenAI authentication failed. Check OPENAI_API_KEY and OPENAI_ENABLED.",
+                    e
+            );
         } catch (Exception e) {
             throw new RuntimeException("Failed to call OpenAI API", e);
         }

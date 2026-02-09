@@ -9,6 +9,7 @@ import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ControllerAdvice;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 
+import java.io.IOException;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -59,6 +60,26 @@ public class RestExceptionHandler {
         );
         
         return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(IllegalStateException.class)
+    public ResponseEntity<ApiErrorResponse> handleIllegalState(IllegalStateException ex) {
+        ApiErrorResponse error = new ApiErrorResponse(
+            "BAD_REQUEST",
+            ex.getMessage()
+        );
+
+        return new ResponseEntity<>(error, HttpStatus.BAD_REQUEST);
+    }
+
+    @ExceptionHandler(IOException.class)
+    public ResponseEntity<ApiErrorResponse> handleIoException(IOException ex) {
+        ApiErrorResponse error = new ApiErrorResponse(
+            "IO_ERROR",
+            "I/O failure processing the request"
+        );
+
+        return new ResponseEntity<>(error, HttpStatus.INTERNAL_SERVER_ERROR);
     }
 
     private String extractConstraintMessage(DataIntegrityViolationException ex) {

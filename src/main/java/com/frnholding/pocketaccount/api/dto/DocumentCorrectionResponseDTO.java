@@ -1,22 +1,26 @@
 package com.frnholding.pocketaccount.api.dto;
 
 import java.time.Instant;
+import java.time.OffsetDateTime;
 
 public class DocumentCorrectionResponseDTO {
     private String documentId;
     private Integer correctionVersion;
     private Instant savedAt;
+    private OffsetDateTime correctionPlacedAt;
     private String savedBy;
     private Integer normalizedTransactionsCreated;
 
     public DocumentCorrectionResponseDTO() {
     }
 
-    public DocumentCorrectionResponseDTO(String documentId, Integer correctionVersion, Instant savedAt, 
-                                         String savedBy, Integer normalizedTransactionsCreated) {
+    public DocumentCorrectionResponseDTO(String documentId, Integer correctionVersion, Instant savedAt,
+                                         OffsetDateTime correctionPlacedAt, String savedBy,
+                                         Integer normalizedTransactionsCreated) {
         this.documentId = documentId;
         this.correctionVersion = correctionVersion;
         this.savedAt = savedAt;
+        this.correctionPlacedAt = correctionPlacedAt;
         this.savedBy = savedBy;
         this.normalizedTransactionsCreated = normalizedTransactionsCreated;
     }
@@ -43,6 +47,14 @@ public class DocumentCorrectionResponseDTO {
 
     public void setSavedAt(Instant savedAt) {
         this.savedAt = savedAt;
+    }
+
+    public OffsetDateTime getCorrectionPlacedAt() {
+        return correctionPlacedAt;
+    }
+
+    public void setCorrectionPlacedAt(OffsetDateTime correctionPlacedAt) {
+        this.correctionPlacedAt = correctionPlacedAt;
     }
 
     public String getSavedBy() {

@@ -5,16 +5,21 @@ import com.frnholding.pocketaccount.interpretation.api.dto.StartExtractionRespon
 import com.frnholding.pocketaccount.interpretation.api.dto.JobStatusResponseDTO;
 import com.frnholding.pocketaccount.interpretation.api.dto.ExtractionResultResponseDTO;
 import com.frnholding.pocketaccount.interpretation.api.dto.SaveCorrectionRequestDTO;
+import com.frnholding.pocketaccount.interpretation.infra.OpenAiConnectionService;
 import com.frnholding.pocketaccount.interpretation.service.InterpretationService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
+import jakarta.validation.Valid;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
+
+import java.util.List;
+import java.util.UUID;
 
 /**
  * REST controller for document interpretation and extraction operations.
@@ -28,9 +33,12 @@ public class ExtractionController {
 
     private static final Logger log = LoggerFactory.getLogger(ExtractionController.class);
     private final InterpretationService interpretationService;
+        private final OpenAiConnectionService openAiConnectionService;
 
-    public ExtractionController(InterpretationService interpretationService) {
+        public ExtractionController(InterpretationService interpretationService,
+                                                                OpenAiConnectionService openAiConnectionService) {
         this.interpretationService = interpretationService;
+                this.openAiConnectionService = openAiConnectionService;
     }
 
     @PostMapping("/documents/{id}/jobs")
@@ -42,41 +50,27 @@ public class ExtractionController {
             @ApiResponse(responseCode = "500", description = "Server error starting extraction")
     })
     public ResponseEntity<StartExtractionResponseDTO> startExtraction(
-            @PathVariable @Parameter(description = "Document ID") String id,
-            @RequestBody @Parameter(description = "Extraction configuration") StartExtractionRequestDTO request) {
+            @PathVariable @Parameter(description = "Document ID") UUID id,
+            @Valid @RequestBody @Parameter(description = "Extraction configuration") StartExtractionRequestDTO request) {
         
         log.info("Starting extraction job for document {} with options: useOcr={}, useAi={}, languageHint={}, hintedType={}", 
                 id, request.isUseOcr(), request.isUseAi(), request.getLanguageHint(), request.getHintedType());
-        
-        try {
-            StartExtractionResponseDTO response = interpretationService.startExtraction(id, request);
-            return ResponseEntity.accepted().body(response);
-            
-        } catch (IllegalArgumentException e) {
-            log.error("Document not found: {}", id);
-            return ResponseEntity.notFound().build();
-            
-        } catch (Exception e) {
-            log.error("Failed to start extraction for document {}: {}", id, e.getMessage(), e);
-            return ResponseEntity.internalServerError().build();
-        }
+
+        StartExtractionResponseDTO response = interpretationService.startExtraction(id.toString(), request);
+        return ResponseEntity.accepted().body(response);
     }
 
     @GetMapping("/jobs")
     @Operation(summary = "List all extraction jobs", description = "Get all extraction jobs across all documents")
     @ApiResponse(responseCode = "200", description = "List of jobs retrieved successfully")
-    public ResponseEntity<java.util.List<JobStatusResponseDTO>> getAllJobs() {
+    public ResponseEntity<List<JobStatusResponseDTO>> getAllJobs(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
         
         log.debug("Getting all interpretation jobs");
-        
-        try {
-            java.util.List<JobStatusResponseDTO> jobs = interpretationService.getAllJobs();
-            return ResponseEntity.ok(jobs);
-            
-        } catch (Exception e) {
-            log.error("Failed to get all jobs: {}", e.getMessage(), e);
-            return ResponseEntity.internalServerError().build();
-        }
+
+        List<JobStatusResponseDTO> jobs = interpretationService.getJobs(page, size);
+        return ResponseEntity.ok(jobs);
     }
 
     @GetMapping("/jobs/{jobId}")
@@ -85,22 +79,12 @@ public class ExtractionController {
             @ApiResponse(responseCode = "200", description = "Job status retrieved successfully"),
             @ApiResponse(responseCode = "404", description = "Job not found")
     })
-    public ResponseEntity<JobStatusResponseDTO> getJobStatus(@PathVariable @Parameter(description = "Job ID") String jobId) {
+    public ResponseEntity<JobStatusResponseDTO> getJobStatus(@PathVariable @Parameter(description = "Job ID") UUID jobId) {
         
         log.debug("Getting status for interpretation job {}", jobId);
-        
-        try {
-            JobStatusResponseDTO response = interpretationService.getJobStatus(jobId);
-            return ResponseEntity.ok(response);
-            
-        } catch (IllegalArgumentException e) {
-            log.error("Job not found: {}", jobId);
-            return ResponseEntity.notFound().build();
-            
-        } catch (Exception e) {
-            log.error("Failed to get job status for {}: {}", jobId, e.getMessage(), e);
-            return ResponseEntity.internalServerError().build();
-        }
+
+        JobStatusResponseDTO response = interpretationService.getJobStatus(jobId.toString());
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/documents/{id}/result")
@@ -109,22 +93,12 @@ public class ExtractionController {
             @ApiResponse(responseCode = "200", description = "Extraction results retrieved successfully"),
             @ApiResponse(responseCode = "404", description = "Document or results not found")
     })
-    public ResponseEntity<ExtractionResultResponseDTO> getExtractionResult(@PathVariable @Parameter(description = "Document ID") String id) {
+    public ResponseEntity<ExtractionResultResponseDTO> getExtractionResult(@PathVariable @Parameter(description = "Document ID") UUID id) {
         
         log.debug("Getting extraction result for document {}", id);
-        
-        try {
-            ExtractionResultResponseDTO response = interpretationService.getExtractionResult(id);
-            return ResponseEntity.ok(response);
-            
-        } catch (IllegalArgumentException e) {
-            log.error("Document or result not found: {}", id);
-            return ResponseEntity.notFound().build();
-            
-        } catch (Exception e) {
-            log.error("Failed to get extraction result for document {}: {}", id, e.getMessage(), e);
-            return ResponseEntity.internalServerError().build();
-        }
+
+        ExtractionResultResponseDTO response = interpretationService.getExtractionResult(id.toString());
+        return ResponseEntity.ok(response);
     }
 
     @GetMapping("/jobs/{jobId}/result")
@@ -133,22 +107,12 @@ public class ExtractionController {
             @ApiResponse(responseCode = "200", description = "Extraction results retrieved successfully"),
             @ApiResponse(responseCode = "404", description = "Job or results not found")
     })
-    public ResponseEntity<ExtractionResultResponseDTO> getJobResult(@PathVariable @Parameter(description = "Job ID") String jobId) {
+    public ResponseEntity<ExtractionResultResponseDTO> getJobResult(@PathVariable @Parameter(description = "Job ID") UUID jobId) {
         
         log.debug("Getting extraction result for job {}", jobId);
-        
-        try {
-            ExtractionResultResponseDTO response = interpretationService.getJobResult(jobId);
-            return ResponseEntity.ok(response);
-            
-        } catch (IllegalArgumentException e) {
-            log.error("Job or result not found: {}", jobId);
-            return ResponseEntity.notFound().build();
-            
-        } catch (Exception e) {
-            log.error("Failed to get extraction result for job {}: {}", jobId, e.getMessage(), e);
-            return ResponseEntity.internalServerError().build();
-        }
+
+        ExtractionResultResponseDTO response = interpretationService.getJobResult(jobId.toString());
+        return ResponseEntity.ok(response);
     }
 
     @PutMapping("/documents/{id}/correction")
@@ -159,22 +123,25 @@ public class ExtractionController {
             @ApiResponse(responseCode = "500", description = "Server error saving corrections")
     })
     public ResponseEntity<Void> saveCorrection(
-            @PathVariable @Parameter(description = "Document ID") String id,
-            @RequestBody @Parameter(description = "Corrected extraction data") SaveCorrectionRequestDTO request) {
+            @PathVariable @Parameter(description = "Document ID") UUID id,
+            @Valid @RequestBody @Parameter(description = "Corrected extraction data") SaveCorrectionRequestDTO request) {
         
         log.info("Saving correction for document {} of type {}", id, request.getDocumentType());
-        
-        try {
-            interpretationService.saveCorrection(id, request);
-            return ResponseEntity.ok().build();
-            
-        } catch (IllegalArgumentException e) {
-            log.error("Document not found: {}", id);
-            return ResponseEntity.notFound().build();
-            
-        } catch (Exception e) {
-            log.error("Failed to save correction for document {}: {}", id, e.getMessage(), e);
-            return ResponseEntity.internalServerError().build();
-        }
+
+        interpretationService.saveCorrection(id.toString(), request);
+        return ResponseEntity.ok().build();
     }
+
+        @GetMapping("/openai/check")
+        @Operation(summary = "Check OpenAI connection", description = "Checks OpenAI API connectivity and returns the raw OpenAI response or error.")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "OpenAI connection check succeeded"),
+                        @ApiResponse(responseCode = "400", description = "OpenAI not enabled or API key missing"),
+                        @ApiResponse(responseCode = "401", description = "OpenAI authentication failed"),
+                        @ApiResponse(responseCode = "500", description = "OpenAI check failed")
+        })
+        public ResponseEntity<String> checkOpenAiConnection() {
+                log.info("Checking OpenAI connection");
+                return openAiConnectionService.checkConnection();
+        }
 }

@@ -20,11 +20,20 @@
 			<li class:active={$page.url.pathname === '/results'}>
 				<a href="/results" on:click={(e) => handleClick(e, '/results')}>Resultater</a>
 			</li>
+			<li class:active={$page.url.pathname === '/corrections'}>
+				<a href="/corrections" on:click={(e) => handleClick(e, '/corrections')}>Korrigering</a>
+			</li>
+			<li class:active={$page.url.pathname === '/accounts'}>
+				<a href="/accounts" on:click={(e) => handleClick(e, '/accounts')}>Kontoer</a>
+			</li>
 			<li class:active={$page.url.pathname === '/compare'}>
 				<a href="/compare" on:click={(e) => handleClick(e, '/compare')}>Sammenlign</a>
 			</li>
 			<li class:active={$page.url.pathname === '/compare-results'}>
 				<a href="/compare-results" on:click={(e) => handleClick(e, '/compare-results')}>Sammenlign Resultater</a>
+			</li>
+			<li class:active={$page.url.pathname === '/openai-check'}>
+				<a href="/openai-check" on:click={(e) => handleClick(e, '/openai-check')}>OpenAI Sjekk</a>
 			</li>
 		</ul>
 	</nav>

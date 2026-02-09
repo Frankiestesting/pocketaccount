@@ -1,5 +1,5 @@
 <script>
-	let files;
+	let files = [];
 	let source = 'mobile';
 	let originalFilename = '';
 	let documentType = 'INVOICE';
@@ -44,7 +44,7 @@
 	let interpretationCorrectionDocumentType = 'INVOICE';
 	let interpretationCorrectionNote = 'AI-corrected data';
 
-	$: file = files[0];
+	$: file = files && files.length > 0 ? files[0] : null;
 
 	async function handleSubmit(event) {
 		event.preventDefault();

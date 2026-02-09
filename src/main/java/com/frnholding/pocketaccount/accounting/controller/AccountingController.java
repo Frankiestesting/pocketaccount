@@ -21,6 +21,7 @@ import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.*;
 
+import java.nio.charset.StandardCharsets;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
@@ -44,8 +45,10 @@ public class AccountingController {
     }
     
     @GetMapping("/accounts")
-    public ResponseEntity<List<AccountResponse>> getAllAccounts() {
-        List<AccountResponse> accounts = accountingService.getAllAccounts();
+    public ResponseEntity<List<AccountResponse>> getAllAccounts(
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        List<AccountResponse> accounts = accountingService.getAccounts(page, size);
         return ResponseEntity.ok(accounts);
     }
     
@@ -56,8 +59,11 @@ public class AccountingController {
     }
     
     @GetMapping("/accounts/{accountId}/transactions")
-    public ResponseEntity<List<BankTransactionDTO>> getTransactionsByAccountId(@PathVariable UUID accountId) {
-        List<BankTransactionDTO> transactions = accountingService.getTransactionsByAccountId(accountId);
+    public ResponseEntity<List<BankTransactionDTO>> getTransactionsByAccountId(
+            @PathVariable UUID accountId,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        List<BankTransactionDTO> transactions = accountingService.getTransactionsByAccountId(accountId, page, size);
         return ResponseEntity.ok(transactions);
     }
     
@@ -71,8 +77,10 @@ public class AccountingController {
     public ResponseEntity<List<BankTransactionResponse>> getBankTransactions(
             @RequestParam UUID accountId,
             @RequestParam(required = false) LocalDate from,
-            @RequestParam(required = false) LocalDate to) {
-        List<BankTransactionResponse> transactions = accountingService.getTransactionsByDateRange(accountId, from, to);
+            @RequestParam(required = false) LocalDate to,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        List<BankTransactionResponse> transactions = accountingService.getTransactionsByDateRange(accountId, from, to, page, size);
         return ResponseEntity.ok(transactions);
     }
     
@@ -85,8 +93,10 @@ public class AccountingController {
     @GetMapping("/receipts")
     public ResponseEntity<List<ReceiptResponse>> getReceipts(
             @RequestParam(required = false) LocalDate from,
-            @RequestParam(required = false) LocalDate to) {
-        List<ReceiptResponse> receipts = accountingService.getReceiptsByDateRange(from, to);
+            @RequestParam(required = false) LocalDate to,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        List<ReceiptResponse> receipts = accountingService.getReceiptsByDateRange(from, to, page, size);
         return ResponseEntity.ok(receipts);
     }
     
@@ -112,23 +122,36 @@ public class AccountingController {
     public ResponseEntity<List<ReconciliationRowResponse>> getReconciliation(
             @RequestParam UUID accountId,
             @RequestParam(required = false) LocalDate from,
-            @RequestParam(required = false) LocalDate to) {
-        List<ReconciliationRowResponse> reconciliation = accountingService.getReconciliationData(accountId, from, to);
+            @RequestParam(required = false) LocalDate to,
+            @RequestParam(defaultValue = "0") int page,
+            @RequestParam(defaultValue = "100") int size) {
+        List<ReconciliationRowResponse> reconciliation = accountingService.getReconciliationData(accountId, from, to, page, size);
         return ResponseEntity.ok(reconciliation);
     }
     
     @GetMapping("/reconciliation/export")
-    public ResponseEntity<String> getReconciliationExport(
+    public ResponseEntity<byte[]> getReconciliationExport(
             @RequestParam UUID accountId,
             @RequestParam(required = false) LocalDate from,
             @RequestParam(required = false) LocalDate to,
             @RequestParam(defaultValue = "csv") String format) {
-        String csv = accountingService.getReconciliationCsv(accountId, from, to);
-        
+        String normalizedFormat = format == null ? "csv" : format.trim().toLowerCase();
+
         HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.parseMediaType("text/csv"));
-        headers.setContentDispositionFormData("attachment", "reconciliation.csv");
-        
-        return new ResponseEntity<>(csv, headers, HttpStatus.OK);
+        if ("csv".equals(normalizedFormat)) {
+            String csv = accountingService.getReconciliationCsv(accountId, from, to);
+            headers.setContentType(MediaType.parseMediaType("text/csv"));
+            headers.setContentDispositionFormData("attachment", "reconciliation.csv");
+            return new ResponseEntity<>(csv.getBytes(StandardCharsets.UTF_8), headers, HttpStatus.OK);
+        }
+
+        if ("xlsx".equals(normalizedFormat) || "excel".equals(normalizedFormat)) {
+            byte[] excel = accountingService.getReconciliationExcel(accountId, from, to);
+            headers.setContentType(MediaType.parseMediaType("application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"));
+            headers.setContentDispositionFormData("attachment", "reconciliation.xlsx");
+            return new ResponseEntity<>(excel, headers, HttpStatus.OK);
+        }
+
+        throw new IllegalArgumentException("Unsupported format: " + format);
     }
 }

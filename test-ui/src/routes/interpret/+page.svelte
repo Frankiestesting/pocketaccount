@@ -1,5 +1,5 @@
 <script>
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 
 	let documents = [];
 	let loading = true;
@@ -13,7 +13,9 @@
 	let languageHint = 'nb';
 	let hintedType = 'INVOICE';
 	let jobResponse = null;
+	let jobStatus = null;
 	let jobError = null;
+	let pollTimer = null;
 
 	onMount(async () => {
 		await loadDocuments();
@@ -51,7 +53,44 @@
 		selectedDocument = null;
 		interpretationStarted = false;
 		jobResponse = null;
+		jobStatus = null;
 		jobError = null;
+		stopPolling();
+	}
+
+	function stopPolling() {
+		if (pollTimer) {
+			clearInterval(pollTimer);
+			pollTimer = null;
+		}
+	}
+
+	async function pollJobStatus(jobId) {
+		try {
+			const res = await fetch(`/api/v1/interpretation/jobs/${jobId}`);
+			if (!res.ok) {
+				return;
+			}
+			const status = await res.json();
+			jobStatus = status;
+
+			if (status.status === 'FAILED') {
+				jobError = status.error || 'Tolking feilet. Sjekk OpenAI-innstillinger.';
+				stopPolling();
+			}
+
+			if (status.status === 'COMPLETED' || status.status === 'CANCELLED') {
+				stopPolling();
+			}
+		} catch (err) {
+			// Ignore polling errors to avoid flapping UI
+		}
+	}
+
+	function startPolling(jobId) {
+		stopPolling();
+		pollJobStatus(jobId);
+		pollTimer = setInterval(() => pollJobStatus(jobId), 2000);
 	}
 
 	async function startInterpretation() {
@@ -59,6 +98,8 @@
 
 		jobError = null;
 		jobResponse = null;
+		jobStatus = null;
+		stopPolling();
 
 		const request = {
 			useOcr: useOcr,
@@ -82,6 +123,7 @@
 			if (res.ok) {
 				jobResponse = await res.json();
 				jobError = null;
+				startPolling(jobResponse.jobId);
 			} else if (res.status === 404) {
 				jobError = 'Document not found';
 			} else {
@@ -92,6 +134,10 @@
 			jobError = `Network error: ${err.message}`;
 		}
 	}
+
+	onDestroy(() => {
+		stopPolling();
+	});
 </script>
 
 <svelte:head>
@@ -143,6 +189,12 @@
 				<h2>Tolk dokument: {selectedDocument.originalFilename}</h2>
 				<button on:click={cancelInterpretation} class="btn-secondary">Avbryt</button>
 			</div>
+
+			{#if jobStatus?.status === 'FAILED'}
+				<div class="status-banner status-banner-error">
+					Tolking feilet. Kontroller OpenAI-innstillinger.
+				</div>
+			{/if}
 
 			<div class="document-info">
 				<p><strong>ID:</strong> {selectedDocument.id}</p>
@@ -203,9 +255,12 @@
 					<h3>Tolkingsjobb startet!</h3>
 					<p><strong>Jobb-ID:</strong> {jobResponse.jobId}</p>
 					<p><strong>Dokument-ID:</strong> {jobResponse.documentId}</p>
-					<p><strong>Status:</strong> {jobResponse.status}</p>
+					<p><strong>Status:</strong> {jobStatus?.status || jobResponse.status}</p>
 					<p><strong>Type:</strong> {jobResponse.documentType}</p>
 					<p><strong>Opprettet:</strong> {new Date(jobResponse.created).toLocaleString('nb-NO')}</p>
+					{#if jobStatus?.status === 'FAILED'}
+						<p><strong>Feilmelding:</strong> {jobStatus.error || 'Tolking feilet. Sjekk OpenAI-innstillinger.'}</p>
+					{/if}
 					<p class="info-text">Gå til "Resultater" for å se fremdrift og resultat</p>
 				</div>
 			{/if}
@@ -410,5 +465,18 @@
 
 	.btn-secondary:hover {
 		background: #7f8c8d;
+	}
+
+	.status-banner {
+		border-radius: 6px;
+		padding: 10px 14px;
+		margin: 0 0 16px 0;
+		font-weight: 600;
+	}
+
+	.status-banner-error {
+		background: #fee;
+		border: 1px solid #fcc;
+		color: #c33;
 	}
 </style>

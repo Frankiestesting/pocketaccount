@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import org.hibernate.annotations.JdbcTypeCode;
 import org.hibernate.type.SqlTypes;
 import java.time.Instant;
+import java.time.OffsetDateTime;
 import java.util.Map;
 
 @Entity
@@ -20,6 +21,8 @@ public class CorrectionEntity {
     private String note;
     private Integer correctionVersion;
     private Instant savedAt;
+    @Column(name = "correction_placed_at")
+    private OffsetDateTime correctionPlacedAt;
     private String savedBy;
     private Integer normalizedTransactionsCreated;
 
@@ -28,8 +31,9 @@ public class CorrectionEntity {
     }
 
     // All-arguments constructor
-    public CorrectionEntity(Long id, String documentId, String documentType, Map<String, Object> fields, 
-                            String note, Integer correctionVersion, Instant savedAt, String savedBy, 
+    public CorrectionEntity(Long id, String documentId, String documentType, Map<String, Object> fields,
+                            String note, Integer correctionVersion, Instant savedAt,
+                            OffsetDateTime correctionPlacedAt, String savedBy,
                             Integer normalizedTransactionsCreated) {
         this.id = id;
         this.documentId = documentId;
@@ -38,6 +42,7 @@ public class CorrectionEntity {
         this.note = note;
         this.correctionVersion = correctionVersion;
         this.savedAt = savedAt;
+        this.correctionPlacedAt = correctionPlacedAt;
         this.savedBy = savedBy;
         this.normalizedTransactionsCreated = normalizedTransactionsCreated;
     }
@@ -99,6 +104,14 @@ public class CorrectionEntity {
         this.savedAt = savedAt;
     }
 
+    public OffsetDateTime getCorrectionPlacedAt() {
+        return correctionPlacedAt;
+    }
+
+    public void setCorrectionPlacedAt(OffsetDateTime correctionPlacedAt) {
+        this.correctionPlacedAt = correctionPlacedAt;
+    }
+
     public String getSavedBy() {
         return savedBy;
     }
@@ -117,13 +130,15 @@ public class CorrectionEntity {
 
     // Convert to domain
     public Correction toDomain() {
-        return new Correction(id, documentId, documentType, fields, note, correctionVersion, savedAt, savedBy, normalizedTransactionsCreated);
+        return new Correction(id, documentId, documentType, fields, note, correctionVersion, savedAt,
+                correctionPlacedAt, savedBy, normalizedTransactionsCreated);
     }
 
     // From domain
     public static CorrectionEntity fromDomain(Correction correction) {
         return new CorrectionEntity(correction.getId(), correction.getDocumentId(), correction.getDocumentType(),
-                correction.getFields(), correction.getNote(), correction.getCorrectionVersion(),
-                correction.getSavedAt(), correction.getSavedBy(), correction.getNormalizedTransactionsCreated());
+            correction.getFields(), correction.getNote(), correction.getCorrectionVersion(),
+            correction.getSavedAt(), correction.getCorrectionPlacedAt(), correction.getSavedBy(),
+            correction.getNormalizedTransactionsCreated());
     }
 }
