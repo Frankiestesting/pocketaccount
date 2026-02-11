@@ -1,24 +1,24 @@
 package com.frnholding.pocketaccount.service;
 
-import com.frnholding.pocketaccount.api.dto.ExtractionResultResponseDTO;
 import com.frnholding.pocketaccount.api.dto.DocumentCorrectionRequestDTO;
 import com.frnholding.pocketaccount.api.dto.DocumentCorrectionResponseDTO;
-import com.frnholding.pocketaccount.domain.Correction;
-import com.frnholding.pocketaccount.domain.CorrectionEntity;
+import com.frnholding.pocketaccount.api.dto.ExtractionResultResponseDTO;
 import com.frnholding.pocketaccount.domain.Document;
 import com.frnholding.pocketaccount.domain.DocumentEntity;
 import com.frnholding.pocketaccount.domain.Job;
 import com.frnholding.pocketaccount.domain.JobEntity;
 import com.frnholding.pocketaccount.exception.EntityNotFoundException;
-import com.frnholding.pocketaccount.repository.CorrectionRepository;
 import com.frnholding.pocketaccount.repository.DocumentRepository;
 import com.frnholding.pocketaccount.repository.JobRepository;
 import com.frnholding.pocketaccount.interpretation.domain.InterpretationResult;
 import com.frnholding.pocketaccount.interpretation.domain.InvoiceFieldsDTO;
 import com.frnholding.pocketaccount.interpretation.domain.StatementTransaction;
 import com.frnholding.pocketaccount.interpretation.repository.InterpretationResultRepository;
+import com.frnholding.pocketaccount.interpretation.service.InterpretationService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
 import org.springframework.data.domain.PageRequest;
@@ -30,7 +30,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.time.Instant;
-import java.time.OffsetDateTime;
 import java.util.Collections;
 import java.util.List;
 import java.util.Map;
@@ -49,10 +48,11 @@ public class DocumentService {
     private JobRepository jobRepository;
 
     @Autowired
-    private CorrectionRepository correctionRepository;
+    private InterpretationResultRepository interpretationResultRepository;
 
     @Autowired
-    private InterpretationResultRepository interpretationResultRepository;
+    @Lazy
+    private InterpretationService interpretationService;
 
     public Document uploadDocument(MultipartFile file, String source, String originalFilename, String documentType) throws IOException {
         // Validate source
@@ -132,6 +132,23 @@ public class DocumentService {
         return new InputStreamResource(new FileInputStream(filePath.toFile()));
     }
 
+    @Transactional
+    public void deleteDocument(String documentId) {
+        DocumentEntity entity = documentRepository.findById(documentId)
+                .orElseThrow(() -> new EntityNotFoundException("Document not found: " + documentId));
+
+        String filePath = entity.getFilePath();
+        documentRepository.delete(entity);
+
+        if (filePath != null && !filePath.isBlank()) {
+            try {
+                Files.deleteIfExists(Paths.get(filePath));
+            } catch (IOException e) {
+                throw new IllegalStateException("Failed to delete document file: " + filePath, e);
+            }
+        }
+    }
+
     public Job createJob(String documentId, String pipeline, boolean useOcr, boolean useAi, String languageHint) {
         // Validate document exists
         Document document = getDocument(documentId);
@@ -196,17 +213,6 @@ public class DocumentService {
             throw new EntityNotFoundException("Document not found: " + documentId);
         }
 
-        CorrectionEntity latestCorrection = correctionRepository
-            .findTopByDocumentIdOrderByCorrectionVersionDesc(documentId)
-            .orElse(null);
-
-        Map<String, Object> correctedFields = latestCorrection != null
-            ? latestCorrection.getFields()
-            : null;
-        String correctedDocumentType = latestCorrection != null && latestCorrection.getDocumentType() != null
-            ? latestCorrection.getDocumentType()
-            : document.getDocumentType();
-
         InterpretationResult interpretationResult = interpretationResultRepository
             .findByDocumentId(documentId)
             .orElse(null);
@@ -237,13 +243,18 @@ public class DocumentService {
                         t.getAmount(),
                         t.getCurrency(),
                         t.getDescription(),
-                        null
+                        null,
+                        t.getAccountNo(),
+                        t.isApproved()
                     ))
                     .collect(Collectors.toList());
             }
         }
 
-        String documentType = correctedDocumentType;
+        String documentType = document.getDocumentType();
+        if (interpretationResult != null && interpretationResult.getDocumentType() != null) {
+            documentType = interpretationResult.getDocumentType();
+        }
         
         if ("STATEMENT".equals(documentType)) {
             return new ExtractionResultResponseDTO(
@@ -252,7 +263,7 @@ public class DocumentService {
                 1,
                 extractedAt,
                 null, // fields not used for STATEMENT
-                correctedFields,
+                null, // corrected fields not used for STATEMENT
                 null, // confidence not used for STATEMENT
                 null, // warnings not used for STATEMENT
                 extractedTransactions
@@ -265,7 +276,7 @@ public class DocumentService {
             1,
             extractedAt,
             extractedFields,
-            correctedFields,
+            null,
             null,
             null,
             null // transactions not used for INVOICE
@@ -273,43 +284,15 @@ public class DocumentService {
     }
 
     public DocumentCorrectionResponseDTO saveCorrection(String documentId, DocumentCorrectionRequestDTO request) {
-        // Validate document exists
-        Document document = getDocument(documentId);
-        if (document == null) {
-            throw new EntityNotFoundException("Document not found: " + documentId);
-        }
-
-        // Get next correction version
-        Integer maxVersion = correctionRepository.findMaxCorrectionVersionByDocumentId(documentId).orElse(0);
-        Integer nextVersion = maxVersion + 1;
-
-        // Create correction
-        OffsetDateTime correctionPlacedAt = OffsetDateTime.now();
-        Instant now = correctionPlacedAt.toInstant();
-        Correction correction = new Correction(
-            null, // id will be generated
-            documentId,
-            request.getDocumentType(),
-            request.getFields(),
-            request.getNote(),
-            nextVersion,
-            now,
-            correctionPlacedAt,
-            "user:123", // Mock user ID
-            1 // Mock normalized transactions created
-        );
-
-        // Save to database
-        CorrectionEntity entity = CorrectionEntity.fromDomain(correction);
-        correctionRepository.save(entity);
-
+        Integer correctionVersion = interpretationService.saveCorrection(documentId, request.toInterpretationRequest());
+        Instant now = Instant.now();
         return new DocumentCorrectionResponseDTO(
             documentId,
-            nextVersion,
+            correctionVersion,
             now,
-            correctionPlacedAt,
+            now.atOffset(java.time.ZoneOffset.UTC),
             "user:123",
-            1
+            null
         );
     }
 }

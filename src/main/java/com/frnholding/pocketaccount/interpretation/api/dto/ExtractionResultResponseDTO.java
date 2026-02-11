@@ -172,15 +172,20 @@ public class ExtractionResultResponseDTO {
         private String currency;
         private LocalDate date;
         private String description;
+        private Long accountNo;
+        private Boolean approved;
 
         public TransactionDto() {
         }
 
-        public TransactionDto(Double amount, String currency, LocalDate date, String description) {
+        public TransactionDto(Double amount, String currency, LocalDate date, String description,
+                             Long accountNo, Boolean approved) {
             this.amount = amount;
             this.currency = currency;
             this.date = date;
             this.description = description;
+            this.accountNo = accountNo;
+            this.approved = approved;
         }
 
         public Double getAmount() {
@@ -213,6 +218,22 @@ public class ExtractionResultResponseDTO {
 
         public void setDescription(String description) {
             this.description = description;
+        }
+
+        public Long getAccountNo() {
+            return accountNo;
+        }
+
+        public void setAccountNo(Long accountNo) {
+            this.accountNo = accountNo;
+        }
+
+        public Boolean getApproved() {
+            return approved;
+        }
+
+        public void setApproved(Boolean approved) {
+            this.approved = approved;
         }
     }
 }

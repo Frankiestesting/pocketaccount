@@ -14,20 +14,23 @@ CREATE TABLE IF NOT EXISTS documents (
     document_type VARCHAR(255)
 );
 
--- Corrections table (existing)
-CREATE TABLE IF NOT EXISTS corrections (
-    id BIGSERIAL PRIMARY KEY,
+-- Correction History table (new)
+CREATE TABLE IF NOT EXISTS correction_history (
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     document_id VARCHAR(255) NOT NULL,
     document_type VARCHAR(255),
-    fields JSONB,
+    entity_type VARCHAR(50) NOT NULL,
+    entity_id VARCHAR(255),
+    snapshot JSONB NOT NULL,
     note TEXT,
     correction_version INTEGER NOT NULL,
-    saved_at TIMESTAMP NOT NULL,
-    correction_placed_at TIMESTAMPTZ NOT NULL,
-    saved_by VARCHAR(255),
-    normalized_transactions_created INTEGER,
-    CONSTRAINT fk_corrections_document FOREIGN KEY (document_id) REFERENCES documents(id)
+    corrected_at TIMESTAMPTZ NOT NULL,
+    corrected_by VARCHAR(255),
+    CONSTRAINT fk_correction_history_document FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
 );
+
+CREATE INDEX IF NOT EXISTS idx_correction_history_document_id ON correction_history(document_id);
+CREATE INDEX IF NOT EXISTS idx_correction_history_version ON correction_history(document_id, correction_version);
 
 -- Interpretation Jobs table (existing)
 CREATE TABLE IF NOT EXISTS interpretation_jobs (
@@ -38,7 +41,8 @@ CREATE TABLE IF NOT EXISTS interpretation_jobs (
     started_at TIMESTAMP,
     finished_at TIMESTAMP,
     error TEXT,
-    document_type VARCHAR(255) NOT NULL
+    document_type VARCHAR(255) NOT NULL,
+    CONSTRAINT fk_interpretation_jobs_document FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
 );
 
 -- Interpretation Results table (existing)
@@ -53,7 +57,8 @@ CREATE TABLE IF NOT EXISTS interpretation_results (
     currency VARCHAR(255),
     date DATE,
     description TEXT,
-    sender VARCHAR(255)
+    sender VARCHAR(255),
+    CONSTRAINT fk_interpretation_results_document FOREIGN KEY (document_id) REFERENCES documents(id) ON DELETE CASCADE
 );
 
 -- Statement Transactions table (existing)
@@ -64,8 +69,13 @@ CREATE TABLE IF NOT EXISTS statement_transactions (
     currency VARCHAR(255),
     date DATE,
     description VARCHAR(1000),
+    account_no BIGINT,
+    approved BOOLEAN NOT NULL DEFAULT FALSE,
+    bank_transaction_id UUID,
     CONSTRAINT fk_statement_transaction_result FOREIGN KEY (interpretation_result_id) REFERENCES interpretation_results(id) ON DELETE CASCADE
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_statement_transaction_bank_id ON statement_transactions(bank_transaction_id);
 
 -- Jobs table (existing)
 CREATE TABLE IF NOT EXISTS jobs (
@@ -86,11 +96,13 @@ CREATE TABLE IF NOT EXISTS jobs (
 CREATE TABLE IF NOT EXISTS account (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(200) NOT NULL,
+    account_no BIGINT NOT NULL,
     currency CHAR(3) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );
 
 CREATE INDEX IF NOT EXISTS idx_account_name ON account(name);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_account_account_no ON account(account_no);
 
 -- Bank Transaction table
 CREATE TABLE IF NOT EXISTS bank_transaction (
@@ -109,6 +121,13 @@ CREATE TABLE IF NOT EXISTS bank_transaction (
     CONSTRAINT fk_bank_transaction_account FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASCADE,
     CONSTRAINT uk_bank_transaction_account_hash UNIQUE (account_id, source_line_hash)
 );
+
+ALTER TABLE statement_transactions
+    DROP CONSTRAINT IF EXISTS fk_statement_transaction_bank;
+
+ALTER TABLE statement_transactions
+    ADD CONSTRAINT fk_statement_transaction_bank
+    FOREIGN KEY (bank_transaction_id) REFERENCES bank_transaction(id);
 
 CREATE INDEX IF NOT EXISTS idx_bank_transaction_account_id ON bank_transaction(account_id);
 CREATE INDEX IF NOT EXISTS idx_bank_transaction_booking_date ON bank_transaction(booking_date);

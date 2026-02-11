@@ -14,6 +14,9 @@ public class Account {
     
     @Column(nullable = false, length = 200)
     private String name;
+
+    @Column(name = "account_no", nullable = false)
+    private Long accountNo;
     
     @Column(nullable = false, length = 3)
     private String currency;
@@ -27,6 +30,7 @@ public class Account {
     public Account(UUID id, String name, String currency, Instant createdAt) {
         this.id = id;
         this.name = name;
+        this.accountNo = null;
         this.currency = currency;
         this.createdAt = createdAt;
     }
@@ -45,6 +49,14 @@ public class Account {
     
     public void setName(String name) {
         this.name = name;
+    }
+
+    public Long getAccountNo() {
+        return accountNo;
+    }
+
+    public void setAccountNo(Long accountNo) {
+        this.accountNo = accountNo;
     }
     
     public String getCurrency() {

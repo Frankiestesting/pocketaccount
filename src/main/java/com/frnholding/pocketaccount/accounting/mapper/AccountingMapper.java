@@ -28,6 +28,7 @@ public class AccountingMapper {
             account.getId(),
             account.getName(),
             account.getCurrency(),
+            account.getAccountNo(),
             createdAt
         );
     }

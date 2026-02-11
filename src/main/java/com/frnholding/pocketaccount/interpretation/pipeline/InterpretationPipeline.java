@@ -42,9 +42,6 @@ public class InterpretationPipeline {
     private StatementExtractor aiStatementExtractor;
 
     @Autowired(required = false)
-    private FieldNormalizer fieldNormalizer;
-
-    @Autowired(required = false)
     private ConfidenceScorer confidenceScorer;
 
     /**
@@ -161,7 +158,16 @@ public class InterpretationPipeline {
         if (extractionMethods.length() > 0) extractionMethods.append(", ");
         extractionMethods.append(extractorType).append("StatementExtractor");
         
-        return extractor.extract(text);
+        List<StatementTransaction> transactions = extractor.extract(text);
+        Long accountNo = extractAccountNo(text);
+        if (accountNo != null) {
+            for (StatementTransaction transaction : transactions) {
+                if (transaction.getAccountNo() == null) {
+                    transaction.setAccountNo(accountNo);
+                }
+            }
+        }
+        return transactions;
     }
 
     private Map<String, Double> calculateConfidenceScores(InterpretationResult result, InterpretedText text) {
@@ -177,5 +183,20 @@ public class InterpretationPipeline {
         text.setLanguageDetected("nb");
         text.setTextExtractorUsed("Mock");
         return text;
+    }
+
+    private Long extractAccountNo(InterpretedText text) {
+        if (text == null || text.getRawText() == null) {
+            return null;
+        }
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("\\b\\d{11}\\b").matcher(text.getRawText());
+        if (matcher.find()) {
+            try {
+                return Long.parseLong(matcher.group());
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
     }
 }

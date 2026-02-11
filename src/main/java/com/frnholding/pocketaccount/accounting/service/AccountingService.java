@@ -23,7 +23,6 @@ import com.frnholding.pocketaccount.accounting.repository.BankTransactionReposit
 import com.frnholding.pocketaccount.accounting.repository.ReceiptMatchRepository;
 import com.frnholding.pocketaccount.accounting.repository.ReceiptRepository;
 import com.frnholding.pocketaccount.exception.EntityNotFoundException;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -52,7 +51,6 @@ public class AccountingService {
     private final ReceiptMatchRepository receiptMatchRepository;
     private final AccountingMapper mapper;
     
-    @Autowired
     public AccountingService(AccountRepository accountRepository,
                            BankTransactionRepository bankTransactionRepository,
                            ReceiptRepository receiptRepository,
@@ -69,6 +67,7 @@ public class AccountingService {
     public AccountResponse createAccount(CreateAccountRequest request) {
         Account account = new Account();
         account.setName(request.getName());
+        account.setAccountNo(request.getAccountNo());
         account.setCurrency(request.getCurrency());
         account.setCreatedAt(Instant.now());
         

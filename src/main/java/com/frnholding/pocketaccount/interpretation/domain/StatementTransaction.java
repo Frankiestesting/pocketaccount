@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import lombok.AllArgsConstructor;
 import lombok.Data;
 import lombok.NoArgsConstructor;
+import com.frnholding.pocketaccount.accounting.domain.BankTransaction;
 
 import java.time.LocalDate;
 
@@ -27,4 +28,14 @@ public class StatementTransaction {
     
     @Column(length = 1000)
     private String description;
+
+    @Column(name = "account_no")
+    private Long accountNo;
+
+    @Column(nullable = false)
+    private boolean approved;
+
+    @OneToOne(fetch = FetchType.LAZY)
+    @JoinColumn(name = "bank_transaction_id", unique = true)
+    private BankTransaction bankTransaction;
 }

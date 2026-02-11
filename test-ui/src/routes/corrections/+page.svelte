@@ -1,51 +1,142 @@
 <script>
 	import { onMount } from 'svelte';
 
+	/**
+	 * @typedef {{
+	 *  id: string,
+	 *  documentType?: string,
+	 *  originalFilename?: string,
+	 *  uploadedAt?: string
+	 * }} DocumentSummary
+	 */
+	/**
+	 * @typedef {{
+	 *  extractionVersion?: number,
+	 *  extractedAt?: string,
+	 *  documentType?: string,
+	 *  fields?: Record<string, unknown>,
+	 *  correctedFields?: Record<string, unknown>,
+	 *  warnings?: string[],
+	 *  transactions?: unknown[]
+	 * }} ExtractionResult
+	 */
+	/**
+	 * @typedef {{
+	 *  correctionVersion?: number | null,
+	 *  correctionPlacedAt?: string | null,
+	 *  savedAt?: string | null,
+	 *  normalizedTransactionsCreated?: number | null
+	 * }} CorrectionResponse
+	 */
+
+	/** @type {DocumentSummary[]} */
 	let documents = [];
 	let loading = true;
+	/** @type {string | null} */
 	let error = null;
 	let filter = '';
+	/** @type {DocumentSummary | null} */
 	let selectedDocument = null;
 
 	let documentId = '';
 	let documentType = 'INVOICE';
 	let note = '';
 	let fieldsText = '{\n  \n}';
+	/** @type {ExtractionResult | null} */
 	let extraction = null;
+	/** @type {string | null} */
 	let loadError = null;
+	/** @type {string | null} */
 	let submitError = null;
+	/** @type {string | null} */
 	let parsingError = null;
+	/** @type {CorrectionResponse | null} */
 	let submitResponse = null;
 	let loadBusy = false;
 	let submitBusy = false;
 	let copyMessage = '';
+	/** @type {string | null} */
+	let deleteError = null;
+	/** @type {Set<string>} */
+	let deletingIds = new Set();
 
 	onMount(loadDocuments);
 
+	/** @param {string | number | Date | null | undefined} value */
 	function formatTimestamp(value) {
 		if (!value) return '-';
 		return new Date(value).toLocaleString('nb-NO');
 	}
 
+	/** @param {unknown} err */
+	function getErrorMessage(err) {
+		return err instanceof Error ? err.message : String(err);
+	}
+
 	async function loadDocuments() {
 		loading = true;
 		error = null;
+		deleteError = null;
 
 		try {
 			const res = await fetch('/api/v1/documents');
 			if (res.ok) {
 				documents = await res.json();
-				documents.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+				documents.sort(
+					(a, b) =>
+						new Date(b.uploadedAt || 0).getTime() -
+						new Date(a.uploadedAt || 0).getTime()
+				);
 			} else {
 				error = `Error loading documents: ${res.status}`;
 			}
 		} catch (err) {
-			error = `Network error: ${err.message}`;
+			error = `Network error: ${getErrorMessage(err)}`;
 		} finally {
 			loading = false;
 		}
 	}
 
+	/** @param {DocumentSummary} doc */
+	async function deleteDocument(doc) {
+		if (!doc?.id) {
+			return;
+		}
+
+		const confirmed = window.confirm(`Delete ${doc.originalFilename || 'this document'}? This cannot be undone.`);
+		if (!confirmed) {
+			return;
+		}
+
+		deleteError = null;
+		deletingIds = new Set(deletingIds).add(doc.id);
+
+		try {
+			const res = await fetch(`/api/v1/documents/${doc.id}`, {
+				method: 'DELETE'
+			});
+			if (!res.ok) {
+				const errorText = await res.text();
+				deleteError = `Delete failed: ${res.status} - ${errorText}`;
+				return;
+			}
+
+			documents = documents.filter((item) => item.id !== doc.id);
+			if (selectedDocument?.id === doc.id) {
+				selectedDocument = null;
+				documentId = '';
+				resetEditor();
+			}
+		} catch (err) {
+			deleteError = `Network error: ${getErrorMessage(err)}`;
+		} finally {
+			const next = new Set(deletingIds);
+			next.delete(doc.id);
+			deletingIds = next;
+		}
+	}
+
+	/** @type {DocumentSummary[]} */
 	$: filteredDocuments = filter
 		? documents.filter((doc) => {
 				const name = (doc.originalFilename || '').toLowerCase();
@@ -55,6 +146,7 @@
 			})
 		: documents;
 
+	/** @param {DocumentSummary} doc */
 	function selectDocument(doc) {
 		selectedDocument = doc;
 		documentId = doc.id;
@@ -92,7 +184,7 @@
 				loadError = `Error: ${res.status} - ${errorText}`;
 			}
 		} catch (err) {
-			loadError = `Network error: ${err.message}`;
+			loadError = `Network error: ${getErrorMessage(err)}`;
 		} finally {
 			loadBusy = false;
 		}
@@ -117,7 +209,7 @@
 				return;
 			}
 		} catch (err) {
-			parsingError = `Invalid JSON: ${err.message}`;
+			parsingError = `Invalid JSON: ${getErrorMessage(err)}`;
 			return;
 		}
 
@@ -143,7 +235,7 @@
 				submitError = `Error: ${res.status} - ${errorText}`;
 			}
 		} catch (err) {
-			submitError = `Network error: ${err.message}`;
+			submitError = `Network error: ${getErrorMessage(err)}`;
 		} finally {
 			submitBusy = false;
 		}
@@ -207,6 +299,10 @@
 				<h2>Uploaded documents</h2>
 				<span class="badge">{documents.length}</span>
 			</div>
+
+			{#if deleteError}
+				<div class="alert error">{deleteError}</div>
+			{/if}
 			<div class="filter">
 				<input
 					type="text"
@@ -222,11 +318,26 @@
 				<ul class="doc-list">
 					{#each filteredDocuments as doc}
 						<li class:selected={doc.id === selectedDocument?.id}>
-							<button on:click={() => selectDocument(doc)}>
-								<span class="doc-name">{doc.originalFilename || 'Untitled document'}</span>
-								<span class="doc-meta">{doc.documentType} • {doc.id}</span>
-								<span class="doc-timestamp">Uploaded {formatTimestamp(doc.uploadedAt)}</span>
-							</button>
+							<div class="doc-row">
+								<button class="doc-main" on:click={() => selectDocument(doc)}>
+									<span class="doc-name">{doc.originalFilename || 'Untitled document'}</span>
+									<span class="doc-meta">{doc.documentType} • {doc.id}</span>
+									<span class="doc-timestamp">Uploaded {formatTimestamp(doc.uploadedAt)}</span>
+								</button>
+								<button
+									class="doc-delete"
+									on:click|stopPropagation={() => deleteDocument(doc)}
+									disabled={deletingIds.has(doc.id)}
+									aria-label="Delete document"
+									aria-busy={deletingIds.has(doc.id)}
+								>
+									<svg viewBox="0 0 24 24" aria-hidden="true">
+										<path
+											d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v9h-2V9zm4 0h2v9h-2V9zM7 9h2v9H7V9z"
+										/>
+									</svg>
+								</button>
+							</div>
 						</li>
 					{/each}
 				</ul>
@@ -274,7 +385,11 @@
 					</div>
 					<div>
 						<span class="meta-label">Extracted</span>
-						<strong>{new Date(extraction.extractedAt).toLocaleString('en-GB')}</strong>
+						<strong>
+							{extraction.extractedAt
+								? new Date(extraction.extractedAt).toLocaleString('en-GB')
+								: '-'}
+						</strong>
 					</div>
 					{#if extraction.warnings?.length}
 						<div class="warning-box">
@@ -338,7 +453,10 @@
 					<strong>Saved!</strong>
 					<span>Version #{submitResponse.correctionVersion}</span>
 					<span>
-						Correction placed {formatTimestamp(submitResponse.correctionPlacedAt || submitResponse.savedAt)}
+						Correction placed
+						{` ${formatTimestamp(
+							submitResponse.correctionPlacedAt || submitResponse.savedAt
+						)}`}
 					</span>
 					<span>Normalized transactions: {submitResponse.normalizedTransactionsCreated}</span>
 				</div>
@@ -449,7 +567,13 @@
 		background: #eef2ff;
 	}
 
-	.doc-list button {
+	.doc-row {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.doc-main {
 		width: 100%;
 		text-align: left;
 		background: transparent;
@@ -457,6 +581,38 @@
 		padding: 12px 14px;
 		cursor: pointer;
 		font-family: inherit;
+	}
+
+	.doc-delete {
+		border: 1px solid transparent;
+		background: #fef2f2;
+		color: #b91c1c;
+		border-radius: 10px;
+		padding: 8px;
+		cursor: pointer;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+	}
+
+	.doc-delete svg {
+		width: 18px;
+		height: 18px;
+		fill: currentColor;
+	}
+
+	.doc-delete:hover:not(:disabled) {
+		transform: translateY(-1px);
+		box-shadow: 0 6px 14px rgba(185, 28, 28, 0.2);
+		border-color: rgba(185, 28, 28, 0.3);
+	}
+
+	.doc-delete:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+		box-shadow: none;
+		transform: none;
 	}
 
 	.doc-name {

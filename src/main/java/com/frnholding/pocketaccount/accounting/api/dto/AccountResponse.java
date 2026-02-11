@@ -8,15 +8,17 @@ public class AccountResponse {
     private UUID id;
     private String name;
     private String currency;
+    private Long accountNo;
     private OffsetDateTime createdAt;
     
     public AccountResponse() {
     }
     
-    public AccountResponse(UUID id, String name, String currency, OffsetDateTime createdAt) {
+    public AccountResponse(UUID id, String name, String currency, Long accountNo, OffsetDateTime createdAt) {
         this.id = id;
         this.name = name;
         this.currency = currency;
+        this.accountNo = accountNo;
         this.createdAt = createdAt;
     }
     
@@ -42,6 +44,14 @@ public class AccountResponse {
     
     public void setCurrency(String currency) {
         this.currency = currency;
+    }
+
+    public Long getAccountNo() {
+        return accountNo;
+    }
+
+    public void setAccountNo(Long accountNo) {
+        this.accountNo = accountNo;
     }
     
     public OffsetDateTime getCreatedAt() {

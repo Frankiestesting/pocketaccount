@@ -112,17 +112,21 @@ public class ExtractionResultResponseDTO {
         private String currency;
         private String description;
         private Map<String, Double> confidence;
+        private Long accountNo;
+        private Boolean approved;
 
         public Transaction() {
         }
 
-        public Transaction(String date, Double amount, String currency, String description, 
-                          Map<String, Double> confidence) {
+        public Transaction(String date, Double amount, String currency, String description,
+                          Map<String, Double> confidence, Long accountNo, Boolean approved) {
             this.date = date;
             this.amount = amount;
             this.currency = currency;
             this.description = description;
             this.confidence = confidence;
+            this.accountNo = accountNo;
+            this.approved = approved;
         }
 
         public String getDate() {
@@ -163,6 +167,22 @@ public class ExtractionResultResponseDTO {
 
         public void setConfidence(Map<String, Double> confidence) {
             this.confidence = confidence;
+        }
+
+        public Long getAccountNo() {
+            return accountNo;
+        }
+
+        public void setAccountNo(Long accountNo) {
+            this.accountNo = accountNo;
+        }
+
+        public Boolean getApproved() {
+            return approved;
+        }
+
+        public void setApproved(Boolean approved) {
+            this.approved = approved;
         }
     }
 }

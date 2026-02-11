@@ -14,7 +14,6 @@ import com.frnholding.pocketaccount.accounting.api.dto.ReceiptResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.ReconciliationRowResponse;
 import com.frnholding.pocketaccount.accounting.service.AccountingService;
 import jakarta.validation.Valid;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.MediaType;
@@ -33,7 +32,6 @@ public class AccountingController {
     
     private final AccountingService accountingService;
     
-    @Autowired
     public AccountingController(AccountingService accountingService) {
         this.accountingService = accountingService;
     }

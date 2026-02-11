@@ -128,7 +128,7 @@ public class ExtractionController {
         
         log.info("Saving correction for document {} of type {}", id, request.getDocumentType());
 
-        interpretationService.saveCorrection(id.toString(), request);
+                interpretationService.saveCorrection(id.toString(), request);
         return ResponseEntity.ok().build();
     }
 

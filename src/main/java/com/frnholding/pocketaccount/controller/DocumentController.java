@@ -107,6 +107,17 @@ public class DocumentController {
         return ResponseEntity.ok(response);
     }
 
+        @DeleteMapping("/documents/{documentId}")
+        @Operation(summary = "Delete document", description = "Delete a document and its interpretation jobs/results")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "204", description = "Document deleted successfully"),
+                        @ApiResponse(responseCode = "404", description = "Document not found")
+        })
+        public ResponseEntity<Void> deleteDocument(@PathVariable @Parameter(description = "Document ID") UUID documentId) {
+                documentService.deleteDocument(documentId.toString());
+                return ResponseEntity.noContent().build();
+        }
+
     @GetMapping("/documents/{documentId}/file")
     @Operation(summary = "Download document file", description = "Download the PDF file for a document")
     @ApiResponses(value = {

@@ -10,6 +10,8 @@ import org.springframework.stereotype.Repository;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.UUID;
+import java.util.Optional;
+import java.math.BigDecimal;
 
 @Repository
 public interface BankTransactionRepository extends JpaRepository<BankTransaction, UUID> {
@@ -33,4 +35,12 @@ public interface BankTransactionRepository extends JpaRepository<BankTransaction
                                                          @Param("from") LocalDate from,
                                                          @Param("to") LocalDate to,
                                                          Pageable pageable);
+
+           Optional<BankTransaction> findFirstByAccountIdAndBookingDateAndAmountAndCurrencyAndDescription(
+                  UUID accountId,
+                  LocalDate bookingDate,
+                  BigDecimal amount,
+                  String currency,
+                  String description
+           );
 }

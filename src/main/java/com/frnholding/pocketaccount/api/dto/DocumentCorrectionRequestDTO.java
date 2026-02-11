@@ -1,5 +1,10 @@
 package com.frnholding.pocketaccount.api.dto;
 
+import com.frnholding.pocketaccount.interpretation.api.dto.SaveCorrectionRequestDTO;
+
+import java.time.LocalDate;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Map;
 
 public class DocumentCorrectionRequestDTO {
@@ -38,5 +43,149 @@ public class DocumentCorrectionRequestDTO {
 
     public void setNote(String note) {
         this.note = note;
+    }
+
+    public SaveCorrectionRequestDTO toInterpretationRequest() {
+        SaveCorrectionRequestDTO request = new SaveCorrectionRequestDTO();
+        String resolvedType = documentType;
+        if ((resolvedType == null || resolvedType.isBlank()) && fields != null && fields.containsKey("transactions")) {
+            resolvedType = "STATEMENT";
+        }
+        if (resolvedType == null || resolvedType.isBlank()) {
+            resolvedType = "INVOICE";
+        }
+        request.setDocumentType(resolvedType);
+        request.setNote(note);
+
+        Map<String, Object> safeFields = fields;
+        if (safeFields == null) {
+            return request;
+        }
+
+        if ("STATEMENT".equalsIgnoreCase(resolvedType) || safeFields.containsKey("transactions")) {
+            List<SaveCorrectionRequestDTO.TransactionDto> transactions = toTransactions(safeFields.get("transactions"));
+            if (!transactions.isEmpty()) {
+                request.setTransactions(transactions);
+            }
+            return request;
+        }
+
+        SaveCorrectionRequestDTO.InvoiceFieldsDto invoiceFields = toInvoiceFields(safeFields);
+        request.setInvoiceFields(invoiceFields);
+        return request;
+    }
+
+    private List<SaveCorrectionRequestDTO.TransactionDto> toTransactions(Object value) {
+        if (!(value instanceof List)) {
+            return new ArrayList<>();
+        }
+        List<?> list = (List<?>) value;
+        List<SaveCorrectionRequestDTO.TransactionDto> transactions = new ArrayList<>();
+        for (Object item : list) {
+            if (!(item instanceof Map)) {
+                continue;
+            }
+            Map<?, ?> map = (Map<?, ?>) item;
+            Double amount = toDouble(map.get("amount"));
+            String currency = toStringValue(map.get("currency"));
+            LocalDate date = toDate(map.get("date"));
+            String description = toStringValue(map.get("description"));
+            Long accountNo = toLong(map.get("accountNo"));
+            Boolean approved = toBoolean(map.get("approved"));
+            transactions.add(new SaveCorrectionRequestDTO.TransactionDto(
+                    amount,
+                    currency,
+                    date,
+                    description,
+                    accountNo,
+                    approved
+            ));
+        }
+        return transactions;
+    }
+
+    private SaveCorrectionRequestDTO.InvoiceFieldsDto toInvoiceFields(Map<String, Object> map) {
+        Double amount = toDouble(map.get("amount"));
+        String currency = toStringValue(map.get("currency"));
+        LocalDate date = toDate(map.get("date"));
+        String description = toStringValue(map.get("description"));
+        String sender = toStringValue(map.get("sender"));
+        return new SaveCorrectionRequestDTO.InvoiceFieldsDto(amount, currency, date, description, sender);
+    }
+
+    private Double toDouble(Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).doubleValue();
+        }
+        if (value instanceof String) {
+            String text = ((String) value);
+            if (text.isBlank()) {
+                return null;
+            }
+            try {
+                return Double.parseDouble(text);
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private LocalDate toDate(Object value) {
+        if (value instanceof LocalDate) {
+            return (LocalDate) value;
+        }
+        if (value instanceof String) {
+            String text = ((String) value);
+            if (text.isBlank()) {
+                return null;
+            }
+            try {
+                return LocalDate.parse(text);
+            } catch (Exception ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private String toStringValue(Object value) {
+        if (value == null) {
+            return null;
+        }
+        String text = value.toString();
+        return text.isBlank() ? null : text;
+    }
+
+    private Long toLong(Object value) {
+        if (value instanceof Number) {
+            return ((Number) value).longValue();
+        }
+        if (value instanceof String) {
+            String text = ((String) value).trim();
+            if (text.isEmpty()) {
+                return null;
+            }
+            try {
+                return Long.parseLong(text);
+            } catch (NumberFormatException ignored) {
+                return null;
+            }
+        }
+        return null;
+    }
+
+    private Boolean toBoolean(Object value) {
+        if (value instanceof Boolean) {
+            return (Boolean) value;
+        }
+        if (value instanceof String) {
+            String text = ((String) value).trim();
+            if (text.isEmpty()) {
+                return null;
+            }
+            return Boolean.parseBoolean(text);
+        }
+        return null;
     }
 }

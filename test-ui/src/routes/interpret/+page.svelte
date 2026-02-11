@@ -1,20 +1,61 @@
 <script>
 	import { onDestroy, onMount } from 'svelte';
 
+	/**
+	 * @typedef {{
+	 *  id: string,
+	 *  documentType?: string,
+	 *  originalFilename?: string,
+	 *  uploadedAt?: string
+	 * }} DocumentSummary
+	 */
+	/**
+	 * @typedef {{
+	 *  jobId?: string,
+	 *  documentId?: string,
+	 *  status?: string,
+	 *  documentType?: string,
+	 *  created?: string
+	 * }} JobResponse
+	 */
+	/**
+	 * @typedef {{
+	 *  status?: string,
+	 *  error?: string,
+	 *  startedAt?: string,
+	 *  finishedAt?: string,
+	 *  documentId?: string,
+	 *  jobId?: string,
+	 *  documentType?: string,
+	 *  created?: string
+	 * }} JobStatus
+	 */
+
+	/** @type {DocumentSummary[]} */
 	let documents = [];
 	let loading = true;
+	/** @type {string | null} */
 	let error = null;
+	/** @type {DocumentSummary | null} */
 	let selectedDocument = null;
 	let interpretationStarted = false;
+	/** @type {string | null} */
+	let deleteError = null;
+	/** @type {Set<string>} */
+	let deletingIds = new Set();
 
 	// Interpretation settings
 	let useOcr = false;
 	let useAi = true;
 	let languageHint = 'nb';
 	let hintedType = 'INVOICE';
+	/** @type {JobResponse | null} */
 	let jobResponse = null;
+	/** @type {JobStatus | null} */
 	let jobStatus = null;
+	/** @type {string | null} */
 	let jobError = null;
+	/** @type {ReturnType<typeof setInterval> | null} */
 	let pollTimer = null;
 
 	onMount(async () => {
@@ -24,27 +65,73 @@
 	async function loadDocuments() {
 		loading = true;
 		error = null;
+		deleteError = null;
 
 		try {
 			const res = await fetch('/api/v1/documents');
 			if (res.ok) {
 				documents = await res.json();
 				// Sort by created date, newest first
-				documents.sort((a, b) => new Date(b.uploadedAt) - new Date(a.uploadedAt));
+				documents.sort(
+					(a, b) =>
+						new Date(b.uploadedAt || 0).getTime() -
+						new Date(a.uploadedAt || 0).getTime()
+				);
 			} else {
 				error = `Error loading documents: ${res.status}`;
 			}
 		} catch (err) {
-			error = `Network error: ${err.message}`;
+			error = `Network error: ${getErrorMessage(err)}`;
 		} finally {
 			loading = false;
 		}
 	}
 
+	/** @param {unknown} err */
+	function getErrorMessage(err) {
+		return err instanceof Error ? err.message : String(err);
+	}
+
+	/** @param {DocumentSummary} doc */
+	async function deleteDocument(doc) {
+		if (!doc?.id) {
+			return;
+		}
+
+		const confirmed = window.confirm(
+			`Slett ${doc.originalFilename || 'dokumentet'}? Dette kan ikke angres.`
+		);
+		if (!confirmed) {
+			return;
+		}
+
+		deleteError = null;
+		deletingIds = new Set(deletingIds).add(doc.id);
+		try {
+			const res = await fetch(`/api/v1/documents/${doc.id}`, {
+				method: 'DELETE'
+			});
+			if (!res.ok) {
+				const errorText = await res.text();
+				deleteError = `Sletting feilet: ${res.status} - ${errorText}`;
+				return;
+			}
+
+			documents = documents.filter((item) => item.id !== doc.id);
+		} catch (err) {
+			deleteError = `Nettverksfeil: ${getErrorMessage(err)}`;
+		} finally {
+			const next = new Set(deletingIds);
+			next.delete(doc.id);
+			deletingIds = next;
+		}
+	}
+
+	/** @param {DocumentSummary} doc */
 	function selectDocument(doc) {
 		selectedDocument = doc;
 		interpretationStarted = true;
-		hintedType = doc.documentType;
+		hintedType = doc.documentType || 'INVOICE';
 		jobResponse = null;
 		jobError = null;
 	}
@@ -65,6 +152,7 @@
 		}
 	}
 
+	/** @param {string} jobId */
 	async function pollJobStatus(jobId) {
 		try {
 			const res = await fetch(`/api/v1/interpretation/jobs/${jobId}`);
@@ -87,6 +175,7 @@
 		}
 	}
 
+	/** @param {string} jobId */
 	function startPolling(jobId) {
 		stopPolling();
 		pollJobStatus(jobId);
@@ -123,7 +212,10 @@
 			if (res.ok) {
 				jobResponse = await res.json();
 				jobError = null;
-				startPolling(jobResponse.jobId);
+				const jobIdValue = jobResponse?.jobId;
+				if (jobIdValue) {
+					startPolling(String(jobIdValue));
+				}
 			} else if (res.status === 404) {
 				jobError = 'Document not found';
 			} else {
@@ -131,7 +223,7 @@
 				jobError = `Error: ${res.status} - ${errorText}`;
 			}
 		} catch (err) {
-			jobError = `Network error: ${err.message}`;
+			jobError = `Network error: ${getErrorMessage(err)}`;
 		}
 	}
 
@@ -154,6 +246,9 @@
 	{:else if !interpretationStarted}
 		<div class="documents-list">
 			<p class="info">Klikk på et dokument-ID for å starte tolking</p>
+			{#if deleteError}
+				<div class="alert alert-error">{deleteError}</div>
+			{/if}
 			<table>
 				<thead>
 					<tr>
@@ -161,6 +256,7 @@
 						<th>Type</th>
 						<th>Original filnavn</th>
 						<th>Lastet opp</th>
+						<th></th>
 					</tr>
 				</thead>
 				<tbody>
@@ -173,11 +269,27 @@
 							</td>
 							<td>{doc.documentType}</td>
 							<td>{doc.originalFilename}</td>
-							<td>{new Date(doc.uploadedAt).toLocaleString('nb-NO')}</td>
+							<td>
+								{doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleString('nb-NO') : '-'}
+							</td>
+							<td class="delete-cell">
+								<button
+									class="delete-btn"
+									on:click={() => deleteDocument(doc)}
+									disabled={deletingIds.has(doc.id)}
+									aria-label="Slett dokument"
+								>
+									<svg viewBox="0 0 24 24" aria-hidden="true">
+										<path
+											d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v9h-2V9zm4 0h2v9h-2V9zM7 9h2v9H7V9z"
+										/>
+									</svg>
+								</button>
+							</td>
 						</tr>
 					{:else}
 						<tr>
-							<td colspan="4" class="no-data">Ingen dokumenter funnet</td>
+							<td colspan="5" class="no-data">Ingen dokumenter funnet</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -186,7 +298,7 @@
 	{:else}
 		<div class="interpretation-panel">
 			<div class="panel-header">
-				<h2>Tolk dokument: {selectedDocument.originalFilename}</h2>
+				<h2>Tolk dokument: {selectedDocument?.originalFilename || ''}</h2>
 				<button on:click={cancelInterpretation} class="btn-secondary">Avbryt</button>
 			</div>
 
@@ -197,9 +309,14 @@
 			{/if}
 
 			<div class="document-info">
-				<p><strong>ID:</strong> {selectedDocument.id}</p>
-				<p><strong>Type:</strong> {selectedDocument.documentType}</p>
-				<p><strong>Lastet opp:</strong> {new Date(selectedDocument.uploadedAt).toLocaleString('nb-NO')}</p>
+				<p><strong>ID:</strong> {selectedDocument?.id || '-'}</p>
+				<p><strong>Type:</strong> {selectedDocument?.documentType || '-'}</p>
+				<p>
+					<strong>Lastet opp:</strong>
+					{selectedDocument?.uploadedAt
+						? new Date(selectedDocument.uploadedAt).toLocaleString('nb-NO')
+						: '-'}
+				</p>
 			</div>
 
 			<div class="interpretation-settings">
@@ -257,7 +374,10 @@
 					<p><strong>Dokument-ID:</strong> {jobResponse.documentId}</p>
 					<p><strong>Status:</strong> {jobStatus?.status || jobResponse.status}</p>
 					<p><strong>Type:</strong> {jobResponse.documentType}</p>
-					<p><strong>Opprettet:</strong> {new Date(jobResponse.created).toLocaleString('nb-NO')}</p>
+					<p>
+						<strong>Opprettet:</strong>
+						{jobResponse?.created ? new Date(jobResponse.created).toLocaleString('nb-NO') : '-'}
+					</p>
 					{#if jobStatus?.status === 'FAILED'}
 						<p><strong>Feilmelding:</strong> {jobStatus.error || 'Tolking feilet. Sjekk OpenAI-innstillinger.'}</p>
 					{/if}
@@ -364,6 +484,43 @@
 
 	.doc-id-btn:hover {
 		background: #2980b9;
+	}
+
+	.delete-cell {
+		text-align: center;
+		width: 60px;
+	}
+
+	.delete-btn {
+		border: 1px solid transparent;
+		background: #fef2f2;
+		color: #b91c1c;
+		border-radius: 8px;
+		padding: 6px;
+		cursor: pointer;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
+	}
+
+	.delete-btn svg {
+		width: 16px;
+		height: 16px;
+		fill: currentColor;
+	}
+
+	.delete-btn:hover:not(:disabled) {
+		transform: translateY(-1px);
+		box-shadow: 0 4px 10px rgba(185, 28, 28, 0.2);
+		border-color: rgba(185, 28, 28, 0.3);
+	}
+
+	.delete-btn:disabled {
+		opacity: 0.6;
+		cursor: not-allowed;
+		box-shadow: none;
+		transform: none;
 	}
 
 	.no-data {

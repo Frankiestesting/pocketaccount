@@ -70,12 +70,6 @@ public class HeuristicStatementExtractor implements StatementExtractor {
         Pattern.MULTILINE
     );
 
-    // Balance line pattern (to identify statement structure)
-    private static final Pattern BALANCE_PATTERN = Pattern.compile(
-        "(?:balance|saldo|solde|closing|opening)\\s*:?\\s*([€$£¥₣]?\\s*[\\d,']+\\.\\d{2})",
-        Pattern.CASE_INSENSITIVE
-    );
-
     // Currency detection
     private static final Pattern CURRENCY_PATTERN = Pattern.compile(
         "\\b(USD|EUR|GBP|CHF|CAD|AUD|JPY|CNY|NOK|SEK|DKK)\\b",
@@ -177,7 +171,7 @@ public class HeuristicStatementExtractor implements StatementExtractor {
                 String buyDateDdmm = matcher.group(2);
                 String withdrawalStr = matcher.group(3);  // Column 3: Withdrawal amount (or null)
                 String depositStr = matcher.group(4);      // Column 4: Deposit amount (or null)
-                String bankDateDdmm = matcher.group(5);    // Column 5: Bank date
+                matcher.group(5); // Column 5: Bank date (unused for now)
 
                 // Skip lines that look like headers
                 if (description != null && isHeaderLine(description)) {
