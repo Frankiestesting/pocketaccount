@@ -5,7 +5,9 @@ import com.frnholding.pocketaccount.interpretation.api.dto.StartExtractionRespon
 import com.frnholding.pocketaccount.interpretation.api.dto.JobStatusResponseDTO;
 import com.frnholding.pocketaccount.interpretation.api.dto.ExtractionResultResponseDTO;
 import com.frnholding.pocketaccount.interpretation.api.dto.SaveCorrectionRequestDTO;
+import com.frnholding.pocketaccount.interpretation.api.dto.ApproveStatementTransactionRequest;
 import com.frnholding.pocketaccount.interpretation.api.dto.ApproveStatementTransactionResponse;
+import com.frnholding.pocketaccount.accounting.api.dto.ReceiptResponse;
 import com.frnholding.pocketaccount.interpretation.api.dto.StatementTransactionResponseDTO;
 import com.frnholding.pocketaccount.interpretation.infra.OpenAiConnectionService;
 import com.frnholding.pocketaccount.interpretation.service.InterpretationService;
@@ -117,6 +119,34 @@ public class ExtractionController {
         return ResponseEntity.ok(response);
     }
 
+        @PostMapping("/jobs/{jobId}/receipt")
+        @Operation(summary = "Create receipt from interpretation result", description = "Create a receipt from a completed receipt interpretation job")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "201", description = "Receipt created"),
+                        @ApiResponse(responseCode = "400", description = "Missing receipt fields"),
+                        @ApiResponse(responseCode = "404", description = "Job not found"),
+                        @ApiResponse(responseCode = "409", description = "Receipt already exists")
+        })
+        public ResponseEntity<ReceiptResponse> createReceiptFromJob(
+                        @PathVariable @Parameter(description = "Job ID") UUID jobId) {
+                ReceiptResponse receipt = interpretationService.createReceiptFromJob(jobId.toString());
+                return ResponseEntity.status(201).body(receipt);
+        }
+
+        @PostMapping("/documents/{documentId}/receipt")
+        @Operation(summary = "Create receipt from document interpretation", description = "Create a receipt from the latest receipt interpretation for a document")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "201", description = "Receipt created"),
+                        @ApiResponse(responseCode = "400", description = "Missing receipt fields"),
+                        @ApiResponse(responseCode = "404", description = "Document not found"),
+                        @ApiResponse(responseCode = "409", description = "Receipt already exists")
+        })
+        public ResponseEntity<ReceiptResponse> createReceiptFromDocument(
+                        @PathVariable @Parameter(description = "Document ID") UUID documentId) {
+                ReceiptResponse receipt = interpretationService.createReceiptFromDocument(documentId.toString());
+                return ResponseEntity.status(201).body(receipt);
+        }
+
         @GetMapping("/jobs/{jobId}/statement-transactions")
         @Operation(summary = "List statement transactions by job", description = "Get statement transactions for a completed interpretation job")
         @ApiResponses(value = {
@@ -156,9 +186,13 @@ public class ExtractionController {
             @ApiResponse(responseCode = "400", description = "Missing required transaction fields")
     })
     public ResponseEntity<ApproveStatementTransactionResponse> approveStatementTransaction(
-            @PathVariable @Parameter(description = "Statement transaction ID") Long id) {
+            @PathVariable @Parameter(description = "Statement transaction ID") Long id,
+            @RequestBody(required = false) ApproveStatementTransactionRequest request) {
         log.info("Approving statement transaction {}", id);
-        var bankTransaction = interpretationService.approveStatementTransaction(id);
+        var bankTransaction = interpretationService.approveStatementTransaction(
+                id,
+                request != null ? request.getAccountId() : null
+        );
         ApproveStatementTransactionResponse response = new ApproveStatementTransactionResponse(
                 id,
                 bankTransaction.getId(),
@@ -166,6 +200,18 @@ public class ExtractionController {
         );
         return ResponseEntity.ok(response);
     }
+
+        @GetMapping("/statement-transactions/{id}")
+        @Operation(summary = "Get statement transaction", description = "Fetch a single statement transaction")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Statement transaction retrieved"),
+                        @ApiResponse(responseCode = "404", description = "Statement transaction not found")
+        })
+        public ResponseEntity<StatementTransactionResponseDTO> getStatementTransactionById(
+                        @PathVariable @Parameter(description = "Statement transaction ID") Long id) {
+                StatementTransactionResponseDTO transaction = interpretationService.getStatementTransactionById(id);
+                return ResponseEntity.ok(transaction);
+        }
 
         @GetMapping("/openai/check")
         @Operation(summary = "Check OpenAI connection", description = "Checks OpenAI API connectivity and returns the raw OpenAI response or error.")

@@ -13,17 +13,22 @@ import java.util.UUID;
 
 @Repository
 public interface ReceiptRepository extends JpaRepository<Receipt, UUID> {
-    @Query("SELECT r FROM Receipt r WHERE " +
-           "(:from IS NULL OR r.purchaseDate >= :from) " +
-           "AND (:to IS NULL OR r.purchaseDate <= :to) " +
-           "ORDER BY r.createdAt DESC")
+    java.util.Optional<Receipt> findByDocumentId(UUID documentId);
+            @Query("SELECT r FROM Receipt r " +
+                "WHERE r.rejected = false " +
+                "AND NOT EXISTS (SELECT 1 FROM ReceiptMatch rm WHERE rm.receipt = r) " +
+                "AND (:from IS NULL OR r.purchaseDate >= :from) " +
+                "AND (:to IS NULL OR r.purchaseDate <= :to) " +
+                "ORDER BY r.createdAt DESC")
     List<Receipt> findByDateRange(@Param("from") LocalDate from, @Param("to") LocalDate to);
 
-        @Query("SELECT r FROM Receipt r WHERE " +
-            "(:from IS NULL OR r.purchaseDate >= :from) " +
-            "AND (:to IS NULL OR r.purchaseDate <= :to) " +
-            "ORDER BY r.createdAt DESC")
+            @Query("SELECT r FROM Receipt r " +
+                "WHERE r.rejected = false " +
+                "AND NOT EXISTS (SELECT 1 FROM ReceiptMatch rm WHERE rm.receipt = r) " +
+                "AND (:from IS NULL OR r.purchaseDate >= :from) " +
+                "AND (:to IS NULL OR r.purchaseDate <= :to) " +
+                "ORDER BY r.createdAt DESC")
         List<Receipt> findByDateRange(@Param("from") LocalDate from,
-                          @Param("to") LocalDate to,
-                          Pageable pageable);
+                 @Param("to") LocalDate to,
+                 Pageable pageable);
 }

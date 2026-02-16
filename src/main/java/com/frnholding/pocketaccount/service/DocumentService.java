@@ -17,6 +17,9 @@ import com.frnholding.pocketaccount.interpretation.domain.StatementTransaction;
 import com.frnholding.pocketaccount.interpretation.repository.InterpretationResultRepository;
 import com.frnholding.pocketaccount.interpretation.repository.StatementTransactionRepository;
 import com.frnholding.pocketaccount.interpretation.service.InterpretationService;
+import com.frnholding.pocketaccount.accounting.repository.ReceiptRepository;
+import com.frnholding.pocketaccount.accounting.repository.ReceiptMatchRepository;
+import com.frnholding.pocketaccount.exception.ConflictException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -54,6 +57,12 @@ public class DocumentService {
 
     @Autowired
     private StatementTransactionRepository statementTransactionRepository;
+
+    @Autowired
+    private ReceiptRepository receiptRepository;
+
+    @Autowired
+    private ReceiptMatchRepository receiptMatchRepository;
 
     @Autowired
     @Lazy
@@ -146,6 +155,10 @@ public class DocumentService {
             throw new ConflictException("Cannot delete document: approved statement transactions exist");
         }
 
+        if (isReceiptApproved(documentId)) {
+            throw new ConflictException("Cannot delete document: receipt is approved");
+        }
+
         String filePath = entity.getFilePath();
         documentRepository.delete(entity);
 
@@ -155,6 +168,17 @@ public class DocumentService {
             } catch (IOException e) {
                 throw new IllegalStateException("Failed to delete document file: " + filePath, e);
             }
+        }
+    }
+
+    private boolean isReceiptApproved(String documentId) {
+        try {
+            UUID receiptDocumentId = UUID.fromString(documentId);
+            return receiptRepository.findByDocumentId(receiptDocumentId)
+                    .map(receipt -> receiptMatchRepository.existsByReceiptId(receipt.getId()))
+                    .orElse(false);
+        } catch (IllegalArgumentException ex) {
+            return false;
         }
     }
 
@@ -229,23 +253,41 @@ public class DocumentService {
         Map<String, Object> extractedFields = null;
         List<ExtractionResultResponseDTO.Transaction> extractedTransactions = null;
         Instant extractedAt = null;
+        List<String> warnings = new java.util.ArrayList<>();
 
         if (interpretationResult != null) {
             extractedAt = interpretationResult.getInterpretedAt();
 
             InvoiceFieldsDTO invoiceFields = interpretationResult.getInvoiceFields();
             if (invoiceFields != null) {
-                extractedFields = Map.of(
-                    "date", invoiceFields.getDate(),
-                    "amount", invoiceFields.getAmount(),
-                    "currency", invoiceFields.getCurrency(),
-                    "sender", invoiceFields.getSender(),
-                    "description", invoiceFields.getDescription()
-                );
+                Map<String, Object> fields = new java.util.LinkedHashMap<>();
+                fields.put("date", invoiceFields.getDate());
+                fields.put("amount", invoiceFields.getAmount());
+                fields.put("currency", invoiceFields.getCurrency());
+                fields.put("sender", invoiceFields.getSender());
+                fields.put("description", invoiceFields.getDescription());
+                extractedFields = fields;
+
+                if (invoiceFields.getDate() == null) {
+                    warnings.add("Missing field: date");
+                }
+                if (invoiceFields.getAmount() == null) {
+                    warnings.add("Missing field: amount");
+                }
+                if (invoiceFields.getCurrency() == null) {
+                    warnings.add("Missing field: currency");
+                }
+                if (invoiceFields.getSender() == null) {
+                    warnings.add("Missing field: sender");
+                }
+                if (invoiceFields.getDescription() == null) {
+                    warnings.add("Missing field: description");
+                }
             }
 
             List<StatementTransaction> statementTransactions = interpretationResult.getStatementTransactions();
             if (statementTransactions != null && !statementTransactions.isEmpty()) {
+                int index = 0;
                 extractedTransactions = statementTransactions.stream()
                     .map(t -> new ExtractionResultResponseDTO.Transaction(
                         t.getDate() != null ? t.getDate().toString() : null,
@@ -257,7 +299,27 @@ public class DocumentService {
                         t.isApproved()
                     ))
                     .collect(Collectors.toList());
+
+                for (StatementTransaction t : statementTransactions) {
+                    index++;
+                    if (t.getDate() == null) {
+                        warnings.add("Transaction " + index + " missing date");
+                    }
+                    if (t.getAmount() == null) {
+                        warnings.add("Transaction " + index + " missing amount");
+                    }
+                    if (t.getCurrency() == null) {
+                        warnings.add("Transaction " + index + " missing currency");
+                    }
+                    if (t.getDescription() == null) {
+                        warnings.add("Transaction " + index + " missing description");
+                    }
+                }
+            } else if ("STATEMENT".equals(document.getDocumentType())) {
+                warnings.add("No transactions extracted");
             }
+        } else {
+            warnings.add("No interpretation result found");
         }
 
         String documentType = document.getDocumentType();
@@ -274,21 +336,21 @@ public class DocumentService {
                 null, // fields not used for STATEMENT
                 null, // corrected fields not used for STATEMENT
                 null, // confidence not used for STATEMENT
-                null, // warnings not used for STATEMENT
+                warnings.isEmpty() ? null : warnings,
                 extractedTransactions
             );
         }
 
         return new ExtractionResultResponseDTO(
             documentId,
-            "INVOICE",
+            documentType,
             1,
             extractedAt,
             extractedFields,
             null,
             null,
-            null,
-            null // transactions not used for INVOICE
+            warnings.isEmpty() ? null : warnings,
+            null // transactions not used for INVOICE/RECEIPT
         );
     }
 

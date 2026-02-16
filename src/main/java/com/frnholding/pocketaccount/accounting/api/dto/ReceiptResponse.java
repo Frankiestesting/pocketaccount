@@ -14,12 +14,14 @@ public class ReceiptResponse {
     private String merchant;
     private String description;
     private Instant createdAt;
+    private boolean rejected;
     
     public ReceiptResponse() {
     }
     
     public ReceiptResponse(UUID id, UUID documentId, LocalDate purchaseDate, BigDecimal totalAmount,
-                          String currency, String merchant, String description, Instant createdAt) {
+                          String currency, String merchant, String description, Instant createdAt,
+                          boolean rejected) {
         this.id = id;
         this.documentId = documentId;
         this.purchaseDate = purchaseDate;
@@ -28,6 +30,7 @@ public class ReceiptResponse {
         this.merchant = merchant;
         this.description = description;
         this.createdAt = createdAt;
+        this.rejected = rejected;
     }
     
     public UUID getId() {
@@ -92,5 +95,13 @@ public class ReceiptResponse {
     
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public boolean isRejected() {
+        return rejected;
+    }
+
+    public void setRejected(boolean rejected) {
+        this.rejected = rejected;
     }
 }

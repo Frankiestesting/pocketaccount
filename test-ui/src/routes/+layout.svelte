@@ -26,6 +26,9 @@
 			<li class:active={$page.url.pathname === '/statement-approve'}>
 				<a href="/statement-approve" on:click={(e) => handleClick(e, '/statement-approve')}>Godkjenn</a>
 			</li>
+			<li class:active={$page.url.pathname === '/receipt-approve'}>
+				<a href="/receipt-approve" on:click={(e) => handleClick(e, '/receipt-approve')}>Godkjenn kvittering</a>
+			</li>
 			<li class:active={$page.url.pathname === '/accounts'}>
 				<a href="/accounts" on:click={(e) => handleClick(e, '/accounts')}>Kontoer</a>
 			</li>
@@ -34,6 +37,9 @@
 			</li>
 			<li class:active={$page.url.pathname === '/compare-results'}>
 				<a href="/compare-results" on:click={(e) => handleClick(e, '/compare-results')}>Sammenlign Resultater</a>
+			</li>
+			<li class:active={$page.url.pathname === '/bank-transactions'}>
+				<a href="/bank-transactions" on:click={(e) => handleClick(e, '/bank-transactions')}>Banktransaksjoner</a>
 			</li>
 			<li class:active={$page.url.pathname === '/openai-check'}>
 				<a href="/openai-check" on:click={(e) => handleClick(e, '/openai-check')}>OpenAI Sjekk</a>

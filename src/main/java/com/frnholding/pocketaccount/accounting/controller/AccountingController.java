@@ -2,6 +2,7 @@ package com.frnholding.pocketaccount.accounting.controller;
 
 import com.frnholding.pocketaccount.accounting.api.dto.AccountResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.BankTransactionDTO;
+import com.frnholding.pocketaccount.accounting.api.dto.BankTransactionLinkResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.BankTransactionResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.CreateAccountRequest;
 import com.frnholding.pocketaccount.accounting.api.dto.CreateReceiptMatchRequest;
@@ -9,6 +10,7 @@ import com.frnholding.pocketaccount.accounting.api.dto.CreateReceiptRequest;
 import com.frnholding.pocketaccount.accounting.api.dto.ImportBankStatementRequest;
 import com.frnholding.pocketaccount.accounting.api.dto.ImportBankStatementResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.MatchStatusResponse;
+import com.frnholding.pocketaccount.accounting.api.dto.ReceiptMatchCandidateResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.ReceiptMatchResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.ReceiptResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.ReconciliationRowResponse;
@@ -103,6 +105,37 @@ public class AccountingController {
         List<ReceiptResponse> receipts = accountingService.getReceiptsByDateRange(from, to, page, size);
         return ResponseEntity.ok(receipts);
     }
+
+    @DeleteMapping("/receipts/{receiptId}")
+    public ResponseEntity<Void> deleteReceipt(@PathVariable UUID receiptId) {
+        accountingService.deleteReceipt(receiptId);
+        return ResponseEntity.noContent().build();
+    }
+
+    @GetMapping("/receipts/{receiptId}")
+    public ResponseEntity<ReceiptResponse> getReceiptById(@PathVariable UUID receiptId) {
+        ReceiptResponse receipt = accountingService.getReceiptById(receiptId);
+        return ResponseEntity.ok(receipt);
+    }
+
+    @PostMapping("/receipts/{receiptId}/reject")
+    public ResponseEntity<ReceiptResponse> rejectReceipt(@PathVariable UUID receiptId) {
+        ReceiptResponse receipt = accountingService.rejectReceipt(receiptId);
+        return ResponseEntity.ok(receipt);
+    }
+
+    @GetMapping("/receipts/{receiptId}/matches")
+    public ResponseEntity<List<ReceiptMatchResponse>> getReceiptMatches(@PathVariable UUID receiptId) {
+        List<ReceiptMatchResponse> matches = accountingService.getReceiptMatches(receiptId);
+        return ResponseEntity.ok(matches);
+    }
+
+    @GetMapping("/receipts/{receiptId}/match-candidates")
+    public ResponseEntity<List<ReceiptMatchCandidateResponse>> getReceiptMatchCandidates(
+            @PathVariable UUID receiptId) {
+        List<ReceiptMatchCandidateResponse> candidates = accountingService.getReceiptMatchCandidates(receiptId);
+        return ResponseEntity.ok(candidates);
+    }
     
     @PostMapping("/matches")
     public ResponseEntity<ReceiptMatchResponse> createReceiptMatch(@Valid @RequestBody CreateReceiptMatchRequest request) {
@@ -120,6 +153,12 @@ public class AccountingController {
     public ResponseEntity<MatchStatusResponse> getMatchStatus(@PathVariable UUID id) {
         MatchStatusResponse status = accountingService.getMatchStatus(id);
         return ResponseEntity.ok(status);
+    }
+
+    @GetMapping("/bank-transactions/{id}/links")
+    public ResponseEntity<BankTransactionLinkResponse> getBankTransactionLinks(@PathVariable UUID id) {
+        BankTransactionLinkResponse links = accountingService.getBankTransactionLinks(id);
+        return ResponseEntity.ok(links);
     }
     
     @GetMapping("/reconciliation")

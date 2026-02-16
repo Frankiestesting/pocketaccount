@@ -8,18 +8,21 @@ public class StatementTransactionResponseDTO {
     private String description;
     private String currency;
     private Double amount;
+    private String accountNo;
     private Boolean approved;
 
     public StatementTransactionResponseDTO() {
     }
 
     public StatementTransactionResponseDTO(Long id, LocalDate date, String description,
-                                           String currency, Double amount, Boolean approved) {
+                                           String currency, Double amount, String accountNo,
+                                           Boolean approved) {
         this.id = id;
         this.date = date;
         this.description = description;
         this.currency = currency;
         this.amount = amount;
+        this.accountNo = accountNo;
         this.approved = approved;
     }
 
@@ -61,6 +64,14 @@ public class StatementTransactionResponseDTO {
 
     public void setAmount(Double amount) {
         this.amount = amount;
+    }
+
+    public String getAccountNo() {
+        return accountNo;
+    }
+
+    public void setAccountNo(String accountNo) {
+        this.accountNo = accountNo;
     }
 
     public Boolean getApproved() {

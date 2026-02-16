@@ -9,6 +9,8 @@
 	let selectedJob = null;
 	let jobResult = null;
 	let resultError = null;
+	let receiptCreateError = null;
+	let receiptCreated = null;
 
 	onMount(async () => {
 		await loadJobs();
@@ -26,7 +28,9 @@
 			const res = await fetch('/api/v1/interpretation/jobs');
 			if (res.ok) {
 				const data = await res.json();
-				jobs = data;
+				jobs = data.sort(
+					(a, b) => new Date(b.startedAt || 0).getTime() - new Date(a.startedAt || 0).getTime()
+				);
 			} else {
 				error = `Error loading jobs: ${res.status}`;
 			}
@@ -45,6 +49,8 @@
 		selectedJob = job;
 		resultError = null;
 		jobResult = null;
+		receiptCreateError = null;
+		receiptCreated = null;
 
 		try {
 			const res = await fetch(`/api/v1/interpretation/jobs/${job.jobId}/result`);
@@ -128,6 +134,29 @@
 		selectedJob = null;
 		jobResult = null;
 		resultError = null;
+		receiptCreateError = null;
+		receiptCreated = null;
+	}
+
+	async function createReceiptFromResult() {
+		if (!selectedJob) {
+			return;
+		}
+		receiptCreateError = null;
+		receiptCreated = null;
+		try {
+			const res = await fetch(`/api/v1/interpretation/documents/${selectedJob.documentId}/receipt`, {
+				method: 'POST'
+			});
+			if (!res.ok) {
+				const errorText = await res.text();
+				receiptCreateError = `Oppretting feilet: ${res.status} - ${errorText}`;
+				return;
+			}
+			receiptCreated = await res.json();
+		} catch (err) {
+			receiptCreateError = `Network error: ${err.message}`;
+		}
 	}
 
 	function getStatusClass(status) {
@@ -256,25 +285,42 @@
 				<div class="result-content">
 					<h3>Ekstraherte data</h3>
 
-					{#if jobResult.invoiceData}
+					{#if jobResult.documentType === 'RECEIPT' || selectedJob.documentType === 'RECEIPT'}
+						<div class="receipt-actions">
+							<button class="btn-primary" on:click={createReceiptFromResult}>
+								Opprett kvittering
+							</button>
+							{#if receiptCreateError}
+								<div class="alert alert-error">{receiptCreateError}</div>
+							{/if}
+							{#if receiptCreated}
+								<div class="alert alert-success">Kvittering opprettet ({receiptCreated.id})</div>
+							{/if}
+						</div>
+					{/if}
+
+					{#if jobResult.invoiceFields || jobResult.invoiceData}
 						<div class="data-section">
 							<h4>Fakturainformasjon</h4>
 							<div class="data-grid">
 								<div class="data-item">
 									<span class="label">Beløp:</span>
-									<span class="value">{jobResult.invoiceData.amount} {jobResult.invoiceData.currency}</span>
+									<span class="value">
+										{(jobResult.invoiceFields || jobResult.invoiceData).amount}
+										{(jobResult.invoiceFields || jobResult.invoiceData).currency}
+									</span>
 								</div>
 								<div class="data-item">
 									<span class="label">Dato:</span>
-									<span class="value">{jobResult.invoiceData.date || '-'}</span>
+									<span class="value">{(jobResult.invoiceFields || jobResult.invoiceData).date || '-'}</span>
 								</div>
 								<div class="data-item">
 									<span class="label">Avsender:</span>
-									<span class="value">{jobResult.invoiceData.sender || '-'}</span>
+									<span class="value">{(jobResult.invoiceFields || jobResult.invoiceData).sender || '-'}</span>
 								</div>
 								<div class="data-item">
 									<span class="label">Beskrivelse:</span>
-									<span class="value">{jobResult.invoiceData.description || '-'}</span>
+									<span class="value">{(jobResult.invoiceFields || jobResult.invoiceData).description || '-'}</span>
 								</div>
 							</div>
 						</div>
@@ -343,6 +389,33 @@
 		padding: 20px;
 		border-radius: 8px;
 		margin: 20px 0;
+	}
+
+	.alert-success {
+		background: #e6f6ec;
+		border: 1px solid #cfead7;
+		color: #1f7a3e;
+	}
+
+	.receipt-actions {
+		margin: 16px 0;
+		display: flex;
+		flex-direction: column;
+		gap: 10px;
+		max-width: 360px;
+	}
+
+	.btn-primary {
+		background: #2c7be5;
+		color: white;
+		border: none;
+		padding: 10px 16px;
+		border-radius: 4px;
+		font-size: 14px;
+		font-weight: 600;
+		cursor: pointer;
+		transition: background 0.2s;
+		align-self: flex-start;
 	}
 
 	.action-cell {

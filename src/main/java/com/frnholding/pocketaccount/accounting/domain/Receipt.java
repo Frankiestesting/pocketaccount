@@ -34,6 +34,9 @@ public class Receipt {
     
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
+
+    @Column(nullable = false)
+    private boolean rejected = false;
     
     public Receipt() {
     }
@@ -100,5 +103,13 @@ public class Receipt {
     
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public boolean isRejected() {
+        return rejected;
+    }
+
+    public void setRejected(boolean rejected) {
+        this.rejected = rejected;
     }
 }

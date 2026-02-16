@@ -87,7 +87,8 @@ public class AccountingMapper {
             receipt.getCurrency(),
             receipt.getMerchant(),
             receipt.getDescription(),
-            receipt.getCreatedAt()
+            receipt.getCreatedAt(),
+            receipt.isRejected()
         );
     }
     

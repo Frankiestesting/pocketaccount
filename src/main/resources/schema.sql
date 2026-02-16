@@ -141,7 +141,8 @@ CREATE TABLE IF NOT EXISTS receipt (
     currency CHAR(3) NOT NULL,
     merchant VARCHAR(200) NULL,
     description TEXT NULL,
-    created_at TIMESTAMPTZ NOT NULL DEFAULT now()
+    created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    rejected BOOLEAN NOT NULL DEFAULT FALSE
 );
 
 CREATE INDEX IF NOT EXISTS idx_receipt_purchase_date ON receipt(purchase_date);
@@ -160,6 +161,9 @@ CREATE TABLE IF NOT EXISTS receipt_match (
     CONSTRAINT fk_receipt_match_bank_transaction FOREIGN KEY (bank_transaction_id) REFERENCES bank_transaction(id) ON DELETE CASCADE,
     CONSTRAINT uk_receipt_match_receipt_transaction UNIQUE (receipt_id, bank_transaction_id)
 );
+
+CREATE UNIQUE INDEX IF NOT EXISTS idx_receipt_match_receipt_id_unique ON receipt_match(receipt_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_receipt_match_bank_transaction_id_unique ON receipt_match(bank_transaction_id);
 
 CREATE INDEX IF NOT EXISTS idx_receipt_match_receipt_id ON receipt_match(receipt_id);
 CREATE INDEX IF NOT EXISTS idx_receipt_match_bank_transaction_id ON receipt_match(bank_transaction_id);

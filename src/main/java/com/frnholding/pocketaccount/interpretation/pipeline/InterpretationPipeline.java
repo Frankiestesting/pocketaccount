@@ -18,6 +18,8 @@ import java.util.UUID;
 @Component
 public class InterpretationPipeline {
 
+    private static final String DEFAULT_CURRENCY = "NOK";
+
     @Autowired(required = false)
     @Qualifier("compositeTextExtractor")
     private DocumentTextInterpreter documentTextInterpreter;
@@ -80,12 +82,20 @@ public class InterpretationPipeline {
                 extractionMethods.append("OCR");
             }
 
-            if (documentType == DocumentType.INVOICE) {
+            if (documentType == DocumentType.INVOICE || documentType == DocumentType.RECEIPT) {
                 InvoiceFieldsDTO invoiceFields = extractInvoiceFields(interpretedText, options.isUseAi(), extractionMethods);
+                if (invoiceFields != null && isBlank(invoiceFields.getCurrency())) {
+                    invoiceFields.setCurrency(DEFAULT_CURRENCY);
+                }
                 result.setInvoiceFields(invoiceFields);
-                log.debug("Invoice fields extracted: {}", invoiceFields);
+                log.debug("Invoice/receipt fields extracted: {}", invoiceFields);
             } else if (documentType == DocumentType.STATEMENT) {
                 List<StatementTransaction> transactions = extractStatementTransactions(interpretedText, result, options.isUseAi(), extractionMethods);
+                for (StatementTransaction transaction : transactions) {
+                    if (transaction != null && isBlank(transaction.getCurrency())) {
+                        transaction.setCurrency(DEFAULT_CURRENCY);
+                    }
+                }
                 result.setStatementTransactions(transactions);
                 log.debug("Statement transactions extracted: {} transactions", transactions.size());
             } else {
@@ -194,5 +204,9 @@ public class InterpretationPipeline {
             return matcher.group();
         }
         return null;
+    }
+
+    private boolean isBlank(String value) {
+        return value == null || value.trim().isEmpty();
     }
 }

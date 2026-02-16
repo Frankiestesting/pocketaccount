@@ -14,7 +14,10 @@ import java.util.UUID;
 public interface ReceiptMatchRepository extends JpaRepository<ReceiptMatch, UUID> {
     List<ReceiptMatch> findByReceiptId(UUID receiptId);
     List<ReceiptMatch> findByBankTransactionId(UUID bankTransactionId);
+    java.util.Optional<ReceiptMatch> findFirstByBankTransactionId(UUID bankTransactionId);
     boolean existsByReceiptIdAndBankTransactionId(UUID receiptId, UUID bankTransactionId);
+    boolean existsByReceiptId(UUID receiptId);
+    boolean existsByBankTransactionId(UUID bankTransactionId);
     
     @Query("SELECT COALESCE(SUM(rm.matchedAmount), 0) FROM ReceiptMatch rm WHERE rm.bankTransaction.id = :bankTransactionId")
     BigDecimal sumMatchedAmountByBankTransactionId(@Param("bankTransactionId") UUID bankTransactionId);

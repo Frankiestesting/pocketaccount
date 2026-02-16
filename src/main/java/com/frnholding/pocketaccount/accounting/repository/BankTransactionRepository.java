@@ -43,4 +43,41 @@ public interface BankTransactionRepository extends JpaRepository<BankTransaction
                   String currency,
                   String description
            );
+
+    @Query("SELECT bt FROM BankTransaction bt WHERE bt.currency = :currency " +
+           "AND bt.bookingDate >= :from AND bt.bookingDate <= :to " +
+           "ORDER BY bt.bookingDate DESC")
+    List<BankTransaction> findByCurrencyAndBookingDateBetween(@Param("currency") String currency,
+                                                              @Param("from") LocalDate from,
+                                                              @Param("to") LocalDate to,
+                                                              Pageable pageable);
+
+    @Query("SELECT bt FROM BankTransaction bt " +
+           "WHERE bt.currency = :currency " +
+           "AND bt.bookingDate >= :from AND bt.bookingDate <= :to " +
+           "AND NOT EXISTS (SELECT 1 FROM ReceiptMatch rm WHERE rm.bankTransaction = bt) " +
+           "ORDER BY bt.bookingDate DESC")
+    List<BankTransaction> findUnmatchedByCurrencyAndBookingDateBetween(@Param("currency") String currency,
+                                                                       @Param("from") LocalDate from,
+                                                                       @Param("to") LocalDate to,
+                                                                       Pageable pageable);
+
+    @Query("SELECT bt FROM BankTransaction bt WHERE bt.bookingDate >= :from AND bt.bookingDate <= :to " +
+           "ORDER BY bt.bookingDate DESC")
+    List<BankTransaction> findByBookingDateBetween(@Param("from") LocalDate from,
+                                                   @Param("to") LocalDate to,
+                                                   Pageable pageable);
+
+    @Query("SELECT bt FROM BankTransaction bt " +
+           "WHERE bt.bookingDate >= :from AND bt.bookingDate <= :to " +
+           "AND NOT EXISTS (SELECT 1 FROM ReceiptMatch rm WHERE rm.bankTransaction = bt) " +
+           "ORDER BY bt.bookingDate DESC")
+    List<BankTransaction> findUnmatchedByBookingDateBetween(@Param("from") LocalDate from,
+                                                            @Param("to") LocalDate to,
+                                                            Pageable pageable);
+
+    @Query("SELECT bt FROM BankTransaction bt " +
+           "WHERE NOT EXISTS (SELECT 1 FROM ReceiptMatch rm WHERE rm.bankTransaction = bt) " +
+           "ORDER BY bt.bookingDate DESC")
+    List<BankTransaction> findUnmatched(Pageable pageable);
 }

@@ -6,12 +6,14 @@
 	let error = null;
 	let selectedJob = null;
 	let transactions = null;
+	let accounts = [];
 	let resultError = null;
 	let approveError = null;
 	let approvingIds = new Set();
+	let selectedAccountByTxId = {};
 
 	onMount(async () => {
-		await loadJobs();
+		await Promise.all([loadJobs(), loadAccounts()]);
 	});
 
 	async function loadJobs() {
@@ -25,7 +27,13 @@
 			}
 			const allJobs = await res.json();
 			jobs = allJobs
-				.filter((job) => job.status && job.status.toUpperCase() === 'COMPLETED')
+				.filter(
+					(job) =>
+						job.status &&
+						job.status.toUpperCase() === 'COMPLETED' &&
+						job.documentType &&
+						job.documentType.toUpperCase() === 'STATEMENT'
+				)
 				.sort((a, b) => new Date(b.finishedAt || 0).getTime() - new Date(a.finishedAt || 0).getTime());
 		} catch (err) {
 			error = `Error loading jobs: ${getErrorMessage(err)}`;
@@ -38,16 +46,32 @@
 		return err instanceof Error ? err.message : String(err);
 	}
 
+	async function loadAccounts() {
+		try {
+			const res = await fetch('/api/v1/accounts');
+			if (!res.ok) {
+				throw new Error(`Failed to fetch accounts: ${res.status}`);
+			}
+			accounts = await res.json();
+		} catch (err) {
+			accounts = [];
+			console.error('Failed to load accounts', err);
+		}
+	}
+
 	async function selectJob(job) {
 		selectedJob = job;
 		transactions = null;
 		resultError = null;
 		approveError = null;
+		selectedAccountByTxId = {};
 
 		try {
 			const res = await fetch(`/api/v1/interpretation/jobs/${job.jobId}/statement-transactions`);
 			if (res.ok) {
-				transactions = await res.json();
+				const rows = await res.json();
+				transactions = rows;
+				selectedAccountByTxId = buildAccountSelections(rows);
 			} else if (res.status === 404) {
 				resultError = 'Resultat ikke funnet';
 			} else {
@@ -64,10 +88,42 @@
 		transactions = null;
 		resultError = null;
 		approveError = null;
+		selectedAccountByTxId = {};
 	}
 
 	function getTransactionId(tx) {
 		return tx?.id ?? tx?.statementTransactionId ?? tx?.transactionId ?? null;
+	}
+
+	function buildAccountSelections(rows) {
+		const selection = {};
+		if (!Array.isArray(rows) || accounts.length === 0) {
+			return selection;
+		}
+		for (const tx of rows) {
+			const txId = getTransactionId(tx);
+			if (!txId) {
+				continue;
+			}
+			if (tx.accountNo) {
+				const match = accounts.find((account) => account.accountNo === tx.accountNo);
+				if (match) {
+					selection[txId] = match.id;
+				}
+			}
+		}
+		return selection;
+	}
+
+	function getAccountOptions(tx) {
+		if (!tx || accounts.length === 0) {
+			return [];
+		}
+		const currency = tx.currency;
+		const filtered = currency
+			? accounts.filter((account) => account.currency === currency)
+			: accounts;
+		return filtered.length > 0 ? filtered : accounts;
 	}
 
 	async function approveTransaction(tx) {
@@ -81,11 +137,23 @@
 			return;
 		}
 
+		const selectedAccountId = selectedAccountByTxId[txId] || null;
+		if (!selectedAccountId && needsAccountSelection(tx)) {
+			approveError = 'Velg en konto for aa godkjenne transaksjonen.';
+			return;
+		}
+
 		approveError = null;
 		approvingIds = new Set(approvingIds).add(txId);
 		try {
 			const res = await fetch(`/api/v1/interpretation/statement-transactions/${txId}/approve`, {
-				method: 'POST'
+				method: 'POST',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({
+					accountId: selectedAccountId
+				})
 			});
 			if (!res.ok) {
 				const errorText = await res.text();
@@ -121,6 +189,10 @@
 	function isApproving(tx) {
 		const txId = getTransactionId(tx);
 		return txId ? approvingIds.has(txId) : false;
+	}
+
+	function needsAccountSelection(tx) {
+		return !tx?.accountNo && accounts.length > 0;
 	}
 </script>
 
@@ -199,6 +271,7 @@
 							<th>Beskrivelse</th>
 							<th>Valuta</th>
 							<th>Belop</th>
+							<th>Konto</th>
 							<th>Status</th>
 							<th></th>
 						</tr>
@@ -211,6 +284,23 @@
 								<td>{tx.currency || '-'}</td>
 								<td class:negative={tx.amount < 0}>{formatAmount(tx.amount)}</td>
 								<td>
+									{#if tx.approved}
+										<span class="account-label">{tx.accountNo || '-'}</span>
+									{:else}
+										<select
+											class="account-select"
+											bind:value={selectedAccountByTxId[getTransactionId(tx)]}
+										>
+											<option value="">Velg konto</option>
+											{#each getAccountOptions(tx) as account}
+												<option value={account.id}>
+													{account.name} ({account.accountNo})
+												</option>
+											{/each}
+										</select>
+									{/if}
+								</td>
+								<td>
 									<span class={tx.approved ? 'tag tag-approved' : 'tag tag-pending'}>
 										{tx.approved ? 'Approved' : 'Pending'}
 									</span>
@@ -220,7 +310,7 @@
 										<button
 											class="icon-button"
 											on:click={() => approveTransaction(tx)}
-											disabled={isApproving(tx)}
+											disabled={isApproving(tx) || (!selectedAccountByTxId[getTransactionId(tx)] && needsAccountSelection(tx))}
 											title="Godkjenn"
 										>
 											<svg viewBox="0 0 24 24" aria-hidden="true">
@@ -298,6 +388,20 @@
 		vertical-align: top;
 	}
 
+	.account-select {
+		min-width: 200px;
+		padding: 6px 8px;
+		border: 1px solid #d7dce2;
+		border-radius: 6px;
+		background: #fff;
+	}
+
+	.account-label {
+		color: #4b5563;
+		font-weight: 600;
+		font-size: 13px;
+	}
+
 	.link-button {
 		background: none;
 		border: none;
@@ -352,6 +456,7 @@
 		background: #fff6e1;
 		color: #8a5a00;
 	}
+
 
 	.action-cell {
 		width: 64px;

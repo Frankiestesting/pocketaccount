@@ -12,8 +12,12 @@ import com.frnholding.pocketaccount.exception.EntityNotFoundException;
 import com.frnholding.pocketaccount.service.DocumentService;
 import com.frnholding.pocketaccount.accounting.domain.BankTransaction;
 import com.frnholding.pocketaccount.accounting.domain.Account;
+import com.frnholding.pocketaccount.accounting.api.dto.CreateReceiptRequest;
+import com.frnholding.pocketaccount.accounting.api.dto.ReceiptResponse;
 import com.frnholding.pocketaccount.accounting.repository.AccountRepository;
 import com.frnholding.pocketaccount.accounting.repository.BankTransactionRepository;
+import com.frnholding.pocketaccount.accounting.repository.ReceiptRepository;
+import com.frnholding.pocketaccount.accounting.service.AccountingService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
@@ -55,6 +59,12 @@ public class InterpretationService {
 
     @Autowired
     private StatementTransactionRepository statementTransactionRepository;
+
+    @Autowired
+    private ReceiptRepository receiptRepository;
+
+    @Autowired
+    private AccountingService accountingService;
 
     @Autowired
     private DocumentService documentService;
@@ -105,7 +115,7 @@ public class InterpretationService {
         result.setDocumentType(documentType);
         result.setInterpretedAt(Instant.now());
 
-        if ("INVOICE".equals(documentType)) {
+        if ("INVOICE".equals(documentType) || "RECEIPT".equals(documentType)) {
             // Create mock invoice fields
             InvoiceFieldsDTO invoiceFields = new InvoiceFieldsDTO(
                     12450.00,
@@ -297,6 +307,61 @@ public class InterpretationService {
         return buildExtractionResultResponse(result);
     }
 
+    @Transactional
+    public ReceiptResponse createReceiptFromJob(String jobId) {
+        InterpretationResult result = interpretationResultRepository.findByJobId(jobId)
+                .orElseThrow(() -> new EntityNotFoundException("No interpretation result found for job: " + jobId));
+        return createReceiptFromResult(result, "Job is not a receipt interpretation");
+    }
+
+    @Transactional
+    public ReceiptResponse createReceiptFromDocument(String documentId) {
+        InterpretationResult result = interpretationResultRepository.findByDocumentId(documentId)
+                .orElseThrow(() -> new EntityNotFoundException("No interpretation result found for document: " + documentId));
+        return createReceiptFromResult(result, "Document is not a receipt interpretation");
+    }
+
+    private ReceiptResponse createReceiptFromResult(InterpretationResult result, String typeErrorMessage) {
+        if (!"RECEIPT".equalsIgnoreCase(result.getDocumentType())) {
+            throw new IllegalArgumentException(typeErrorMessage);
+        }
+
+        InvoiceFieldsDTO fields = result.getInvoiceFields();
+        if (fields == null) {
+            throw new IllegalArgumentException("Receipt fields are missing");
+        }
+        if (fields.getAmount() == null || fields.getCurrency() == null) {
+            throw new IllegalArgumentException("Receipt amount or currency is missing");
+        }
+        if (fields.getDate() == null) {
+            throw new IllegalArgumentException("Receipt purchase date is missing");
+        }
+
+        UUID documentUuid;
+        try {
+            documentUuid = UUID.fromString(result.getDocumentId());
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Receipt documentId is invalid: " + result.getDocumentId());
+        }
+
+        if (receiptRepository.findByDocumentId(documentUuid).isPresent()) {
+            throw new com.frnholding.pocketaccount.exception.ConflictException(
+                    "Receipt already exists for document: " + documentUuid
+            );
+        }
+
+        CreateReceiptRequest request = new CreateReceiptRequest(
+                documentUuid,
+                fields.getDate(),
+                toBigDecimal(fields.getAmount()),
+                fields.getCurrency(),
+                fields.getSender(),
+                fields.getDescription()
+        );
+
+        return accountingService.createReceipt(request);
+    }
+
         public List<StatementTransactionResponseDTO> getStatementTransactionsForJob(String jobId) {
         if (!interpretationJobRepository.existsById(jobId)) {
             throw new EntityNotFoundException("Job not found: " + jobId);
@@ -312,10 +377,26 @@ public class InterpretationService {
                 tx.getDescription(),
                 tx.getCurrency(),
                 tx.getAmount(),
+                tx.getAccountNo(),
                 tx.isApproved()
             ))
             .collect(Collectors.toList());
         }
+
+            @Transactional(readOnly = true)
+            public StatementTransactionResponseDTO getStatementTransactionById(Long statementTransactionId) {
+            StatementTransaction transaction = statementTransactionRepository.findById(statementTransactionId)
+                .orElseThrow(() -> new EntityNotFoundException("Statement transaction not found: " + statementTransactionId));
+            return new StatementTransactionResponseDTO(
+                transaction.getId(),
+                transaction.getDate(),
+                transaction.getDescription(),
+                transaction.getCurrency(),
+                transaction.getAmount(),
+                transaction.getAccountNo(),
+                transaction.isApproved()
+            );
+            }
 
     private ExtractionResultResponseDTO buildExtractionResultResponse(InterpretationResult result) {
         ExtractionResultResponseDTO response = new ExtractionResultResponseDTO();
@@ -405,7 +486,11 @@ public class InterpretationService {
                     dto.getSender()
             );
             result.setInvoiceFields(fields);
-            result.setStatementTransactions(new ArrayList<>()); // Clear transactions for invoice
+            if (result.getStatementTransactions() != null) {
+                result.getStatementTransactions().clear();
+            } else {
+                result.setStatementTransactions(new ArrayList<>());
+            }
         }
 
         if (request.getTransactions() != null && !request.getTransactions().isEmpty()) {
@@ -425,7 +510,11 @@ public class InterpretationService {
             }
 
             // Clear existing transactions
-            result.getStatementTransactions().clear();
+            if (result.getStatementTransactions() != null) {
+                result.getStatementTransactions().clear();
+            } else {
+                result.setStatementTransactions(new ArrayList<>());
+            }
 
             // Add corrected transactions
             for (SaveCorrectionRequestDTO.TransactionDto dto : request.getTransactions()) {
@@ -499,12 +588,18 @@ public class InterpretationService {
     }
 
     @Transactional
-    public BankTransaction approveStatementTransaction(Long statementTransactionId) {
+    public BankTransaction approveStatementTransaction(Long statementTransactionId, UUID accountId) {
         StatementTransaction transaction = statementTransactionRepository.findById(statementTransactionId)
                 .orElseThrow(() -> new EntityNotFoundException("Statement transaction not found: " + statementTransactionId));
 
         if (transaction.getInterpretationResult() == null) {
             throw new IllegalStateException("Statement transaction missing interpretation result");
+        }
+
+        if (accountId != null) {
+            Account account = accountRepository.findById(accountId)
+                    .orElseThrow(() -> new EntityNotFoundException("Account not found: " + accountId));
+            transaction.setAccountNo(account.getAccountNo());
         }
 
         BankTransaction linked = ensureBankTransactionForApproved(transaction);

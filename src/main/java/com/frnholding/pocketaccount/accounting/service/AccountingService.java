@@ -3,6 +3,7 @@ package com.frnholding.pocketaccount.accounting.service;
 import com.frnholding.pocketaccount.accounting.api.dto.AccountResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.BankStatementLineDto;
 import com.frnholding.pocketaccount.accounting.api.dto.BankTransactionDTO;
+import com.frnholding.pocketaccount.accounting.api.dto.BankTransactionLinkResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.BankTransactionResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.CreateAccountRequest;
 import com.frnholding.pocketaccount.accounting.api.dto.CreateReceiptMatchRequest;
@@ -10,6 +11,7 @@ import com.frnholding.pocketaccount.accounting.api.dto.CreateReceiptRequest;
 import com.frnholding.pocketaccount.accounting.api.dto.ImportBankStatementRequest;
 import com.frnholding.pocketaccount.accounting.api.dto.ImportBankStatementResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.MatchStatusResponse;
+import com.frnholding.pocketaccount.accounting.api.dto.ReceiptMatchCandidateResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.ReceiptMatchResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.ReceiptResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.ReconciliationRowResponse;
@@ -22,7 +24,9 @@ import com.frnholding.pocketaccount.accounting.repository.AccountRepository;
 import com.frnholding.pocketaccount.accounting.repository.BankTransactionRepository;
 import com.frnholding.pocketaccount.accounting.repository.ReceiptMatchRepository;
 import com.frnholding.pocketaccount.accounting.repository.ReceiptRepository;
+import com.frnholding.pocketaccount.interpretation.repository.StatementTransactionRepository;
 import com.frnholding.pocketaccount.exception.EntityNotFoundException;
+import com.frnholding.pocketaccount.exception.ConflictException;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Sort;
 import org.springframework.stereotype.Service;
@@ -49,17 +53,20 @@ public class AccountingService {
     private final BankTransactionRepository bankTransactionRepository;
     private final ReceiptRepository receiptRepository;
     private final ReceiptMatchRepository receiptMatchRepository;
+    private final StatementTransactionRepository statementTransactionRepository;
     private final AccountingMapper mapper;
     
     public AccountingService(AccountRepository accountRepository,
                            BankTransactionRepository bankTransactionRepository,
                            ReceiptRepository receiptRepository,
                            ReceiptMatchRepository receiptMatchRepository,
+                           StatementTransactionRepository statementTransactionRepository,
                            AccountingMapper mapper) {
         this.accountRepository = accountRepository;
         this.bankTransactionRepository = bankTransactionRepository;
         this.receiptRepository = receiptRepository;
         this.receiptMatchRepository = receiptMatchRepository;
+        this.statementTransactionRepository = statementTransactionRepository;
         this.mapper = mapper;
     }
     
@@ -188,6 +195,7 @@ public class AccountingService {
         receipt.setMerchant(request.getMerchant());
         receipt.setDescription(request.getDescription());
         receipt.setCreatedAt(Instant.now());
+        receipt.setRejected(false);
         
         Receipt saved = receiptRepository.save(receipt);
         return mapper.toReceiptResponse(saved);
@@ -210,6 +218,12 @@ public class AccountingService {
     
     @Transactional
     public ReceiptMatchResponse createReceiptMatch(CreateReceiptMatchRequest request) {
+        if (receiptMatchRepository.existsByReceiptId(request.getReceiptId())) {
+            throw new ConflictException("Receipt is already matched to a bank transaction");
+        }
+        if (receiptMatchRepository.existsByBankTransactionId(request.getBankTransactionId())) {
+            throw new ConflictException("Bank transaction is already matched to a receipt");
+        }
         // Check if match already exists (unique constraint: receiptId + bankTransactionId)
         if (receiptMatchRepository.existsByReceiptIdAndBankTransactionId(request.getReceiptId(), request.getBankTransactionId())) {
             throw new IllegalArgumentException("Receipt match already exists for this receipt and transaction");
@@ -218,6 +232,10 @@ public class AccountingService {
         // Verify receipt exists
         Receipt receipt = receiptRepository.findById(request.getReceiptId())
                 .orElseThrow(() -> new EntityNotFoundException("Receipt not found: " + request.getReceiptId()));
+
+        if (receipt.isRejected()) {
+            throw new ConflictException("Cannot approve receipt: it is rejected");
+        }
         
         // Verify bank transaction exists
         BankTransaction bankTransaction = bankTransactionRepository.findById(request.getBankTransactionId())
@@ -234,6 +252,176 @@ public class AccountingService {
         
         ReceiptMatch saved = receiptMatchRepository.save(match);
         return mapper.toReceiptMatchResponse(saved);
+    }
+
+    @Transactional(readOnly = true)
+    public List<ReceiptMatchResponse> getReceiptMatches(UUID receiptId) {
+        receiptRepository.findById(receiptId)
+                .orElseThrow(() -> new EntityNotFoundException("Receipt not found: " + receiptId));
+        return receiptMatchRepository.findByReceiptId(receiptId).stream()
+                .map(mapper::toReceiptMatchResponse)
+                .collect(Collectors.toList());
+    }
+
+    @Transactional
+    public void deleteReceipt(UUID receiptId) {
+        Receipt receipt = receiptRepository.findById(receiptId)
+                .orElseThrow(() -> new EntityNotFoundException("Receipt not found: " + receiptId));
+
+        if (receiptMatchRepository.existsByReceiptId(receiptId)) {
+            throw new ConflictException("Cannot delete receipt: it is approved and matched");
+        }
+
+        receiptRepository.delete(receipt);
+    }
+
+    @Transactional
+    public ReceiptResponse rejectReceipt(UUID receiptId) {
+        Receipt receipt = receiptRepository.findById(receiptId)
+                .orElseThrow(() -> new EntityNotFoundException("Receipt not found: " + receiptId));
+
+        if (receiptMatchRepository.existsByReceiptId(receiptId)) {
+            throw new ConflictException("Cannot reject receipt: it is approved and matched");
+        }
+
+        if (!receipt.isRejected()) {
+            receipt.setRejected(true);
+        }
+
+        return mapper.toReceiptResponse(receiptRepository.save(receipt));
+    }
+
+        @Transactional(readOnly = true)
+        public ReceiptResponse getReceiptById(UUID receiptId) {
+        Receipt receipt = receiptRepository.findById(receiptId)
+            .orElseThrow(() -> new EntityNotFoundException("Receipt not found: " + receiptId));
+        return mapper.toReceiptResponse(receipt);
+        }
+
+        @Transactional(readOnly = true)
+        public BankTransactionLinkResponse getBankTransactionLinks(UUID bankTransactionId) {
+        bankTransactionRepository.findById(bankTransactionId)
+            .orElseThrow(() -> new EntityNotFoundException("Bank transaction not found: " + bankTransactionId));
+
+        Long statementTransactionId = statementTransactionRepository.findFirstByBankTransactionId(bankTransactionId)
+            .map(statement -> statement.getId())
+            .orElse(null);
+        UUID receiptId = receiptMatchRepository.findFirstByBankTransactionId(bankTransactionId)
+            .map(match -> match.getReceipt().getId())
+            .orElse(null);
+
+        return new BankTransactionLinkResponse(bankTransactionId, statementTransactionId, receiptId);
+        }
+
+    @Transactional(readOnly = true)
+    public List<ReceiptMatchCandidateResponse> getReceiptMatchCandidates(UUID receiptId) {
+        Receipt receipt = receiptRepository.findById(receiptId)
+                .orElseThrow(() -> new EntityNotFoundException("Receipt not found: " + receiptId));
+
+        LocalDate from = receipt.getPurchaseDate() != null
+            ? receipt.getPurchaseDate().minusDays(7)
+            : LocalDate.now().minusDays(90);
+        LocalDate to = receipt.getPurchaseDate() != null
+            ? receipt.getPurchaseDate().plusDays(7)
+            : LocalDate.now().plusDays(1);
+
+        List<BankTransaction> candidates;
+        if (receipt.getCurrency() != null) {
+            candidates = bankTransactionRepository
+                .findUnmatchedByCurrencyAndBookingDateBetween(receipt.getCurrency(), from, to, PageRequest.of(0, 50));
+        } else {
+            candidates = bankTransactionRepository
+                .findUnmatchedByBookingDateBetween(from, to, PageRequest.of(0, 50));
+        }
+
+        if (candidates.isEmpty()) {
+            candidates = bankTransactionRepository
+                .findUnmatched(PageRequest.of(0, 50, Sort.by(Sort.Direction.DESC, "bookingDate")));
+        }
+
+        return candidates.stream()
+                .map(bt -> new ReceiptMatchCandidateResponse(
+                        bt.getId(),
+                        bt.getAccount() != null ? bt.getAccount().getId() : null,
+                        bt.getBookingDate(),
+                        bt.getAmount(),
+                        bt.getCurrency(),
+                        bt.getDescription(),
+                        computeMatchPrediction(receipt, bt)
+                ))
+                .sorted((a, b) -> Integer.compare(b.getMatchPrediction(), a.getMatchPrediction()))
+                .collect(Collectors.toList());
+    }
+
+    private int computeMatchPrediction(Receipt receipt, BankTransaction transaction) {
+        int score = 0;
+
+        if (receipt.getCurrency() != null && receipt.getCurrency().equalsIgnoreCase(transaction.getCurrency())) {
+            score += 20;
+        }
+
+        BigDecimal receiptAmount = receipt.getTotalAmount();
+        BigDecimal transactionAmount = transaction.getAmount() != null ? transaction.getAmount().abs() : null;
+        if (receiptAmount != null && transactionAmount != null) {
+            BigDecimal diff = receiptAmount.subtract(transactionAmount).abs();
+            if (diff.compareTo(new BigDecimal("1.00")) <= 0) {
+                score += 50;
+            } else if (diff.compareTo(new BigDecimal("5.00")) <= 0) {
+                score += 40;
+            } else if (diff.compareTo(new BigDecimal("10.00")) <= 0) {
+                score += 30;
+            } else if (diff.compareTo(new BigDecimal("25.00")) <= 0) {
+                score += 15;
+            }
+        }
+
+        if (receipt.getPurchaseDate() != null && transaction.getBookingDate() != null) {
+            long days = java.time.temporal.ChronoUnit.DAYS.between(receipt.getPurchaseDate(), transaction.getBookingDate());
+            long diffDays = Math.abs(days);
+            if (diffDays == 0) {
+                score += 20;
+            } else if (diffDays == 1) {
+                score += 15;
+            } else if (diffDays == 2) {
+                score += 10;
+            } else if (diffDays == 3) {
+                score += 5;
+            }
+        }
+
+        String receiptDesc = (receipt.getDescription() != null && !receipt.getDescription().isBlank())
+                ? receipt.getDescription()
+                : receipt.getMerchant();
+        if (receiptDesc != null && transaction.getDescription() != null) {
+            int overlap = computeTokenOverlap(receiptDesc, transaction.getDescription());
+            if (overlap >= 3) {
+                score += 10;
+            } else if (overlap == 2) {
+                score += 7;
+            } else if (overlap == 1) {
+                score += 4;
+            }
+        }
+
+        return Math.min(score, 100);
+    }
+
+    private int computeTokenOverlap(String a, String b) {
+        String[] aTokens = a.toLowerCase().split("\\W+");
+        String[] bTokens = b.toLowerCase().split("\\W+");
+        java.util.Set<String> aSet = new java.util.HashSet<>();
+        for (String token : aTokens) {
+            if (!token.isBlank()) {
+                aSet.add(token);
+            }
+        }
+        int overlap = 0;
+        for (String token : bTokens) {
+            if (aSet.contains(token)) {
+                overlap++;
+            }
+        }
+        return overlap;
     }
     
     @Transactional
