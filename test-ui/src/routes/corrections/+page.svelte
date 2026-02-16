@@ -172,10 +172,14 @@
 			if (res.ok) {
 				const result = await res.json();
 				extraction = result;
-				const currentFields = result.correctedFields || result.fields || {};
-				fieldsText = JSON.stringify(currentFields, null, 2);
 				if (result.documentType) {
 					documentType = result.documentType;
+				}
+				if (result.documentType === 'STATEMENT' && Array.isArray(result.transactions)) {
+					fieldsText = JSON.stringify({ transactions: result.transactions }, null, 2);
+				} else {
+					const currentFields = result.correctedFields || result.fields || {};
+					fieldsText = JSON.stringify(currentFields, null, 2);
 				}
 			} else if (res.status === 404) {
 				loadError = 'Extraction result not found.';

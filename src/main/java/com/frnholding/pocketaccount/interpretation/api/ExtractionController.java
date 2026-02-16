@@ -5,6 +5,8 @@ import com.frnholding.pocketaccount.interpretation.api.dto.StartExtractionRespon
 import com.frnholding.pocketaccount.interpretation.api.dto.JobStatusResponseDTO;
 import com.frnholding.pocketaccount.interpretation.api.dto.ExtractionResultResponseDTO;
 import com.frnholding.pocketaccount.interpretation.api.dto.SaveCorrectionRequestDTO;
+import com.frnholding.pocketaccount.interpretation.api.dto.ApproveStatementTransactionResponse;
+import com.frnholding.pocketaccount.interpretation.api.dto.StatementTransactionResponseDTO;
 import com.frnholding.pocketaccount.interpretation.infra.OpenAiConnectionService;
 import com.frnholding.pocketaccount.interpretation.service.InterpretationService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -115,6 +117,20 @@ public class ExtractionController {
         return ResponseEntity.ok(response);
     }
 
+        @GetMapping("/jobs/{jobId}/statement-transactions")
+        @Operation(summary = "List statement transactions by job", description = "Get statement transactions for a completed interpretation job")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Statement transactions retrieved successfully"),
+                        @ApiResponse(responseCode = "404", description = "Job not found")
+        })
+        public ResponseEntity<List<StatementTransactionResponseDTO>> getStatementTransactionsForJob(
+                        @PathVariable @Parameter(description = "Job ID") UUID jobId) {
+
+                List<StatementTransactionResponseDTO> transactions =
+                                interpretationService.getStatementTransactionsForJob(jobId.toString());
+                return ResponseEntity.ok(transactions);
+        }
+
     @PutMapping("/documents/{id}/correction")
     @Operation(summary = "Save extraction corrections", description = "Save user corrections to extracted fields or transactions")
     @ApiResponses(value = {
@@ -130,6 +146,25 @@ public class ExtractionController {
 
                 interpretationService.saveCorrection(id.toString(), request);
         return ResponseEntity.ok().build();
+    }
+
+    @PostMapping("/statement-transactions/{id}/approve")
+    @Operation(summary = "Approve statement transaction", description = "Approve a statement transaction and ensure a linked bank transaction")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Statement transaction approved"),
+            @ApiResponse(responseCode = "404", description = "Statement transaction or account not found"),
+            @ApiResponse(responseCode = "400", description = "Missing required transaction fields")
+    })
+    public ResponseEntity<ApproveStatementTransactionResponse> approveStatementTransaction(
+            @PathVariable @Parameter(description = "Statement transaction ID") Long id) {
+        log.info("Approving statement transaction {}", id);
+        var bankTransaction = interpretationService.approveStatementTransaction(id);
+        ApproveStatementTransactionResponse response = new ApproveStatementTransactionResponse(
+                id,
+                bankTransaction.getId(),
+                true
+        );
+        return ResponseEntity.ok(response);
     }
 
         @GetMapping("/openai/check")

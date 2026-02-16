@@ -69,7 +69,7 @@ CREATE TABLE IF NOT EXISTS statement_transactions (
     currency VARCHAR(255),
     date DATE,
     description VARCHAR(1000),
-    account_no BIGINT,
+    account_no VARCHAR(11),
     approved BOOLEAN NOT NULL DEFAULT FALSE,
     bank_transaction_id UUID,
     CONSTRAINT fk_statement_transaction_result FOREIGN KEY (interpretation_result_id) REFERENCES interpretation_results(id) ON DELETE CASCADE
@@ -96,7 +96,7 @@ CREATE TABLE IF NOT EXISTS jobs (
 CREATE TABLE IF NOT EXISTS account (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     name VARCHAR(200) NOT NULL,
-    account_no BIGINT NOT NULL,
+    account_no VARCHAR(11) NOT NULL,
     currency CHAR(3) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now()
 );

@@ -159,7 +159,7 @@ public class InterpretationPipeline {
         extractionMethods.append(extractorType).append("StatementExtractor");
         
         List<StatementTransaction> transactions = extractor.extract(text);
-        Long accountNo = extractAccountNo(text);
+        String accountNo = extractAccountNo(text);
         if (accountNo != null) {
             for (StatementTransaction transaction : transactions) {
                 if (transaction.getAccountNo() == null) {
@@ -185,17 +185,13 @@ public class InterpretationPipeline {
         return text;
     }
 
-    private Long extractAccountNo(InterpretedText text) {
+    private String extractAccountNo(InterpretedText text) {
         if (text == null || text.getRawText() == null) {
             return null;
         }
         java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("\\b\\d{11}\\b").matcher(text.getRawText());
         if (matcher.find()) {
-            try {
-                return Long.parseLong(matcher.group());
-            } catch (NumberFormatException ignored) {
-                return null;
-            }
+            return matcher.group();
         }
         return null;
     }

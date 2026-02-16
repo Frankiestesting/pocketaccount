@@ -29,8 +29,8 @@ public class StatementTransaction {
     @Column(length = 1000)
     private String description;
 
-    @Column(name = "account_no")
-    private Long accountNo;
+    @Column(name = "account_no", length = 11)
+    private String accountNo;
 
     @Column(nullable = false)
     private boolean approved;

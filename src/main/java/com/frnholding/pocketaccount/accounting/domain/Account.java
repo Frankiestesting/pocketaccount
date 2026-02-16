@@ -15,8 +15,8 @@ public class Account {
     @Column(nullable = false, length = 200)
     private String name;
 
-    @Column(name = "account_no", nullable = false)
-    private Long accountNo;
+    @Column(name = "account_no", nullable = false, length = 11)
+    private String accountNo;
     
     @Column(nullable = false, length = 3)
     private String currency;
@@ -51,11 +51,11 @@ public class Account {
         this.name = name;
     }
 
-    public Long getAccountNo() {
+    public String getAccountNo() {
         return accountNo;
     }
 
-    public void setAccountNo(Long accountNo) {
+    public void setAccountNo(String accountNo) {
         this.accountNo = accountNo;
     }
     

@@ -55,6 +55,12 @@ public class AccountingController {
         AccountResponse account = accountingService.getAccountById(id);
         return ResponseEntity.ok(account);
     }
+
+    @DeleteMapping("/accounts/{id}")
+    public ResponseEntity<Void> deleteAccount(@PathVariable UUID id) {
+        accountingService.deleteAccount(id);
+        return ResponseEntity.noContent().build();
+    }
     
     @GetMapping("/accounts/{accountId}/transactions")
     public ResponseEntity<List<BankTransactionDTO>> getTransactionsByAccountId(

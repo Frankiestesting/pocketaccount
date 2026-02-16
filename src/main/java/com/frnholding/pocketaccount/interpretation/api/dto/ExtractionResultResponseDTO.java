@@ -168,24 +168,34 @@ public class ExtractionResultResponseDTO {
      * DTO for statement transaction.
      */
     public static class TransactionDto {
+        private Long id;
         private Double amount;
         private String currency;
         private LocalDate date;
         private String description;
-        private Long accountNo;
+        private String accountNo;
         private Boolean approved;
 
         public TransactionDto() {
         }
 
-        public TransactionDto(Double amount, String currency, LocalDate date, String description,
-                             Long accountNo, Boolean approved) {
+        public TransactionDto(Long id, Double amount, String currency, LocalDate date, String description,
+                             String accountNo, Boolean approved) {
+            this.id = id;
             this.amount = amount;
             this.currency = currency;
             this.date = date;
             this.description = description;
             this.accountNo = accountNo;
             this.approved = approved;
+        }
+
+        public Long getId() {
+            return id;
+        }
+
+        public void setId(Long id) {
+            this.id = id;
         }
 
         public Double getAmount() {
@@ -220,11 +230,11 @@ public class ExtractionResultResponseDTO {
             this.description = description;
         }
 
-        public Long getAccountNo() {
+        public String getAccountNo() {
             return accountNo;
         }
 
-        public void setAccountNo(Long accountNo) {
+        public void setAccountNo(String accountNo) {
             this.accountNo = accountNo;
         }
 

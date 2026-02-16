@@ -23,6 +23,9 @@
 			<li class:active={$page.url.pathname === '/corrections'}>
 				<a href="/corrections" on:click={(e) => handleClick(e, '/corrections')}>Korrigering</a>
 			</li>
+			<li class:active={$page.url.pathname === '/statement-approve'}>
+				<a href="/statement-approve" on:click={(e) => handleClick(e, '/statement-approve')}>Godkjenn</a>
+			</li>
 			<li class:active={$page.url.pathname === '/accounts'}>
 				<a href="/accounts" on:click={(e) => handleClick(e, '/accounts')}>Kontoer</a>
 			</li>

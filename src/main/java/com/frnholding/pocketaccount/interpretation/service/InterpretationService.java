@@ -6,6 +6,7 @@ import com.frnholding.pocketaccount.interpretation.repository.InterpretationJobR
 import com.frnholding.pocketaccount.interpretation.repository.InterpretationResultRepository;
 import com.frnholding.pocketaccount.interpretation.repository.CorrectionHistoryRepository;
 import com.frnholding.pocketaccount.interpretation.repository.entity.CorrectionHistoryEntity;
+import com.frnholding.pocketaccount.interpretation.repository.StatementTransactionRepository;
 import com.frnholding.pocketaccount.domain.Document;
 import com.frnholding.pocketaccount.exception.EntityNotFoundException;
 import com.frnholding.pocketaccount.service.DocumentService;
@@ -51,6 +52,9 @@ public class InterpretationService {
 
     @Autowired
     private BankTransactionRepository bankTransactionRepository;
+
+    @Autowired
+    private StatementTransactionRepository statementTransactionRepository;
 
     @Autowired
     private DocumentService documentService;
@@ -293,6 +297,26 @@ public class InterpretationService {
         return buildExtractionResultResponse(result);
     }
 
+        public List<StatementTransactionResponseDTO> getStatementTransactionsForJob(String jobId) {
+        if (!interpretationJobRepository.existsById(jobId)) {
+            throw new EntityNotFoundException("Job not found: " + jobId);
+        }
+
+        List<StatementTransaction> transactions =
+            statementTransactionRepository.findByInterpretationResult_JobId(jobId);
+
+        return transactions.stream()
+            .map(tx -> new StatementTransactionResponseDTO(
+                tx.getId(),
+                tx.getDate(),
+                tx.getDescription(),
+                tx.getCurrency(),
+                tx.getAmount(),
+                tx.isApproved()
+            ))
+            .collect(Collectors.toList());
+        }
+
     private ExtractionResultResponseDTO buildExtractionResultResponse(InterpretationResult result) {
         ExtractionResultResponseDTO response = new ExtractionResultResponseDTO();
         response.setDocumentId(result.getDocumentId());
@@ -316,7 +340,8 @@ public class InterpretationService {
         if (result.getStatementTransactions() != null && !result.getStatementTransactions().isEmpty()) {
             List<ExtractionResultResponseDTO.TransactionDto> transactions = result.getStatementTransactions().stream()
                     .map(t -> new ExtractionResultResponseDTO.TransactionDto(
-                            t.getAmount(),
+                        t.getId(),
+                        t.getAmount(),
                             t.getCurrency(),
                             t.getDate(),
                     t.getDescription(),
@@ -473,6 +498,22 @@ public class InterpretationService {
                 .orElse(0) + 1;
     }
 
+    @Transactional
+    public BankTransaction approveStatementTransaction(Long statementTransactionId) {
+        StatementTransaction transaction = statementTransactionRepository.findById(statementTransactionId)
+                .orElseThrow(() -> new EntityNotFoundException("Statement transaction not found: " + statementTransactionId));
+
+        if (transaction.getInterpretationResult() == null) {
+            throw new IllegalStateException("Statement transaction missing interpretation result");
+        }
+
+        BankTransaction linked = ensureBankTransactionForApproved(transaction);
+        transaction.setApproved(true);
+        transaction.setBankTransaction(linked);
+        statementTransactionRepository.save(transaction);
+        return linked;
+    }
+
     private void syncApprovedBankTransactions(InterpretationResult result, String documentId) {
         if (result.getStatementTransactions() == null || result.getStatementTransactions().isEmpty()) {
             return;
@@ -496,17 +537,8 @@ public class InterpretationService {
                     .orElseThrow(() -> new EntityNotFoundException("Account not found for accountNo: " + transaction.getAccountNo()));
 
             BigDecimal amount = toBigDecimal(transaction.getAmount());
-            BankTransaction bankTransaction = bankTransactionRepository
-                    .findFirstByAccountIdAndBookingDateAndAmountAndCurrencyAndDescription(
-                            account.getId(),
-                            transaction.getDate(),
-                            amount,
-                            transaction.getCurrency(),
-                            transaction.getDescription()
-                    )
-                    .orElseGet(() -> createBankTransactionFromStatement(transaction, account, documentId, amount));
-
-            transaction.setBankTransaction(bankTransaction);
+                BankTransaction bankTransaction = findOrCreateBankTransaction(transaction, account, documentId, amount);
+                transaction.setBankTransaction(bankTransaction);
         }
 
         interpretationResultRepository.save(result);
@@ -527,6 +559,37 @@ public class InterpretationService {
         bankTransaction.setSourceLineHash(buildSourceLineHash(transaction));
         bankTransaction.setCreatedAt(Instant.now());
         return bankTransactionRepository.save(bankTransaction);
+    }
+
+    private BankTransaction ensureBankTransactionForApproved(StatementTransaction transaction) {
+        if (transaction.getAccountNo() == null) {
+            throw new IllegalArgumentException("Approved statement transaction missing accountNo");
+        }
+        if (transaction.getDate() == null) {
+            throw new IllegalArgumentException("Approved statement transaction missing date");
+        }
+        if (transaction.getAmount() == null || transaction.getCurrency() == null || transaction.getDescription() == null) {
+            throw new IllegalArgumentException("Approved statement transaction missing required fields");
+        }
+
+        Account account = accountRepository.findByAccountNo(transaction.getAccountNo())
+                .orElseThrow(() -> new EntityNotFoundException("Account not found for accountNo: " + transaction.getAccountNo()));
+        BigDecimal amount = toBigDecimal(transaction.getAmount());
+        String documentId = transaction.getInterpretationResult().getDocumentId();
+        return findOrCreateBankTransaction(transaction, account, documentId, amount);
+    }
+
+    private BankTransaction findOrCreateBankTransaction(StatementTransaction transaction, Account account,
+                                                        String documentId, BigDecimal amount) {
+        return bankTransactionRepository
+                .findFirstByAccountIdAndBookingDateAndAmountAndCurrencyAndDescription(
+                        account.getId(),
+                        transaction.getDate(),
+                        amount,
+                        transaction.getCurrency(),
+                        transaction.getDescription()
+                )
+                .orElseGet(() -> createBankTransactionFromStatement(transaction, account, documentId, amount));
     }
 
     private UUID parseDocumentId(String documentId) {

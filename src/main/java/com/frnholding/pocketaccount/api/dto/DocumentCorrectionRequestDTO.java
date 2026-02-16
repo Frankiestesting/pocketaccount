@@ -90,7 +90,7 @@ public class DocumentCorrectionRequestDTO {
             String currency = toStringValue(map.get("currency"));
             LocalDate date = toDate(map.get("date"));
             String description = toStringValue(map.get("description"));
-            Long accountNo = toLong(map.get("accountNo"));
+                String accountNo = toStringValue(map.get("accountNo"));
             Boolean approved = toBoolean(map.get("approved"));
             transactions.add(new SaveCorrectionRequestDTO.TransactionDto(
                     amount,
@@ -155,24 +155,6 @@ public class DocumentCorrectionRequestDTO {
         }
         String text = value.toString();
         return text.isBlank() ? null : text;
-    }
-
-    private Long toLong(Object value) {
-        if (value instanceof Number) {
-            return ((Number) value).longValue();
-        }
-        if (value instanceof String) {
-            String text = ((String) value).trim();
-            if (text.isEmpty()) {
-                return null;
-            }
-            try {
-                return Long.parseLong(text);
-            } catch (NumberFormatException ignored) {
-                return null;
-            }
-        }
-        return null;
     }
 
     private Boolean toBoolean(Object value) {

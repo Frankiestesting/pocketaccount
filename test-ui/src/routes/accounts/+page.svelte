@@ -6,6 +6,7 @@
 	let error = null;
 	let newAccountName = '';
 	let newAccountCurrency = 'NOK';
+	let newAccountNo = '';
 	let showCreateForm = false;
 
 	let selectedAccount = null;
@@ -73,6 +74,22 @@
 			return;
 		}
 
+		const accountNoValue = newAccountNo.trim();
+		if (!accountNoValue) {
+			alert('Vennligst skriv inn kontonummer');
+			return;
+		}
+
+		if (!/^\d{11}$/.test(accountNoValue)) {
+			alert('Kontonummer ma vaere 11 sifre');
+			return;
+		}
+
+		if (!isValidNorwegianAccountNo(accountNoValue)) {
+			alert('Kontonummer er ugyldig (modulus 11)');
+			return;
+		}
+
 		try {
 			const response = await fetch('/api/v1/accounts', {
 				method: 'POST',
@@ -81,7 +98,8 @@
 				},
 				body: JSON.stringify({
 					name: newAccountName,
-					currency: newAccountCurrency.trim().toUpperCase()
+					currency: newAccountCurrency.trim().toUpperCase(),
+					accountNo: accountNoValue
 				})
 			});
 
@@ -92,6 +110,7 @@
 			// Reset form
 			newAccountName = '';
 			newAccountCurrency = 'NOK';
+			newAccountNo = '';
 			showCreateForm = false;
 
 			// Refresh accounts list
@@ -134,6 +153,27 @@
 	onMount(() => {
 		fetchAccounts();
 	});
+
+	function isValidNorwegianAccountNo(value) {
+		if (!/^\d{11}$/.test(value)) {
+			return false;
+		}
+
+		const weights = [2, 3, 4, 5, 6, 7, 2, 3, 4, 5];
+		let sum = 0;
+		for (let i = 0; i < 10; i += 1) {
+			sum += Number(value[9 - i]) * weights[i];
+		}
+		const remainder = sum % 11;
+		let control = 11 - remainder;
+		if (control === 11) {
+			control = 0;
+		}
+		if (control === 10) {
+			return false;
+		}
+		return Number(value[10]) === control;
+	}
 </script>
 
 <div class="accounts-container">
@@ -175,6 +215,17 @@
 						required
 					/>
 				</div>
+				<div class="form-group">
+					<label for="accountNo">Kontonummer:</label>
+					<input
+						id="accountNo"
+						type="text"
+						bind:value={newAccountNo}
+						placeholder="11 siffer"
+						maxlength="11"
+						required
+					/>
+				</div>
 				<div class="form-actions">
 					<button type="submit" class="btn-primary">Opprett</button>
 					<button type="button" class="btn-secondary" on:click={() => (showCreateForm = false)}>
@@ -198,6 +249,7 @@
 				<thead>
 					<tr>
 						<th>Navn</th>
+						<th>Kontonr</th>
 						<th>Valuta</th>
 						<th>Opprettet</th>
 						<th>Handlinger</th>
@@ -213,6 +265,7 @@
 							on:keydown={(e) => e.key === 'Enter' && toggleAccountDetails(account)}
 						>
 							<td class="account-name">{account.name}</td>
+							<td>{account.accountNo || '-'}</td>
 							<td>{account.currency}</td>
 							<td>{new Date(account.createdAt).toLocaleDateString('no-NO')}</td>
 							<td>

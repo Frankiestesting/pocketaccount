@@ -97,6 +97,13 @@ public class AccountingService {
                 .orElseThrow(() -> new EntityNotFoundException("Account not found: " + id));
         return mapper.toResponse(account);
     }
+
+    @Transactional
+    public void deleteAccount(UUID id) {
+        Account account = accountRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException("Account not found: " + id));
+        accountRepository.delete(account);
+    }
     
     @Transactional(readOnly = true)
     public List<BankTransactionDTO> getTransactionsByAccountId(UUID accountId) {

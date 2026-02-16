@@ -4,6 +4,8 @@
 	let jobs = [];
 	let loading = true;
 	let error = null;
+	let deleteError = null;
+	let deletingIds = new Set();
 	let selectedJob = null;
 	let jobResult = null;
 	let resultError = null;
@@ -59,6 +61,69 @@
 		}
 	}
 
+	function getErrorMessage(err) {
+		return err instanceof Error ? err.message : String(err);
+	}
+
+	async function hasApprovedTransactions(jobId) {
+		try {
+			const res = await fetch(`/api/v1/interpretation/jobs/${jobId}/statement-transactions`);
+			if (!res.ok) {
+				if (res.status === 404) {
+					return false;
+				}
+				const errorText = await res.text();
+				throw new Error(`Error: ${res.status} - ${errorText}`);
+			}
+			const transactions = await res.json();
+			return Array.isArray(transactions) && transactions.some((tx) => tx?.approved);
+		} catch (err) {
+			deleteError = `Kunne ikke sjekke transaksjoner: ${getErrorMessage(err)}`;
+			return true;
+		}
+	}
+
+	async function deleteResult(job) {
+		if (!job?.documentId || deletingIds.has(job.documentId)) {
+			return;
+		}
+
+		const confirmed = window.confirm('Slett resultatet og dokumentet? Dette kan ikke angres.');
+		if (!confirmed) {
+			return;
+		}
+
+		deleteError = null;
+		deletingIds = new Set(deletingIds).add(job.documentId);
+		try {
+			const hasApproved = await hasApprovedTransactions(job.jobId);
+			if (hasApproved) {
+				deleteError = 'Kan ikke slette: minst en transaksjon er godkjent.';
+				return;
+			}
+
+			const res = await fetch(`/api/v1/documents/${job.documentId}`, {
+				method: 'DELETE'
+			});
+			if (!res.ok) {
+				const errorText = await res.text();
+				deleteError = `Sletting feilet: ${res.status} - ${errorText}`;
+				return;
+			}
+
+			jobs = jobs.filter((item) => item.documentId !== job.documentId);
+			if (selectedJob?.documentId === job.documentId) {
+				closeResult();
+			}
+		} catch (err) {
+			deleteError = `Nettverksfeil: ${getErrorMessage(err)}`;
+		} finally {
+			const next = new Set(deletingIds);
+			next.delete(job.documentId);
+			deletingIds = next;
+		}
+	}
+
 	function closeResult() {
 		selectedJob = null;
 		jobResult = null;
@@ -97,6 +162,9 @@
 	{:else if !selectedJob}
 		<div class="jobs-list">
 			<p class="info">Klikk på en fullført jobb for å se resultatet. Listen oppdateres automatisk.</p>
+			{#if deleteError}
+				<div class="alert alert-error">{deleteError}</div>
+			{/if}
 			<table>
 				<thead>
 					<tr>
@@ -108,6 +176,7 @@
 						<th>Status</th>
 						<th>Feil</th>
 						<th>Fullført</th>
+						<th></th>
 					</tr>
 				</thead>
 				<tbody>
@@ -139,10 +208,22 @@
 								{/if}
 							</td>
 							<td>{job.finishedAt ? new Date(job.finishedAt).toLocaleString('nb-NO') : '-'}</td>
+							<td class="action-cell">
+								<button
+									class="icon-button"
+									on:click={() => deleteResult(job)}
+									disabled={job.status === 'RUNNING' || deletingIds.has(job.documentId)}
+									title="Slett resultat"
+								>
+									<svg viewBox="0 0 24 24" aria-hidden="true">
+										<path d="M9 3h6l1 2h4v2H4V5h4l1-2zm1 6h2v9h-2V9zm4 0h2v9h-2V9z" />
+									</svg>
+								</button>
+							</td>
 						</tr>
 					{:else}
 						<tr>
-							<td colspan="8" class="no-data">Ingen jobber funnet</td>
+							<td colspan="9" class="no-data">Ingen jobber funnet</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -166,6 +247,10 @@
 			{#if resultError}
 				<div class="alert alert-error">
 					<strong>Feil:</strong> {resultError}
+				</div>
+			{:else if deleteError}
+				<div class="alert alert-error">
+					<strong>Feil:</strong> {deleteError}
 				</div>
 			{:else if jobResult}
 				<div class="result-content">
@@ -258,6 +343,34 @@
 		padding: 20px;
 		border-radius: 8px;
 		margin: 20px 0;
+	}
+
+	.action-cell {
+		width: 56px;
+	}
+
+	.icon-button {
+		background: #e74c3c;
+		border: none;
+		border-radius: 6px;
+		width: 34px;
+		height: 34px;
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		cursor: pointer;
+		transition: background 0.2s;
+	}
+
+	.icon-button:disabled {
+		background: #f0b1aa;
+		cursor: not-allowed;
+	}
+
+	.icon-button svg {
+		width: 18px;
+		height: 18px;
+		fill: white;
 	}
 
 	.alert-error {

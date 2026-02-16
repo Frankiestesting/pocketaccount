@@ -141,14 +141,14 @@ public class SaveCorrectionRequestDTO {
         private String currency;
         private LocalDate date;
         private String description;
-        private Long accountNo;
+        private String accountNo;
         private Boolean approved;
 
         public TransactionDto() {
         }
 
         public TransactionDto(Double amount, String currency, LocalDate date, String description,
-                             Long accountNo, Boolean approved) {
+                             String accountNo, Boolean approved) {
             this.amount = amount;
             this.currency = currency;
             this.date = date;
@@ -189,11 +189,11 @@ public class SaveCorrectionRequestDTO {
             this.description = description;
         }
 
-        public Long getAccountNo() {
+        public String getAccountNo() {
             return accountNo;
         }
 
-        public void setAccountNo(Long accountNo) {
+        public void setAccountNo(String accountNo) {
             this.accountNo = accountNo;
         }
 

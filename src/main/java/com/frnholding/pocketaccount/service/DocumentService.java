@@ -8,12 +8,14 @@ import com.frnholding.pocketaccount.domain.DocumentEntity;
 import com.frnholding.pocketaccount.domain.Job;
 import com.frnholding.pocketaccount.domain.JobEntity;
 import com.frnholding.pocketaccount.exception.EntityNotFoundException;
+import com.frnholding.pocketaccount.exception.ConflictException;
 import com.frnholding.pocketaccount.repository.DocumentRepository;
 import com.frnholding.pocketaccount.repository.JobRepository;
 import com.frnholding.pocketaccount.interpretation.domain.InterpretationResult;
 import com.frnholding.pocketaccount.interpretation.domain.InvoiceFieldsDTO;
 import com.frnholding.pocketaccount.interpretation.domain.StatementTransaction;
 import com.frnholding.pocketaccount.interpretation.repository.InterpretationResultRepository;
+import com.frnholding.pocketaccount.interpretation.repository.StatementTransactionRepository;
 import com.frnholding.pocketaccount.interpretation.service.InterpretationService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
@@ -49,6 +51,9 @@ public class DocumentService {
 
     @Autowired
     private InterpretationResultRepository interpretationResultRepository;
+
+    @Autowired
+    private StatementTransactionRepository statementTransactionRepository;
 
     @Autowired
     @Lazy
@@ -136,6 +141,10 @@ public class DocumentService {
     public void deleteDocument(String documentId) {
         DocumentEntity entity = documentRepository.findById(documentId)
                 .orElseThrow(() -> new EntityNotFoundException("Document not found: " + documentId));
+
+        if (statementTransactionRepository.existsByInterpretationResult_DocumentIdAndApprovedTrue(documentId)) {
+            throw new ConflictException("Cannot delete document: approved statement transactions exist");
+        }
 
         String filePath = entity.getFilePath();
         documentRepository.delete(entity);

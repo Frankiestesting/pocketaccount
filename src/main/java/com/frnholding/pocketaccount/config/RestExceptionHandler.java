@@ -2,6 +2,7 @@ package com.frnholding.pocketaccount.config;
 
 import com.frnholding.pocketaccount.api.dto.ApiErrorResponse;
 import com.frnholding.pocketaccount.exception.EntityNotFoundException;
+import com.frnholding.pocketaccount.exception.ConflictException;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
@@ -49,6 +50,16 @@ public class RestExceptionHandler {
             "Data integrity violation: " + extractConstraintMessage(ex)
         );
         
+        return new ResponseEntity<>(error, HttpStatus.CONFLICT);
+    }
+
+    @ExceptionHandler(ConflictException.class)
+    public ResponseEntity<ApiErrorResponse> handleConflict(ConflictException ex) {
+        ApiErrorResponse error = new ApiErrorResponse(
+            "CONFLICT",
+            ex.getMessage()
+        );
+
         return new ResponseEntity<>(error, HttpStatus.CONFLICT);
     }
 

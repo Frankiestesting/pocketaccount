@@ -1,11 +1,9 @@
 package com.frnholding.pocketaccount.accounting.api.dto;
 
 import jakarta.validation.constraints.NotBlank;
-import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.Pattern;
 import jakarta.validation.constraints.Size;
-import jakarta.validation.constraints.Max;
-import jakarta.validation.constraints.Min;
+import com.frnholding.pocketaccount.common.validation.NorwegianAccountNo;
 
 public class CreateAccountRequest {
     
@@ -17,15 +15,15 @@ public class CreateAccountRequest {
     @Pattern(regexp = "[A-Z]{3}", message = "Currency must be a 3-letter ISO code (e.g., USD, EUR, NOK)")
     private String currency;
 
-    @NotNull(message = "Account number is required")
-    @Min(value = 10000000000L, message = "Account number must be 11 digits")
-    @Max(value = 99999999999L, message = "Account number must be 11 digits")
-    private Long accountNo;
+    @NotBlank(message = "Account number is required")
+    @Pattern(regexp = "\\d{11}", message = "Account number must be 11 digits")
+    @NorwegianAccountNo(message = "Invalid Norwegian account number")
+    private String accountNo;
     
     public CreateAccountRequest() {
     }
     
-    public CreateAccountRequest(String name, String currency, Long accountNo) {
+    public CreateAccountRequest(String name, String currency, String accountNo) {
         this.name = name;
         this.currency = currency;
         this.accountNo = accountNo;
@@ -47,11 +45,11 @@ public class CreateAccountRequest {
         this.currency = currency;
     }
 
-    public Long getAccountNo() {
+    public String getAccountNo() {
         return accountNo;
     }
 
-    public void setAccountNo(Long accountNo) {
+    public void setAccountNo(String accountNo) {
         this.accountNo = accountNo;
     }
 }

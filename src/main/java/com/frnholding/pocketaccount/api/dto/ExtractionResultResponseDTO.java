@@ -112,14 +112,14 @@ public class ExtractionResultResponseDTO {
         private String currency;
         private String description;
         private Map<String, Double> confidence;
-        private Long accountNo;
+        private String accountNo;
         private Boolean approved;
 
         public Transaction() {
         }
 
         public Transaction(String date, Double amount, String currency, String description,
-                          Map<String, Double> confidence, Long accountNo, Boolean approved) {
+                          Map<String, Double> confidence, String accountNo, Boolean approved) {
             this.date = date;
             this.amount = amount;
             this.currency = currency;
@@ -169,11 +169,11 @@ public class ExtractionResultResponseDTO {
             this.confidence = confidence;
         }
 
-        public Long getAccountNo() {
+        public String getAccountNo() {
             return accountNo;
         }
 
-        public void setAccountNo(Long accountNo) {
+        public void setAccountNo(String accountNo) {
             this.accountNo = accountNo;
         }
 
