@@ -129,8 +129,9 @@ Use @ControllerAdvice and map:
 flowchart LR
   UI["UI (web & mobile)"]
   DOC["Document API"]
+  INTAPI["Interpretation API"]
   FS[(File storage)]
-  JQ["Job row"]
+  JQ["Interpretation job (async)"]
   RUN["Interpretation job runner"]
 
   subgraph PIPE["Interpretation pipeline"]
@@ -151,6 +152,7 @@ flowchart LR
   UI -->|"upload PDF"| DOC
   DOC -->|"store file + metadata"| FS
   DOC -->|"create job"| JQ
+  INTAPI -->|"create job"| JQ
   JQ -.->|"async trigger"| RUN
   RUN --> OCR
   OCR --> AI
@@ -159,7 +161,7 @@ flowchart LR
   RES --> CORR
   RES --> RECEIPT
   RES --> STMT
-  RECEIPT --> MATCH
+  RECEIPT -->|"match vs bank tx"| MATCH
   STMT --> BANK
   MATCH --> RECON
   RES --> API
