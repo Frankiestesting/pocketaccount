@@ -167,3 +167,23 @@ flowchart LR
   RES --> API
   API --> UI
 ```
+
+## 8) Use case: Upload file (sequence)
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant UI
+  participant DocumentAPI as Document API
+  participant Storage as File storage
+  participant Repo as Document repository
+
+  User->>UI: Velg PDF og send
+  UI->>DocumentAPI: POST /api/v1/documents (multipart)
+  DocumentAPI->>Storage: Lagre fil (UUID.pdf)
+  DocumentAPI->>Repo: Lagre dokument-metadata (id, path, type)
+  Repo-->>DocumentAPI: Bekreft lagring
+  Storage-->>DocumentAPI: OK
+  DocumentAPI-->>UI: 201 Created + documentId
+  UI-->>User: Viser opplastet dokument og tilbyr "start tolkning"
+```
