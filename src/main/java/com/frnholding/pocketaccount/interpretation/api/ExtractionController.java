@@ -91,6 +91,18 @@ public class ExtractionController {
         return ResponseEntity.ok(response);
     }
 
+        @DeleteMapping("/jobs/{jobId}")
+        @Operation(summary = "Delete extraction job", description = "Delete an extraction job and its result without deleting the source document file")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "204", description = "Job deleted successfully"),
+                        @ApiResponse(responseCode = "404", description = "Job not found"),
+                        @ApiResponse(responseCode = "409", description = "Job cannot be deleted due to approved transactions")
+        })
+        public ResponseEntity<Void> deleteJob(@PathVariable @Parameter(description = "Job ID") UUID jobId) {
+                interpretationService.deleteJob(jobId.toString());
+                return ResponseEntity.noContent().build();
+        }
+
     @GetMapping("/documents/{id}/result")
     @Operation(summary = "Get extraction results by document", description = "Get extracted fields or transactions for a document")
     @ApiResponses(value = {

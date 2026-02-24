@@ -157,13 +157,15 @@ CREATE TABLE IF NOT EXISTS receipt_match (
     match_type VARCHAR(20) NOT NULL,
     confidence NUMERIC(4,3) NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
     CONSTRAINT fk_receipt_match_receipt FOREIGN KEY (receipt_id) REFERENCES receipt(id) ON DELETE CASCADE,
-    CONSTRAINT fk_receipt_match_bank_transaction FOREIGN KEY (bank_transaction_id) REFERENCES bank_transaction(id) ON DELETE CASCADE,
-    CONSTRAINT uk_receipt_match_receipt_transaction UNIQUE (receipt_id, bank_transaction_id)
+    CONSTRAINT fk_receipt_match_bank_transaction FOREIGN KEY (bank_transaction_id) REFERENCES bank_transaction(id) ON DELETE CASCADE
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_receipt_match_receipt_id_unique ON receipt_match(receipt_id);
-CREATE UNIQUE INDEX IF NOT EXISTS idx_receipt_match_bank_transaction_id_unique ON receipt_match(bank_transaction_id);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_receipt_match_receipt_id_active
+    ON receipt_match(receipt_id) WHERE status = 'ACTIVE';
+CREATE UNIQUE INDEX IF NOT EXISTS idx_receipt_match_bank_transaction_id_active
+    ON receipt_match(bank_transaction_id) WHERE status = 'ACTIVE';
 
 CREATE INDEX IF NOT EXISTS idx_receipt_match_receipt_id ON receipt_match(receipt_id);
 CREATE INDEX IF NOT EXISTS idx_receipt_match_bank_transaction_id ON receipt_match(bank_transaction_id);

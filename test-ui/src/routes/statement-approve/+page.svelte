@@ -1,15 +1,53 @@
 <script>
 	import { onMount } from 'svelte';
 
+	/**
+	 * @typedef {Object} Job
+	 * @property {string} jobId
+	 * @property {string} documentId
+	 * @property {string} [documentType]
+	 * @property {string} [status]
+	 * @property {string} [originalFilename]
+	 * @property {string} [finishedAt]
+	 */
+	/**
+	 * @typedef {Object} StatementTransaction
+	 * @property {string|number} [id]
+	 * @property {string|number} [statementTransactionId]
+	 * @property {string|number} [transactionId]
+	 * @property {string} [date]
+	 * @property {string} [description]
+	 * @property {string} [currency]
+	 * @property {number} [amount]
+	 * @property {string} [accountNo]
+	 * @property {boolean} [approved]
+	 */
+	/**
+	 * @typedef {Object} Account
+	 * @property {string} id
+	 * @property {string} accountNo
+	 * @property {string} currency
+	 * @property {string} name
+	 */
+
+	/** @type {Job[]} */
 	let jobs = [];
 	let loading = true;
+	/** @type {string|null} */
 	let error = null;
+	/** @type {Job|null} */
 	let selectedJob = null;
+	/** @type {StatementTransaction[]|null} */
 	let transactions = null;
+	/** @type {Account[]} */
 	let accounts = [];
+	/** @type {string|null} */
 	let resultError = null;
+	/** @type {string|null} */
 	let approveError = null;
+	/** @type {Set<string>} */
 	let approvingIds = new Set();
+	/** @type {Record<string, string>} */
 	let selectedAccountByTxId = {};
 
 	onMount(async () => {
@@ -25,7 +63,7 @@
 			if (!res.ok) {
 				throw new Error(`Failed to fetch jobs: ${res.status}`);
 			}
-			const allJobs = await res.json();
+			const allJobs = /** @type {Job[]} */ (await res.json());
 			jobs = allJobs
 				.filter(
 					(job) =>
@@ -34,7 +72,10 @@
 						job.documentType &&
 						job.documentType.toUpperCase() === 'STATEMENT'
 				)
-				.sort((a, b) => new Date(b.finishedAt || 0).getTime() - new Date(a.finishedAt || 0).getTime());
+				.sort(
+					(/** @type {Job} */ a, /** @type {Job} */ b) =>
+						new Date(b.finishedAt || 0).getTime() - new Date(a.finishedAt || 0).getTime()
+				);
 		} catch (err) {
 			error = `Error loading jobs: ${getErrorMessage(err)}`;
 		} finally {
@@ -42,6 +83,7 @@
 		}
 	}
 
+	/** @param {unknown} err */
 	function getErrorMessage(err) {
 		return err instanceof Error ? err.message : String(err);
 	}
@@ -59,6 +101,7 @@
 		}
 	}
 
+	/** @param {Job} job */
 	async function selectJob(job) {
 		selectedJob = job;
 		transactions = null;
@@ -91,11 +134,15 @@
 		selectedAccountByTxId = {};
 	}
 
+	/** @param {StatementTransaction} tx */
 	function getTransactionId(tx) {
-		return tx?.id ?? tx?.statementTransactionId ?? tx?.transactionId ?? null;
+		const rawId = tx?.id ?? tx?.statementTransactionId ?? tx?.transactionId ?? null;
+		return rawId == null ? null : String(rawId);
 	}
 
+	/** @param {StatementTransaction[]} rows */
 	function buildAccountSelections(rows) {
+		/** @type {Record<string, string>} */
 		const selection = {};
 		if (!Array.isArray(rows) || accounts.length === 0) {
 			return selection;
@@ -115,6 +162,7 @@
 		return selection;
 	}
 
+	/** @param {StatementTransaction} tx */
 	function getAccountOptions(tx) {
 		if (!tx || accounts.length === 0) {
 			return [];
@@ -126,6 +174,7 @@
 		return filtered.length > 0 ? filtered : accounts;
 	}
 
+	/** @param {StatementTransaction} tx */
 	async function approveTransaction(tx) {
 		if (!tx || tx.approved) {
 			return;
@@ -174,6 +223,7 @@
 		}
 	}
 
+	/** @param {string|undefined} dateString */
 	function formatDate(dateString) {
 		if (!dateString) return '-';
 		const date = new Date(dateString);
@@ -181,16 +231,19 @@
 		return date.toLocaleDateString('nb-NO');
 	}
 
+	/** @param {number|undefined|null} amount */
 	function formatAmount(amount) {
 		if (amount === null || amount === undefined) return '-';
 		return Number(amount).toLocaleString('nb-NO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 	}
 
+	/** @param {StatementTransaction} tx */
 	function isApproving(tx) {
 		const txId = getTransactionId(tx);
 		return txId ? approvingIds.has(txId) : false;
 	}
 
+	/** @param {StatementTransaction} tx */
 	function needsAccountSelection(tx) {
 		return !tx?.accountNo && accounts.length > 0;
 	}
@@ -278,19 +331,17 @@
 					</thead>
 					<tbody>
 						{#each transactions as tx}
-							<tr data-transaction-id={getTransactionId(tx) || ''}>
+							{@const txId = getTransactionId(tx) || ''}
+							<tr data-transaction-id={txId}>
 								<td>{formatDate(tx.date)}</td>
 								<td>{tx.description || '-'}</td>
 								<td>{tx.currency || '-'}</td>
-								<td class:negative={tx.amount < 0}>{formatAmount(tx.amount)}</td>
+								<td class:negative={(tx.amount ?? 0) < 0}>{formatAmount(tx.amount)}</td>
 								<td>
 									{#if tx.approved}
 										<span class="account-label">{tx.accountNo || '-'}</span>
 									{:else}
-										<select
-											class="account-select"
-											bind:value={selectedAccountByTxId[getTransactionId(tx)]}
-										>
+										<select class="account-select" bind:value={selectedAccountByTxId[txId]}>
 											<option value="">Velg konto</option>
 											{#each getAccountOptions(tx) as account}
 												<option value={account.id}>
@@ -310,7 +361,10 @@
 										<button
 											class="icon-button"
 											on:click={() => approveTransaction(tx)}
-											disabled={isApproving(tx) || (!selectedAccountByTxId[getTransactionId(tx)] && needsAccountSelection(tx))}
+											disabled={
+												isApproving(tx) ||
+												(needsAccountSelection(tx) && (!txId || !selectedAccountByTxId[txId]))
+											}
 											title="Godkjenn"
 										>
 											<svg viewBox="0 0 24 24" aria-hidden="true">

@@ -15,6 +15,7 @@ import com.frnholding.pocketaccount.accounting.api.dto.ReceiptMatchResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.ReceiptResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.ReconciliationRowResponse;
 import com.frnholding.pocketaccount.accounting.service.AccountingService;
+import io.swagger.v3.oas.annotations.Operation;
 import jakarta.validation.Valid;
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -144,8 +145,9 @@ public class AccountingController {
     }
     
     @DeleteMapping("/matches/{matchId}")
-    public ResponseEntity<Void> deleteReceiptMatch(@PathVariable UUID matchId) {
-        accountingService.deleteReceiptMatch(matchId);
+    @Operation(summary = "Unmatch receipt match", description = "Unmatch a receipt from a bank transaction (soft-unmatch, match is retained for audit)")
+    public ResponseEntity<Void> unmatchReceiptMatch(@PathVariable UUID matchId) {
+        accountingService.unmatchReceiptMatch(matchId);
         return ResponseEntity.noContent().build();
     }
     

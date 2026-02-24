@@ -1,23 +1,68 @@
 <script>
 	import { onMount } from 'svelte';
 
+	/**
+	 * @typedef {Object} Job
+	 * @property {string} jobId
+	 * @property {string} documentId
+	 * @property {string} status
+	 * @property {string} [documentType]
+	 * @property {string} [originalFilename]
+	 * @property {string} [created]
+	 * @property {string} [startedAt]
+	 * @property {string} [finishedAt]
+	 * @property {string} [error]
+	 */
+	/**
+	 * @typedef {Object} JobResult
+	 * @property {string} [documentType]
+	 * @property {string} [interpretedAt]
+	 * @property {Object} [fields]
+	 * @property {Object} [confidence]
+	 * @property {InvoiceFields} [invoiceFields]
+	 * @property {InvoiceFields} [invoiceData]
+	 * @property {Array<{amount?: number, date?: string, currency?: string, description?: string}>} [transactions]
+	 */
+	/**
+	 * @typedef {Object} InvoiceFields
+	 * @property {number} [amount]
+	 * @property {string} [currency]
+	 * @property {string} [date]
+	 * @property {string} [sender]
+	 * @property {string} [description]
+	 */
+
+	/** @type {Job[]} */
 	let jobs = [];
 	let loading = true;
+	/** @type {string|null} */
 	let error = null;
+	/** @type {string|null} */
 	let deleteError = null;
+	/** @type {Set<string>} */
 	let deletingIds = new Set();
+	/** @type {Job|null} */
 	let selectedJob = null;
+	/** @type {JobResult|null} */
 	let jobResult = null;
+	/** @type {string|null} */
 	let resultError = null;
+	/** @type {string|null} */
 	let receiptCreateError = null;
+	/** @type {{ id?: string } | null} */
 	let receiptCreated = null;
 
-	onMount(async () => {
-		await loadJobs();
+	onMount(() => {
+		loadJobs();
 		// Auto-refresh every 5 seconds
 		const interval = setInterval(loadJobs, 5000);
 		return () => clearInterval(interval);
 	});
+
+	/** @param {unknown} err */
+	function getErrorMessage(err) {
+		return err instanceof Error ? err.message : String(err);
+	}
 
 	async function loadJobs() {
 		const wasLoading = loading;
@@ -27,7 +72,7 @@
 		try {
 			const res = await fetch('/api/v1/interpretation/jobs');
 			if (res.ok) {
-				const data = await res.json();
+				const data = /** @type {Job[]} */ (await res.json());
 				jobs = data.sort(
 					(a, b) => new Date(b.startedAt || 0).getTime() - new Date(a.startedAt || 0).getTime()
 				);
@@ -35,12 +80,13 @@
 				error = `Error loading jobs: ${res.status}`;
 			}
 		} catch (err) {
-			error = `Network error: ${err.message}`;
+			error = `Network error: ${getErrorMessage(err)}`;
 		} finally {
 			loading = false;
 		}
 	}
 
+	/** @param {Job} job */
 	async function viewResult(job) {
 		if (job.status !== 'COMPLETED') {
 			return;
@@ -63,14 +109,11 @@
 				resultError = `Error: ${res.status} - ${errorText}`;
 			}
 		} catch (err) {
-			resultError = `Network error: ${err.message}`;
+			resultError = `Network error: ${getErrorMessage(err)}`;
 		}
 	}
 
-	function getErrorMessage(err) {
-		return err instanceof Error ? err.message : String(err);
-	}
-
+	/** @param {string} jobId */
 	async function hasApprovedTransactions(jobId) {
 		try {
 			const res = await fetch(`/api/v1/interpretation/jobs/${jobId}/statement-transactions`);
@@ -89,18 +132,19 @@
 		}
 	}
 
+	/** @param {Job} job */
 	async function deleteResult(job) {
-		if (!job?.documentId || deletingIds.has(job.documentId)) {
+		if (!job?.jobId || deletingIds.has(job.jobId)) {
 			return;
 		}
 
-		const confirmed = window.confirm('Slett resultatet og dokumentet? Dette kan ikke angres.');
+		const confirmed = window.confirm('Slett jobb og resultat? Underliggende dokument beholdes. Dette kan ikke angres.');
 		if (!confirmed) {
 			return;
 		}
 
 		deleteError = null;
-		deletingIds = new Set(deletingIds).add(job.documentId);
+		deletingIds = new Set(deletingIds).add(job.jobId);
 		try {
 			const hasApproved = await hasApprovedTransactions(job.jobId);
 			if (hasApproved) {
@@ -108,7 +152,7 @@
 				return;
 			}
 
-			const res = await fetch(`/api/v1/documents/${job.documentId}`, {
+			const res = await fetch(`/api/v1/interpretation/jobs/${job.jobId}`, {
 				method: 'DELETE'
 			});
 			if (!res.ok) {
@@ -117,15 +161,15 @@
 				return;
 			}
 
-			jobs = jobs.filter((item) => item.documentId !== job.documentId);
-			if (selectedJob?.documentId === job.documentId) {
+			jobs = jobs.filter((item) => item.jobId !== job.jobId);
+			if (selectedJob?.jobId === job.jobId) {
 				closeResult();
 			}
 		} catch (err) {
 			deleteError = `Nettverksfeil: ${getErrorMessage(err)}`;
 		} finally {
 			const next = new Set(deletingIds);
-			next.delete(job.documentId);
+			next.delete(job.jobId);
 			deletingIds = next;
 		}
 	}
@@ -136,6 +180,11 @@
 		resultError = null;
 		receiptCreateError = null;
 		receiptCreated = null;
+	}
+
+	/** @param {JobResult|null} result */
+	function getInvoiceFields(result) {
+		return result?.invoiceFields || result?.invoiceData || {};
 	}
 
 	async function createReceiptFromResult() {
@@ -155,10 +204,11 @@
 			}
 			receiptCreated = await res.json();
 		} catch (err) {
-			receiptCreateError = `Network error: ${err.message}`;
+			receiptCreateError = `Network error: ${getErrorMessage(err)}`;
 		}
 	}
 
+	/** @param {string} status */
 	function getStatusClass(status) {
 		switch (status) {
 			case 'COMPLETED':
@@ -241,7 +291,7 @@
 								<button
 									class="icon-button"
 									on:click={() => deleteResult(job)}
-									disabled={job.status === 'RUNNING' || deletingIds.has(job.documentId)}
+									disabled={job.status === 'RUNNING' || deletingIds.has(job.jobId)}
 									title="Slett resultat"
 								>
 									<svg viewBox="0 0 24 24" aria-hidden="true">
@@ -300,27 +350,27 @@
 					{/if}
 
 					{#if jobResult.invoiceFields || jobResult.invoiceData}
+						{@const invoice = getInvoiceFields(jobResult)}
 						<div class="data-section">
 							<h4>Fakturainformasjon</h4>
 							<div class="data-grid">
 								<div class="data-item">
 									<span class="label">Beløp:</span>
 									<span class="value">
-										{(jobResult.invoiceFields || jobResult.invoiceData).amount}
-										{(jobResult.invoiceFields || jobResult.invoiceData).currency}
+										{invoice.amount ?? '-'} {invoice.currency || ''}
 									</span>
 								</div>
 								<div class="data-item">
 									<span class="label">Dato:</span>
-									<span class="value">{(jobResult.invoiceFields || jobResult.invoiceData).date || '-'}</span>
+									<span class="value">{invoice.date || '-'}</span>
 								</div>
 								<div class="data-item">
 									<span class="label">Avsender:</span>
-									<span class="value">{(jobResult.invoiceFields || jobResult.invoiceData).sender || '-'}</span>
+									<span class="value">{invoice.sender || '-'}</span>
 								</div>
 								<div class="data-item">
 									<span class="label">Beskrivelse:</span>
-									<span class="value">{(jobResult.invoiceFields || jobResult.invoiceData).description || '-'}</span>
+									<span class="value">{invoice.description || '-'}</span>
 								</div>
 							</div>
 						</div>
@@ -342,7 +392,9 @@
 									{#each jobResult.transactions as tx}
 										<tr>
 											<td>{tx.date || '-'}</td>
-											<td class:negative={tx.amount < 0}>{tx.amount}</td>
+											<td class:negative={(typeof tx.amount === 'number' ? tx.amount : 0) < 0}>
+												{typeof tx.amount === 'number' ? tx.amount : '-'}
+											</td>
 											<td>{tx.currency}</td>
 											<td>{tx.description || '-'}</td>
 										</tr>

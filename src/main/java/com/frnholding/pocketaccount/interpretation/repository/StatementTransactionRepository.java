@@ -10,4 +10,6 @@ public interface StatementTransactionRepository extends JpaRepository<StatementT
 	java.util.Optional<StatementTransaction> findFirstByBankTransactionId(java.util.UUID bankTransactionId);
 
 	boolean existsByInterpretationResult_DocumentIdAndApprovedTrue(String documentId);
+
+	boolean existsByInterpretationResult_JobIdAndApprovedTrue(String jobId);
 }

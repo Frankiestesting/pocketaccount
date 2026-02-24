@@ -1,20 +1,55 @@
 <script>
 	import { onMount } from 'svelte';
 
+	/**
+	 * @typedef {Object} Receipt
+	 * @property {string} id
+	 * @property {string} documentId
+	 * @property {string} [purchaseDate]
+	 * @property {number} [totalAmount]
+	 * @property {string} [currency]
+	 * @property {string} [description]
+	 * @property {string} [merchant]
+	 */
+	/**
+	 * @typedef {Object} ReceiptMatch
+	 * @property {string} id
+	 * @property {string} bankTransactionId
+	 * @property {number} matchedAmount
+	 */
+	/**
+	 * @typedef {Object} MatchCandidate
+	 * @property {string} bankTransactionId
+	 * @property {string} bookingDate
+	 * @property {number|string} amount
+	 * @property {string} currency
+	 * @property {string} description
+	 * @property {number} matchPrediction
+	 */
+
+	/** @type {Receipt[]} */
 	let receipts = [];
 	let loading = true;
+	/** @type {string|null} */
 	let error = null;
+	/** @type {Receipt|null} */
 	let selectedReceipt = null;
+	/** @type {ReceiptMatch[]|null} */
 	let matches = null;
+	/** @type {MatchCandidate[]|null} */
 	let candidates = null;
+	/** @type {string|null} */
 	let matchesError = null;
+	/** @type {string|null} */
 	let approveError = null;
+	/** @type {string|null} */
 	let rejectError = null;
 	let approving = false;
 	let rejecting = false;
 	let bankTransactionId = '';
 	let matchedAmount = '';
 	let matchPredictionOverride = '';
+	/** @type {MatchCandidate|null} */
 	let selectedCandidate = null;
 
 	onMount(async () => {
@@ -37,10 +72,12 @@
 		}
 	}
 
+	/** @param {unknown} err */
 	function getErrorMessage(err) {
 		return err instanceof Error ? err.message : String(err);
 	}
 
+	/** @param {string} value */
 	function parseNumberInput(value) {
 		if (!value) {
 			return null;
@@ -50,6 +87,7 @@
 		return Number.isNaN(parsed) ? null : parsed;
 	}
 
+	/** @param {Receipt} receipt */
 	async function selectReceipt(receipt) {
 		selectedReceipt = receipt;
 		matches = null;

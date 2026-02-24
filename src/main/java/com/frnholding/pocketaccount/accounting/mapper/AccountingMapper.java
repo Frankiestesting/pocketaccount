@@ -103,7 +103,8 @@ public class AccountingMapper {
             match.getMatchedAmount(),
             match.getMatchType(),
             match.getConfidence(),
-            match.getCreatedAt()
+            match.getCreatedAt(),
+            match.getStatus() != null ? match.getStatus().name() : null
         );
     }
 }

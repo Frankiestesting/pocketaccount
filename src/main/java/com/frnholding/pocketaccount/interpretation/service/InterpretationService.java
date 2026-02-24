@@ -12,13 +12,17 @@ import com.frnholding.pocketaccount.exception.EntityNotFoundException;
 import com.frnholding.pocketaccount.service.DocumentService;
 import com.frnholding.pocketaccount.accounting.domain.BankTransaction;
 import com.frnholding.pocketaccount.accounting.domain.Account;
+import com.frnholding.pocketaccount.accounting.domain.ReceiptMatchStatus;
 import com.frnholding.pocketaccount.accounting.api.dto.CreateReceiptRequest;
 import com.frnholding.pocketaccount.accounting.api.dto.ReceiptResponse;
 import com.frnholding.pocketaccount.accounting.repository.AccountRepository;
 import com.frnholding.pocketaccount.accounting.repository.BankTransactionRepository;
+import com.frnholding.pocketaccount.accounting.repository.ReceiptMatchRepository;
 import com.frnholding.pocketaccount.accounting.repository.ReceiptRepository;
 import com.frnholding.pocketaccount.accounting.service.AccountingService;
+import com.frnholding.pocketaccount.exception.ConflictException;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -26,7 +30,6 @@ import org.springframework.transaction.support.TransactionSynchronization;
 import org.springframework.transaction.support.TransactionSynchronizationManager;
 
 import java.time.Instant;
-import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.math.BigDecimal;
 import java.math.RoundingMode;
@@ -64,6 +67,9 @@ public class InterpretationService {
     private ReceiptRepository receiptRepository;
 
     @Autowired
+    private ReceiptMatchRepository receiptMatchRepository;
+
+    @Autowired
     private AccountingService accountingService;
 
     @Autowired
@@ -71,6 +77,9 @@ public class InterpretationService {
     
     @Autowired
     private InterpretationJobRunner interpretationJobRunner;
+
+    @Value("${interpretation.default-language-hint:nb}")
+    private String defaultLanguageHint;
 
     @Transactional
     public InterpretationJob startInterpretation(String documentId) {
@@ -96,9 +105,23 @@ public class InterpretationService {
         // Save job
         interpretationJobRepository.save(job);
 
-        // TODO: Trigger async interpretation process here
-        // For now, we'll create mock results immediately
-        createMockInterpretationResult(documentId, document.getDocumentType());
+        // Trigger async interpretation process after commit so the job exists for the async thread.
+        Runnable startJob = () -> interpretationJobRunner.runJob(
+                jobId,
+                false,
+                true,
+                defaultLanguageHint
+        );
+        if (TransactionSynchronizationManager.isSynchronizationActive()) {
+            TransactionSynchronizationManager.registerSynchronization(new TransactionSynchronization() {
+                @Override
+                public void afterCommit() {
+                    startJob.run();
+                }
+            });
+        } else {
+            startJob.run();
+        }
 
         return job;
     }
@@ -106,40 +129,6 @@ public class InterpretationService {
     public InterpretationResult getInterpretationResult(String documentId) {
         return interpretationResultRepository.findByDocumentId(documentId)
                 .orElseThrow(() -> new EntityNotFoundException("No interpretation result found for document: " + documentId));
-    }
-
-    @Transactional
-    private void createMockInterpretationResult(String documentId, String documentType) {
-        InterpretationResult result = new InterpretationResult();
-        result.setDocumentId(documentId);
-        result.setDocumentType(documentType);
-        result.setInterpretedAt(Instant.now());
-
-        if ("INVOICE".equals(documentType) || "RECEIPT".equals(documentType)) {
-            // Create mock invoice fields
-            InvoiceFieldsDTO invoiceFields = new InvoiceFieldsDTO(
-                    12450.00,
-                    "NOK",
-                    LocalDate.parse("2026-01-02"),
-                    "Faktura strøm januar",
-                    "Strøm AS"
-            );
-            result.setInvoiceFields(invoiceFields);
-        } else if ("STATEMENT".equals(documentType)) {
-            // Create mock statement transactions
-            List<StatementTransaction> transactions = new ArrayList<>();
-            StatementTransaction transaction = new StatementTransaction();
-            transaction.setInterpretationResult(result);
-            transaction.setAmount(-399.00);
-            transaction.setCurrency("NOK");
-            transaction.setDate(LocalDate.parse("2026-01-03"));
-            transaction.setDescription("KIWI 123");
-            transactions.add(transaction);
-            
-            result.setStatementTransactions(transactions);
-        }
-
-        interpretationResultRepository.save(result);
     }
 
     /**
@@ -287,6 +276,21 @@ public class InterpretationService {
                 .collect(Collectors.toList());
     }
 
+    @Transactional
+    public void deleteJob(String jobId) {
+        InterpretationJob job = interpretationJobRepository.findById(jobId)
+                .orElseThrow(() -> new EntityNotFoundException("Job not found: " + jobId));
+
+        if (statementTransactionRepository.existsByInterpretationResult_JobIdAndApprovedTrue(jobId)) {
+            throw new ConflictException("Cannot delete job: approved statement transactions exist");
+        }
+
+        interpretationResultRepository.findByJobId(jobId)
+                .ifPresent(interpretationResultRepository::delete);
+
+        interpretationJobRepository.delete(job);
+    }
+
     /**
      * Get extraction results for a document.
      */
@@ -344,11 +348,12 @@ public class InterpretationService {
             throw new IllegalArgumentException("Receipt documentId is invalid: " + result.getDocumentId());
         }
 
-        if (receiptRepository.findByDocumentId(documentUuid).isPresent()) {
-            throw new com.frnholding.pocketaccount.exception.ConflictException(
-                    "Receipt already exists for document: " + documentUuid
-            );
-        }
+        receiptRepository.findByDocumentId(documentUuid).ifPresent(existing -> {
+            if (receiptMatchRepository.existsByReceiptIdAndStatus(existing.getId(), ReceiptMatchStatus.ACTIVE)) {
+                throw new ConflictException("Cannot create receipt: document is locked by matched receipt");
+            }
+            throw new ConflictException("Receipt already exists for document: " + documentUuid);
+        });
 
         CreateReceiptRequest request = new CreateReceiptRequest(
                 documentUuid,
@@ -362,7 +367,7 @@ public class InterpretationService {
         return accountingService.createReceipt(request);
     }
 
-        public List<StatementTransactionResponseDTO> getStatementTransactionsForJob(String jobId) {
+    public List<StatementTransactionResponseDTO> getStatementTransactionsForJob(String jobId) {
         if (!interpretationJobRepository.existsById(jobId)) {
             throw new EntityNotFoundException("Job not found: " + jobId);
         }
@@ -371,23 +376,23 @@ public class InterpretationService {
             statementTransactionRepository.findByInterpretationResult_JobId(jobId);
 
         return transactions.stream()
-            .map(tx -> new StatementTransactionResponseDTO(
-                tx.getId(),
-                tx.getDate(),
-                tx.getDescription(),
-                tx.getCurrency(),
-                tx.getAmount(),
-                tx.getAccountNo(),
-                tx.isApproved()
-            ))
-            .collect(Collectors.toList());
-        }
+                .map(tx -> new StatementTransactionResponseDTO(
+                        tx.getId(),
+                        tx.getDate(),
+                        tx.getDescription(),
+                        tx.getCurrency(),
+                        tx.getAmount(),
+                        tx.getAccountNo(),
+                        tx.isApproved()
+                ))
+                .collect(Collectors.toList());
+    }
 
-            @Transactional(readOnly = true)
-            public StatementTransactionResponseDTO getStatementTransactionById(Long statementTransactionId) {
-            StatementTransaction transaction = statementTransactionRepository.findById(statementTransactionId)
+    @Transactional(readOnly = true)
+    public StatementTransactionResponseDTO getStatementTransactionById(Long statementTransactionId) {
+        StatementTransaction transaction = statementTransactionRepository.findById(statementTransactionId)
                 .orElseThrow(() -> new EntityNotFoundException("Statement transaction not found: " + statementTransactionId));
-            return new StatementTransactionResponseDTO(
+        return new StatementTransactionResponseDTO(
                 transaction.getId(),
                 transaction.getDate(),
                 transaction.getDescription(),
@@ -395,8 +400,8 @@ public class InterpretationService {
                 transaction.getAmount(),
                 transaction.getAccountNo(),
                 transaction.isApproved()
-            );
-            }
+        );
+    }
 
     private ExtractionResultResponseDTO buildExtractionResultResponse(InterpretationResult result) {
         ExtractionResultResponseDTO response = new ExtractionResultResponseDTO();
@@ -425,9 +430,9 @@ public class InterpretationService {
                         t.getAmount(),
                             t.getCurrency(),
                             t.getDate(),
-                    t.getDescription(),
-                    t.getAccountNo(),
-                    t.isApproved()
+                        t.getDescription(),
+                        t.getAccountNo(),
+                        t.isApproved()
                     ))
                     .collect(Collectors.toList());
             response.setTransactions(transactions);
@@ -441,6 +446,9 @@ public class InterpretationService {
      */
     @Transactional
     public Integer saveCorrection(String documentId, SaveCorrectionRequestDTO request) {
+        if (isReceiptLocked(documentId)) {
+            throw new ConflictException("Cannot correct: receipt is matched and locked");
+        }
         // Validate document exists
         Document document = documentService.getDocument(documentId);
         if (document == null) {
@@ -537,20 +545,20 @@ public class InterpretationService {
         return historySaved ? nextVersion : null;
     }
 
-        private void saveHistory(Document document, String documentType, String entityType, String entityId,
+    private void saveHistory(Document document, String documentType, String entityType, String entityId,
                      Map<String, Object> snapshot, String note, Integer version,
                      OffsetDateTime correctedAt, String correctedBy) {
         CorrectionHistoryEntity history = new CorrectionHistoryEntity(
                 UUID.randomUUID(),
                 document.getId(),
-            documentType,
+                documentType,
                 entityType,
                 entityId,
                 snapshot,
                 note,
-            version,
-            correctedAt,
-            correctedBy
+                version,
+                correctedAt,
+                correctedBy
         );
         correctionHistoryRepository.save(history);
     }
@@ -719,6 +727,17 @@ public class InterpretationService {
             return hex.toString();
         } catch (NoSuchAlgorithmException e) {
             throw new IllegalStateException("SHA-256 not available", e);
+        }
+    }
+
+    private boolean isReceiptLocked(String documentId) {
+        try {
+            UUID documentUuid = UUID.fromString(documentId);
+            return receiptRepository.findByDocumentId(documentUuid)
+                .map(receipt -> receiptMatchRepository.existsByReceiptIdAndStatus(receipt.getId(), ReceiptMatchStatus.ACTIVE))
+                .orElse(false);
+        } catch (IllegalArgumentException ex) {
+            return false;
         }
     }
 }

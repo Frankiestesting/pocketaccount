@@ -1,13 +1,21 @@
 <script>
+	/** @type {FileList | undefined} */
 	let files;
 	let originalFilename = '';
 	let documentType = 'INVOICE';
 	let source = 'web';
 	let uploading = false;
+	/** @type {{ documentId: string, originalFilename: string, documentType: string, fileSize: number, created: string } | null} */
 	let response = null;
+	/** @type {string | null} */
 	let error = null;
 
 	$: file = files?.[0];
+
+	/** @param {unknown} err */
+	function getErrorMessage(err) {
+		return err instanceof Error ? err.message : String(err);
+	}
 
 	async function handleUpload() {
 		if (!file) {
@@ -39,7 +47,7 @@
 				response = await res.json();
 				error = null;
 				// Reset form
-				files = [];
+				files = undefined;
 				originalFilename = '';
 			} else {
 				const errorData = await res.text();
@@ -47,7 +55,7 @@
 				response = null;
 			}
 		} catch (err) {
-			error = `Network error: ${err.message}`;
+			error = `Network error: ${getErrorMessage(err)}`;
 			response = null;
 		} finally {
 			uploading = false;

@@ -1,43 +1,98 @@
 <script>
-	let files = [];
+	/**
+	 * @typedef {Object} CancelJobResponse
+	 * @property {string} jobId
+	 * @property {string} status
+	 * @property {string} cancelledAt
+	 */
+	/**
+	 * @typedef {Object} ExtractionResult
+	 * @property {string} documentId
+	 * @property {string} documentType
+	 * @property {string} [extractionVersion]
+	 * @property {string} [extractedAt]
+	 * @property {Record<string, unknown>} [fields]
+	 * @property {Record<string, number>} [confidence]
+	 * @property {string[]} [warnings]
+	 * @property {Array<{amount?: number, currency?: string, date?: string, description?: string, confidence?: {date?: number, amount?: number}}>} [transactions]
+	 */
+	/**
+	 * @typedef {Object} InterpretationResult
+	 * @property {string} documentId
+	 * @property {string} documentType
+	 * @property {string} interpretedAt
+	 * @property {Record<string, unknown>} [invoiceFields]
+	 * @property {Array<Record<string, unknown>>} [transactions]
+	 */
+	/**
+	 * @typedef {Object} CorrectionResponse
+	 * @property {string} documentId
+	 * @property {number} correctionVersion
+	 * @property {string} savedAt
+	 * @property {string} [savedBy]
+	 * @property {number} [normalizedTransactionsCreated]
+	 */
+
+	/** @type {FileList | undefined} */
+	let files;
 	let source = 'mobile';
 	let originalFilename = '';
 	let documentType = 'INVOICE';
+	/** @type {Record<string, unknown> | null} */
 	let response = null;
+	/** @type {string | null} */
 	let error = null;
 	let documentId = '';
+	/** @type {Record<string, unknown> | null} */
 	let documentInfo = null;
+	/** @type {string | null} */
 	let getError = null;
+	/** @type {Record<string, unknown> | null} */
 	let jobResponse = null;
+	/** @type {string | null} */
 	let jobError = null;
 	let pipeline = 'DEFAULT';
 	let useOcr = true;
 	let useAi = true;
 	let languageHint = 'nb';
 	let jobId = '';
+	/** @type {Record<string, unknown> | null} */
 	let jobStatus = null;
+	/** @type {string | null} */
 	let jobStatusError = null;
+	/** @type {CancelJobResponse|null} */
 	let cancelJobResponse = null;
+	/** @type {string|null} */
 	let cancelJobError = null;
+	/** @type {ExtractionResult|null} */
 	let extractionResult = null;
+	/** @type {string|null} */
 	let extractionResultError = null;
+	/** @type {CorrectionResponse|null} */
 	let correctionResponse = null;
+	/** @type {string|null} */
 	let correctionError = null;
 	let correctionDocumentType = 'INVOICE';
 	let correctionFields = '{"date": "2026-01-02", "amount": 12450.00, "currency": "NOK", "sender": "Strøm AS", "description": "Strøm - januar 2026"}';
 	let correctionNote = 'Rettet beskrivelse';
 
 	// Interpretation API variables
+	/** @type {Record<string, unknown> | null} */
 	let interpretationJobResponse = null;
+	/** @type {string | null} */
 	let interpretationJobError = null;
 	let interpretationUseOcr = false;
 	let interpretationUseAi = true;
 	let interpretationLanguageHint = 'eng+deu+fra';
 	let interpretationHintedType = 'INVOICE';
 	let interpretationJobId = '';
+	/** @type {Record<string, unknown> | null} */
 	let interpretationJobStatus = null;
+	/** @type {string | null} */
 	let interpretationJobStatusError = null;
+	/** @type {InterpretationResult|null} */
 	let interpretationExtractionResult = null;
+	/** @type {string|null} */
 	let interpretationExtractionError = null;
 	let interpretationCorrectionFields = '{"amount": 1234.56, "currency": "EUR", "date": "2026-01-14", "description": "Professional services", "sender": "ACME Corp"}';
 	let interpretationCorrectionTransactions = '[]';
@@ -46,7 +101,12 @@
 
 	$: file = files && files.length > 0 ? files[0] : null;
 
-	async function handleSubmit(event) {
+	/** @param {unknown} err */
+	function getErrorMessage(err) {
+		return err instanceof Error ? err.message : String(err);
+	}
+
+	async function handleSubmit(/** @type {SubmitEvent} */ event) {
 		event.preventDefault();
 		if (!file) {
 			error = 'Please select a file';
@@ -76,7 +136,7 @@
 				response = null;
 			}
 		} catch (err) {
-			error = `Network error: ${err.message}`;
+			error = `Network error: ${getErrorMessage(err)}`;
 			response = null;
 		}
 	}
@@ -100,7 +160,7 @@
 				documentInfo = null;
 			}
 		} catch (err) {
-			getError = `Network error: ${err.message}`;
+			getError = `Network error: ${getErrorMessage(err)}`;
 			documentInfo = null;
 		}
 	}
@@ -125,7 +185,7 @@
 				getError = `Error: ${res.status} ${res.statusText}`;
 			}
 		} catch (err) {
-			getError = `Network error: ${err.message}`;
+			getError = `Network error: ${getErrorMessage(err)}`;
 		}
 	}
 
@@ -161,7 +221,7 @@
 				jobResponse = null;
 			}
 		} catch (err) {
-			jobError = `Network error: ${err.message}`;
+			jobError = `Network error: ${getErrorMessage(err)}`;
 			jobResponse = null;
 		}
 	}
@@ -185,7 +245,7 @@
 				jobStatus = null;
 			}
 		} catch (err) {
-			jobStatusError = `Network error: ${err.message}`;
+			jobStatusError = `Network error: ${getErrorMessage(err)}`;
 			jobStatus = null;
 		}
 	}
@@ -214,7 +274,7 @@
 				cancelJobResponse = null;
 			}
 		} catch (err) {
-			cancelJobError = `Network error: ${err.message}`;
+			cancelJobError = `Network error: ${getErrorMessage(err)}`;
 			cancelJobResponse = null;
 		}
 	}
@@ -238,7 +298,7 @@
 				extractionResult = null;
 			}
 		} catch (err) {
-			extractionResultError = `Network error: ${err.message}`;
+			extractionResultError = `Network error: ${getErrorMessage(err)}`;
 			extractionResult = null;
 		}
 	}
@@ -282,7 +342,7 @@
 				correctionResponse = null;
 			}
 		} catch (err) {
-			correctionError = `Network error: ${err.message}`;
+			correctionError = `Network error: ${getErrorMessage(err)}`;
 			correctionResponse = null;
 		}
 	}
@@ -310,8 +370,9 @@
 				body: JSON.stringify(request)
 			});
 			if (res.ok) {
-				interpretationJobResponse = await res.json();
-				interpretationJobId = interpretationJobResponse.jobId;
+				const responseData = /** @type {{ jobId?: string }} */ (await res.json());
+				interpretationJobResponse = responseData;
+				interpretationJobId = responseData.jobId || '';
 				interpretationJobError = null;
 			} else if (res.status === 404) {
 				interpretationJobError = 'Document not found';
@@ -321,7 +382,7 @@
 				interpretationJobResponse = null;
 			}
 		} catch (err) {
-			interpretationJobError = `Network error: ${err.message}`;
+			interpretationJobError = `Network error: ${getErrorMessage(err)}`;
 			interpretationJobResponse = null;
 		}
 	}
@@ -345,7 +406,7 @@
 				interpretationJobStatus = null;
 			}
 		} catch (err) {
-			interpretationJobStatusError = `Network error: ${err.message}`;
+			interpretationJobStatusError = `Network error: ${getErrorMessage(err)}`;
 			interpretationJobStatus = null;
 		}
 	}
@@ -369,7 +430,7 @@
 				interpretationExtractionResult = null;
 			}
 		} catch (err) {
-			interpretationExtractionError = `Network error: ${err.message}`;
+			interpretationExtractionError = `Network error: ${getErrorMessage(err)}`;
 			interpretationExtractionResult = null;
 		}
 	}
@@ -418,7 +479,7 @@
 				interpretationExtractionError = `Error: ${res.status} ${res.statusText}`;
 			}
 		} catch (err) {
-			interpretationExtractionError = `Network error: ${err.message}`;
+			interpretationExtractionError = `Network error: ${getErrorMessage(err)}`;
 		}
 	}
 </script>

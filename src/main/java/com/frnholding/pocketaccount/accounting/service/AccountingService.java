@@ -19,6 +19,7 @@ import com.frnholding.pocketaccount.accounting.domain.Account;
 import com.frnholding.pocketaccount.accounting.domain.BankTransaction;
 import com.frnholding.pocketaccount.accounting.domain.Receipt;
 import com.frnholding.pocketaccount.accounting.domain.ReceiptMatch;
+import com.frnholding.pocketaccount.accounting.domain.ReceiptMatchStatus;
 import com.frnholding.pocketaccount.accounting.mapper.AccountingMapper;
 import com.frnholding.pocketaccount.accounting.repository.AccountRepository;
 import com.frnholding.pocketaccount.accounting.repository.BankTransactionRepository;
@@ -48,6 +49,7 @@ import java.util.stream.Collectors;
 
 @Service
 public class AccountingService {
+
     
     private final AccountRepository accountRepository;
     private final BankTransactionRepository bankTransactionRepository;
@@ -203,7 +205,7 @@ public class AccountingService {
     
     @Transactional(readOnly = true)
     public List<ReceiptResponse> getReceiptsByDateRange(LocalDate from, LocalDate to) {
-        return receiptRepository.findByDateRange(from, to).stream()
+        return receiptRepository.findByDateRange(from, to, ReceiptMatchStatus.ACTIVE).stream()
                 .map(mapper::toReceiptResponse)
                 .collect(Collectors.toList());
     }
@@ -211,21 +213,24 @@ public class AccountingService {
     @Transactional(readOnly = true)
     public List<ReceiptResponse> getReceiptsByDateRange(LocalDate from, LocalDate to, int page, int size) {
         Sort sort = Sort.by(Sort.Direction.DESC, "createdAt");
-        return receiptRepository.findByDateRange(from, to, PageRequest.of(page, size, sort)).stream()
+        return receiptRepository.findByDateRange(from, to, ReceiptMatchStatus.ACTIVE, PageRequest.of(page, size, sort)).stream()
                 .map(mapper::toReceiptResponse)
                 .collect(Collectors.toList());
     }
     
     @Transactional
     public ReceiptMatchResponse createReceiptMatch(CreateReceiptMatchRequest request) {
-        if (receiptMatchRepository.existsByReceiptId(request.getReceiptId())) {
+        if (receiptMatchRepository.existsByReceiptIdAndStatus(request.getReceiptId(), ReceiptMatchStatus.ACTIVE)) {
             throw new ConflictException("Receipt is already matched to a bank transaction");
         }
-        if (receiptMatchRepository.existsByBankTransactionId(request.getBankTransactionId())) {
+        if (receiptMatchRepository.existsByBankTransactionIdAndStatus(request.getBankTransactionId(), ReceiptMatchStatus.ACTIVE)) {
             throw new ConflictException("Bank transaction is already matched to a receipt");
         }
         // Check if match already exists (unique constraint: receiptId + bankTransactionId)
-        if (receiptMatchRepository.existsByReceiptIdAndBankTransactionId(request.getReceiptId(), request.getBankTransactionId())) {
+        if (receiptMatchRepository.existsByReceiptIdAndBankTransactionIdAndStatus(
+            request.getReceiptId(),
+            request.getBankTransactionId(),
+            ReceiptMatchStatus.ACTIVE)) {
             throw new IllegalArgumentException("Receipt match already exists for this receipt and transaction");
         }
         
@@ -249,6 +254,7 @@ public class AccountingService {
         match.setMatchType(request.getMatchType());
         match.setConfidence(request.getConfidence());
         match.setCreatedAt(Instant.now());
+        match.setStatus(ReceiptMatchStatus.ACTIVE);
         
         ReceiptMatch saved = receiptMatchRepository.save(match);
         return mapper.toReceiptMatchResponse(saved);
@@ -258,7 +264,7 @@ public class AccountingService {
     public List<ReceiptMatchResponse> getReceiptMatches(UUID receiptId) {
         receiptRepository.findById(receiptId)
                 .orElseThrow(() -> new EntityNotFoundException("Receipt not found: " + receiptId));
-        return receiptMatchRepository.findByReceiptId(receiptId).stream()
+        return receiptMatchRepository.findByReceiptIdAndStatus(receiptId, ReceiptMatchStatus.ACTIVE).stream()
                 .map(mapper::toReceiptMatchResponse)
                 .collect(Collectors.toList());
     }
@@ -268,8 +274,8 @@ public class AccountingService {
         Receipt receipt = receiptRepository.findById(receiptId)
                 .orElseThrow(() -> new EntityNotFoundException("Receipt not found: " + receiptId));
 
-        if (receiptMatchRepository.existsByReceiptId(receiptId)) {
-            throw new ConflictException("Cannot delete receipt: it is approved and matched");
+        if (receiptMatchRepository.existsByReceiptIdAndStatus(receiptId, ReceiptMatchStatus.ACTIVE)) {
+            throw new ConflictException("Cannot delete receipt: it is matched and locked");
         }
 
         receiptRepository.delete(receipt);
@@ -280,8 +286,8 @@ public class AccountingService {
         Receipt receipt = receiptRepository.findById(receiptId)
                 .orElseThrow(() -> new EntityNotFoundException("Receipt not found: " + receiptId));
 
-        if (receiptMatchRepository.existsByReceiptId(receiptId)) {
-            throw new ConflictException("Cannot reject receipt: it is approved and matched");
+        if (receiptMatchRepository.existsByReceiptIdAndStatus(receiptId, ReceiptMatchStatus.ACTIVE)) {
+            throw new ConflictException("Cannot reject receipt: it is matched and locked");
         }
 
         if (!receipt.isRejected()) {
@@ -306,7 +312,9 @@ public class AccountingService {
         Long statementTransactionId = statementTransactionRepository.findFirstByBankTransactionId(bankTransactionId)
             .map(statement -> statement.getId())
             .orElse(null);
-        UUID receiptId = receiptMatchRepository.findFirstByBankTransactionId(bankTransactionId)
+        UUID receiptId = receiptMatchRepository.findFirstByBankTransactionIdAndStatus(
+            bankTransactionId,
+            ReceiptMatchStatus.ACTIVE)
             .map(match -> match.getReceipt().getId())
             .orElse(null);
 
@@ -425,11 +433,16 @@ public class AccountingService {
     }
     
     @Transactional
-    public void deleteReceiptMatch(UUID matchId) {
-        if (!receiptMatchRepository.existsById(matchId)) {
-            throw new EntityNotFoundException("Receipt match not found: " + matchId);
+    public void unmatchReceiptMatch(UUID matchId) {
+        ReceiptMatch match = receiptMatchRepository.findById(matchId)
+            .orElseThrow(() -> new EntityNotFoundException("Receipt match not found: " + matchId));
+
+        if (!ReceiptMatchStatus.ACTIVE.equals(match.getStatus())) {
+            throw new ConflictException("Receipt match is already unmatched");
         }
-        receiptMatchRepository.deleteById(matchId);
+
+        match.setStatus(ReceiptMatchStatus.UNMATCHED);
+        receiptMatchRepository.save(match);
     }
     
     @Transactional(readOnly = true)
@@ -438,7 +451,9 @@ public class AccountingService {
                 .orElseThrow(() -> new IllegalArgumentException("Bank transaction not found: " + bankTransactionId));
         
         BigDecimal transactionAmountAbs = transaction.getAmount().abs();
-        BigDecimal sumMatched = receiptMatchRepository.sumMatchedAmountByBankTransactionId(bankTransactionId);
+        BigDecimal sumMatched = receiptMatchRepository.sumMatchedAmountByBankTransactionId(
+            bankTransactionId,
+            ReceiptMatchStatus.ACTIVE);
         
         String status;
         if (sumMatched.compareTo(BigDecimal.ZERO) == 0) {
@@ -466,7 +481,9 @@ public class AccountingService {
         // Enrich each transaction with match status
         return transactions.stream()
                 .map(transaction -> {
-                    BigDecimal sumMatched = receiptMatchRepository.sumMatchedAmountByBankTransactionId(transaction.getId());
+                    BigDecimal sumMatched = receiptMatchRepository.sumMatchedAmountByBankTransactionId(
+                        transaction.getId(),
+                        ReceiptMatchStatus.ACTIVE);
                     BigDecimal transactionAmountAbs = transaction.getAmount().abs();
                     
                     String status;
@@ -508,7 +525,9 @@ public class AccountingService {
 
         return transactions.stream()
                 .map(transaction -> {
-                    BigDecimal sumMatched = receiptMatchRepository.sumMatchedAmountByBankTransactionId(transaction.getId());
+                    BigDecimal sumMatched = receiptMatchRepository.sumMatchedAmountByBankTransactionId(
+                        transaction.getId(),
+                        ReceiptMatchStatus.ACTIVE);
                     BigDecimal transactionAmountAbs = transaction.getAmount().abs();
 
                     String status;

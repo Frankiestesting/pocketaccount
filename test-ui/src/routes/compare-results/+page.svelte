@@ -1,12 +1,37 @@
 <script>
 	import { onMount } from 'svelte';
 
+	/**
+	 * @typedef {Object} Job
+	 * @property {string} [id]
+	 * @property {string} [jobId]
+	 * @property {string} [status]
+	 * @property {string} [documentId]
+	 * @property {string} [documentType]
+	 * @property {string} [originalFilename]
+	 * @property {string} [finishedAt]
+	 * @property {string[]} [extractionMethods]
+	 * @property {boolean} [useAi]
+	 */
+	/**
+	 * @typedef {Object} JobResult
+	 * @property {Record<string, unknown>} [fields]
+	 * @property {Record<string, number>} [confidence]
+	 * @property {Array<{date?: string, amount?: number, currency?: string, description?: string}>} [transactions]
+	 */
+
+	/** @type {Job[]} */
 	let jobs = [];
 	let loading = true;
+	/** @type {string|null} */
 	let error = null;
+	/** @type {Job|null} */
 	let selectedJob1 = null;
+	/** @type {Job|null} */
 	let selectedJob2 = null;
+	/** @type {JobResult|null} */
 	let result1 = null;
+	/** @type {JobResult|null} */
 	let result2 = null;
 	let comparing = false;
 
@@ -16,6 +41,11 @@
 		await fetchCompletedJobs();
 	});
 
+	/** @param {unknown} err */
+	function getErrorMessage(err) {
+		return err instanceof Error ? err.message : String(err);
+	}
+
 	async function fetchCompletedJobs() {
 		loading = true;
 		error = null;
@@ -24,27 +54,29 @@
 			if (!res.ok) {
 				throw new Error(`Failed to fetch jobs: ${res.status}`);
 			}
-			const allJobs = await res.json();
+			const allJobs = /** @type {Job[]} */ (await res.json());
 			console.log('All jobs from API:', allJobs);
 			console.log('Total jobs:', allJobs.length);
 			// Filter only completed jobs (case-insensitive)
-			jobs = allJobs.filter(job => job.status && job.status.toUpperCase() === 'COMPLETED');
+			jobs = allJobs.filter((job) => job.status && job.status.toUpperCase() === 'COMPLETED');
 			console.log('Completed jobs:', jobs);
 			console.log('Completed jobs count:', jobs.length);
 		} catch (err) {
-			error = `Error loading jobs: ${err.message}`;
+			error = `Error loading jobs: ${getErrorMessage(err)}`;
 			console.error('Error fetching jobs:', err);
 		} finally {
 			loading = false;
 		}
 	}
 
+	/** @param {Job} job */
 	function selectJob1(job) {
 		selectedJob1 = job;
 		result1 = null;
 		console.log('Selected job 1:', job);
 	}
 
+	/** @param {Job} job */
 	function selectJob2(job) {
 		selectedJob2 = job;
 		result2 = null;
@@ -52,7 +84,7 @@
 	}
 
 	async function compareResults() {
-		if (!canCompare) return;
+		if (!canCompare || !selectedJob1 || !selectedJob2) return;
 
 		comparing = true;
 		error = null;
@@ -60,12 +92,18 @@
 		result2 = null;
 
 		try {
-			console.log('Fetching results for jobs:', selectedJob1.jobId || selectedJob1.id, selectedJob2.jobId || selectedJob2.id);
+			const jobId1 = selectedJob1.jobId || selectedJob1.id;
+			const jobId2 = selectedJob2.jobId || selectedJob2.id;
+			if (!jobId1 || !jobId2) {
+				error = 'Missing job ID for comparison.';
+				return;
+			}
+			console.log('Fetching results for jobs:', jobId1, jobId2);
 
 			// Fetch both results
 			const [res1, res2] = await Promise.all([
-				fetch(`http://localhost:8080/api/v1/interpretation/jobs/${selectedJob1.jobId}/result`),
-				fetch(`http://localhost:8080/api/v1/interpretation/jobs/${selectedJob2.jobId}/result`)
+				fetch(`http://localhost:8080/api/v1/interpretation/jobs/${jobId1}/result`),
+				fetch(`http://localhost:8080/api/v1/interpretation/jobs/${jobId2}/result`)
 			]);
 
 			if (!res1.ok) {
@@ -81,7 +119,7 @@
 			console.log('Result 1:', result1);
 			console.log('Result 2:', result2);
 		} catch (err) {
-			error = `Error comparing results: ${err.message}`;
+			error = `Error comparing results: ${getErrorMessage(err)}`;
 			console.error(err);
 		} finally {
 			comparing = false;
@@ -95,13 +133,19 @@
 		result2 = null;
 	}
 
-	function getFieldValue(result, fieldName) {
+	function getFieldValue(
+		/** @type {JobResult | null} */ result,
+		/** @type {string} */ fieldName
+	) {
 		if (!result || !result.fields) return '-';
 		const value = result.fields[fieldName];
 		return value !== undefined && value !== null ? String(value) : '-';
 	}
 
-	function getConfidence(result, fieldName) {
+	function getConfidence(
+		/** @type {JobResult | null} */ result,
+		/** @type {string} */ fieldName
+	) {
 		if (!result || !result.confidence) return '-';
 		const conf = result.confidence[fieldName];
 		return conf !== undefined && conf !== null ? `${(conf * 100).toFixed(1)}%` : '-';
@@ -118,6 +162,7 @@
 		return Array.from(fields).sort();
 	}
 
+	/** @param {string|undefined} dateString */
 	function formatDate(dateString) {
 		if (!dateString) return '-';
 		const date = new Date(dateString);
@@ -130,7 +175,11 @@
 		});
 	}
 
+	/** @param {Job | null} job */
 	function getPipelineLabel(job) {
+		if (!job) {
+			return '-';
+		}
 		// Check extractionMethods field first
 		if (job.extractionMethods) {
 			if (job.extractionMethods.includes('AI')) {
@@ -230,18 +279,20 @@
 		<div class="comparison-section">
 			<h2>Comparison Results</h2>
 
-			<div class="selected-jobs-info">
-				<div class="info-card">
-					<h3>Job 1: {getPipelineLabel(selectedJob1)}</h3>
-					<p>Document: {selectedJob1.documentId}</p>
-					<p>Completed: {formatDate(selectedJob1.finishedAt)}</p>
+			{#if selectedJob1 && selectedJob2}
+				<div class="selected-jobs-info">
+					<div class="info-card">
+						<h3>Job 1: {getPipelineLabel(selectedJob1)}</h3>
+						<p>Document: {selectedJob1.documentId}</p>
+						<p>Completed: {formatDate(selectedJob1.finishedAt)}</p>
+					</div>
+					<div class="info-card">
+						<h3>Job 2: {getPipelineLabel(selectedJob2)}</h3>
+						<p>Document: {selectedJob2.documentId}</p>
+						<p>Completed: {formatDate(selectedJob2.finishedAt)}</p>
+					</div>
 				</div>
-				<div class="info-card">
-					<h3>Job 2: {getPipelineLabel(selectedJob2)}</h3>
-					<p>Document: {selectedJob2.documentId}</p>
-					<p>Completed: {formatDate(selectedJob2.finishedAt)}</p>
-				</div>
-			</div>
+			{/if}
 
 			<table class="comparison-table">
 				<thead>
@@ -280,11 +331,11 @@
 			</table>
 
 			<!-- Transactions Comparison -->
-			{#if (result1?.transactions?.length > 0) || (result2?.transactions?.length > 0)}
+			{#if (result1?.transactions?.length ?? 0) > 0 || (result2?.transactions?.length ?? 0) > 0}
 				<h3>Transactions</h3>
 				<div class="transactions-comparison">
 					<div class="transaction-column">
-						<h4>Job 1 Transactions ({result1?.transactions?.length || 0})</h4>
+						<h4>Job 1 Transactions ({result1?.transactions?.length ?? 0})</h4>
 						{#if result1?.transactions && result1.transactions.length > 0}
 							<table class="transaction-table">
 								<thead>
@@ -299,7 +350,7 @@
 									{#each result1.transactions as tx}
 										<tr>
 											<td>{tx.date || '-'}</td>
-											<td>{tx.amount !== undefined ? tx.amount.toFixed(2) : '-'}</td>
+											<td>{typeof tx.amount === 'number' ? tx.amount.toFixed(2) : '-'}</td>
 											<td>{tx.currency || '-'}</td>
 											<td>{tx.description || '-'}</td>
 										</tr>
@@ -312,7 +363,7 @@
 					</div>
 
 					<div class="transaction-column">
-						<h4>Job 2 Transactions ({result2?.transactions?.length || 0})</h4>
+						<h4>Job 2 Transactions ({result2?.transactions?.length ?? 0})</h4>
 						{#if result2?.transactions && result2.transactions.length > 0}
 							<table class="transaction-table">
 								<thead>
@@ -327,7 +378,7 @@
 									{#each result2.transactions as tx}
 										<tr>
 											<td>{tx.date || '-'}</td>
-											<td>{tx.amount !== undefined ? tx.amount.toFixed(2) : '-'}</td>
+											<td>{typeof tx.amount === 'number' ? tx.amount.toFixed(2) : '-'}</td>
 											<td>{tx.currency || '-'}</td>
 											<td>{tx.description || '-'}</td>
 										</tr>

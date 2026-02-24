@@ -1,6 +1,7 @@
 package com.frnholding.pocketaccount.accounting.repository;
 
 import com.frnholding.pocketaccount.accounting.domain.Receipt;
+import com.frnholding.pocketaccount.accounting.domain.ReceiptMatchStatus;
 import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.domain.Pageable;
@@ -16,19 +17,22 @@ public interface ReceiptRepository extends JpaRepository<Receipt, UUID> {
     java.util.Optional<Receipt> findByDocumentId(UUID documentId);
             @Query("SELECT r FROM Receipt r " +
                 "WHERE r.rejected = false " +
-                "AND NOT EXISTS (SELECT 1 FROM ReceiptMatch rm WHERE rm.receipt = r) " +
+                "AND NOT EXISTS (SELECT 1 FROM ReceiptMatch rm WHERE rm.receipt = r AND rm.status = :status) " +
                 "AND (:from IS NULL OR r.purchaseDate >= :from) " +
                 "AND (:to IS NULL OR r.purchaseDate <= :to) " +
                 "ORDER BY r.createdAt DESC")
-    List<Receipt> findByDateRange(@Param("from") LocalDate from, @Param("to") LocalDate to);
+    List<Receipt> findByDateRange(@Param("from") LocalDate from,
+                                 @Param("to") LocalDate to,
+                                 @Param("status") ReceiptMatchStatus status);
 
             @Query("SELECT r FROM Receipt r " +
                 "WHERE r.rejected = false " +
-                "AND NOT EXISTS (SELECT 1 FROM ReceiptMatch rm WHERE rm.receipt = r) " +
+                "AND NOT EXISTS (SELECT 1 FROM ReceiptMatch rm WHERE rm.receipt = r AND rm.status = :status) " +
                 "AND (:from IS NULL OR r.purchaseDate >= :from) " +
                 "AND (:to IS NULL OR r.purchaseDate <= :to) " +
                 "ORDER BY r.createdAt DESC")
         List<Receipt> findByDateRange(@Param("from") LocalDate from,
                  @Param("to") LocalDate to,
+                 @Param("status") ReceiptMatchStatus status,
                  Pageable pageable);
 }

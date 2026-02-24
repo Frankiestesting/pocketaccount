@@ -233,6 +233,17 @@ public class DocumentController {
         return ResponseEntity.ok(response);
     }
 
+        @DeleteMapping("/jobs/{jobId}")
+        @Operation(summary = "Delete job", description = "Delete a job without deleting the underlying document file")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "204", description = "Job deleted successfully"),
+                        @ApiResponse(responseCode = "404", description = "Job not found")
+        })
+        public ResponseEntity<Void> deleteJob(@PathVariable @Parameter(description = "Job ID") UUID jobId) {
+                documentService.deleteJob(jobId.toString());
+                return ResponseEntity.noContent().build();
+        }
+
     @GetMapping("/documents/{documentId}/result")
     @Operation(summary = "Get extraction result", description = "Get extracted fields or transactions for a document")
     @ApiResponses(value = {

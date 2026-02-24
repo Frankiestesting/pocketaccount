@@ -6,8 +6,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 @Entity
-@Table(name = "receipt_match",
-       uniqueConstraints = @UniqueConstraint(columnNames = {"receipt_id", "bank_transaction_id"}))
+@Table(name = "receipt_match")
 public class ReceiptMatch {
     
     @Id
@@ -33,6 +32,10 @@ public class ReceiptMatch {
     
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
+
+    @Enumerated(EnumType.STRING)
+    @Column(nullable = false, length = 20)
+    private ReceiptMatchStatus status;
     
     public ReceiptMatch() {
     }
@@ -91,5 +94,13 @@ public class ReceiptMatch {
     
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public ReceiptMatchStatus getStatus() {
+        return status;
+    }
+
+    public void setStatus(ReceiptMatchStatus status) {
+        this.status = status;
     }
 }

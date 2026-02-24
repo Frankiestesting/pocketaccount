@@ -2,9 +2,23 @@
 	import { onMount } from 'svelte';
 	import { page } from '$app/stores';
 
+	/**
+	 * @typedef {Object} StatementTransaction
+	 * @property {string} id
+	 * @property {string} [date]
+	 * @property {string} [description]
+	 * @property {string} [currency]
+	 * @property {number} [amount]
+	 * @property {string} [accountNo]
+	 * @property {boolean} [approved]
+	 */
+
+	/** @type {StatementTransaction|null} */
 	let transaction = null;
 	let loading = true;
+	/** @type {string|null} */
 	let error = null;
+	/** @type {string|null} */
 	let currentId = null;
 
 	$: statementTransactionId = $page.params.id;
@@ -20,6 +34,11 @@
 		}
 	});
 
+	/** @param {unknown} err */
+	function getErrorMessage(err) {
+		return err instanceof Error ? err.message : String(err);
+	}
+
 	async function loadTransaction() {
 		loading = true;
 		error = null;
@@ -30,12 +49,13 @@
 			}
 			transaction = await res.json();
 		} catch (err) {
-			error = err instanceof Error ? err.message : String(err);
+			error = getErrorMessage(err);
 		} finally {
 			loading = false;
 		}
 	}
 
+	/** @param {string|undefined} dateString */
 	function formatDate(dateString) {
 		if (!dateString) return '-';
 		const date = new Date(dateString);
@@ -43,6 +63,7 @@
 		return date.toLocaleDateString('nb-NO');
 	}
 
+	/** @param {number|undefined|null} amount */
 	function formatAmount(amount) {
 		if (amount === null || amount === undefined) return '-';
 		return Number(amount).toLocaleString('nb-NO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });

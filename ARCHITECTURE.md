@@ -122,3 +122,23 @@ Use @ControllerAdvice and map:
 - validation -> 400
 - not found -> 404
 - unique/conflict -> 409
+
+## 7) System overview (Mermaid)
+
+```mermaid
+flowchart LR
+  UI[UI (web & mobile)] -->|upload PDF| DOC[Document API]
+  DOC -->|store file + metadata| FS[(File storage)]
+  DOC -->|create job| JQ[Job row]
+  JQ -->|after commit| RUN[Interpretation job runner]
+  RUN -->|PDFBox/OCR/AI| PIPE[Interpretation pipeline]
+  PIPE --> RES[Interpretation result]
+  RES --> CORR[Corrections]
+  RES --> RECEIPT[Receipts]
+  RES --> STMT[Statement transactions]
+  RECEIPT --> MATCH[Receipt match]
+  STMT --> BANK[Bank transactions]
+  MATCH --> RECON[Reconciliation export]
+  RES --> API[Result & listing APIs]
+  API --> UI
+```

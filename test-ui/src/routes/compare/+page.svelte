@@ -1,19 +1,47 @@
 <script>
+	/**
+	 * @typedef {Object} DocumentInfo
+	 * @property {string} [id]
+	 * @property {string} [documentId]
+	 */
+	/**
+	 * @typedef {Object} Job
+	 * @property {string} [id]
+	 * @property {string} [jobId]
+	 * @property {string} [status]
+	 */
+	/**
+	 * @typedef {Object} JobResult
+	 * @property {Record<string, unknown>} [fields]
+	 * @property {Record<string, number>} [confidence]
+	 * @property {Array<Record<string, unknown>>} [transactions]
+	 */
+
+	/** @type {FileList | undefined} */
 	let files;
 	let originalFilename = '';
 	let documentType = 'INVOICE';
 	let source = 'web';
 	let uploading = false;
+	/** @type {string|null} */
 	let uploadError = null;
+	/** @type {DocumentInfo|null} */
 	let aiDocument = null;
+	/** @type {DocumentInfo|null} */
 	let heuristicDocument = null;
 
 	// Job tracking
+	/** @type {Job|null} */
 	let aiJob = null;
+	/** @type {Job|null} */
 	let heuristicJob = null;
+	/** @type {JobResult|null} */
 	let aiResult = null;
+	/** @type {JobResult|null} */
 	let heuristicResult = null;
+	/** @type {string|null} */
 	let aiError = null;
+	/** @type {string|null} */
 	let heuristicError = null;
 	let processing = false;
 	let currentStep = '';
@@ -21,6 +49,11 @@
 	$: file = files?.[0];
 	$: canUpload = file && originalFilename && !uploading && !processing;
 	$: allComplete = aiResult && heuristicResult;
+
+	/** @param {unknown} err */
+	function getErrorMessage(err) {
+		return err instanceof Error ? err.message : String(err);
+	}
 
 	function reset() {
 		files = undefined;
@@ -68,7 +101,8 @@
 
 			// Step 2: Start AI job
 			currentStep = 'Starting AI interpretation job...';
-			console.log('Step 2: Starting AI interpretation job for document:', aiDocument.documentId || aiDocument.id);
+			const aiDocId = aiDocument?.documentId || aiDocument?.id;
+			console.log('Step 2: Starting AI interpretation job for document:', aiDocId);
 			await startAiInterpretation();
 			console.log('After startAiInterpretation, aiJob is:', aiJob);
 			console.log('aiJob type:', typeof aiJob, 'Has id?', aiJob?.id, 'Has jobId?', aiJob?.jobId);
@@ -82,7 +116,8 @@
 
 			// Step 3: Start Heuristic job
 			currentStep = 'Starting Heuristic interpretation job...';
-			console.log('Step 3: Starting Heuristic interpretation job for document:', heuristicDocument.documentId || heuristicDocument.id);
+			const heuristicDocId = heuristicDocument?.documentId || heuristicDocument?.id;
+			console.log('Step 3: Starting Heuristic interpretation job for document:', heuristicDocId);
 			await startHeuristicInterpretation();
 			console.log('After startHeuristicInterpretation, heuristicJob is:', heuristicJob);
 			console.log('heuristicJob type:', typeof heuristicJob, 'Has id?', heuristicJob?.id, 'Has jobId?', heuristicJob?.jobId);
@@ -118,7 +153,7 @@
 			currentStep = '';
 			processing = false;
 		} catch (err) {
-			uploadError = `Error: ${err.message}`;
+			uploadError = `Error: ${getErrorMessage(err)}`;
 			console.error('Error in handleUploadAndCompare:', err);
 			uploading = false;
 			processing = false;
@@ -126,8 +161,13 @@
 		}
 	}
 
+	/** @param {'AI' | 'Heuristic'} label */
 	async function uploadDocument(label) {
 		console.log(`Uploading document for ${label}...`);
+		if (!file) {
+			uploadError = `No file selected for ${label} upload`;
+			return null;
+		}
 		const formData = new FormData();
 		formData.append('file', file);
 		formData.append('source', source);
@@ -151,7 +191,7 @@
 			console.log(`${label} document uploaded:`, doc);
 			return doc;
 		} catch (err) {
-			uploadError = `Network error during ${label} upload: ${err.message}`;
+			uploadError = `Network error during ${label} upload: ${getErrorMessage(err)}`;
 			console.error(`Network error during ${label} upload:`, err);
 			return null;
 		}
@@ -208,7 +248,7 @@
 			console.log('aiJob assigned:', aiJob);
 		} catch (err) {
 			console.error('Exception during AI job creation:', err);
-			aiError = `AI job creation error: ${err.message}`;
+			aiError = `AI job creation error: ${getErrorMessage(err)}`;
 			throw err;
 		}
 	}
@@ -264,12 +304,15 @@
 			console.log('heuristicJob assigned:', heuristicJob);
 		} catch (err) {
 			console.error('Exception during Heuristic job creation:', err);
-			heuristicError = `Heuristic job creation error: ${err.message}`;
+			heuristicError = `Heuristic job creation error: ${getErrorMessage(err)}`;
 			throw err;
 		}
 	}
 
-	async function waitForJobCompletion(job, jobName) {
+	async function waitForJobCompletion(
+		/** @type {Job} */ job,
+		/** @type {'AI' | 'Heuristic'} */ jobName
+	) {
 		console.log(`waitForJobCompletion called for ${jobName} with job:`, job);
 		
 		const jobId = job?.id || job?.jobId;
@@ -352,13 +395,19 @@
 		console.log('Heuristic result fetched:', heuristicResult);
 	}
 
-	function getFieldValue(result, fieldName) {
+	function getFieldValue(
+		/** @type {JobResult | null} */ result,
+		/** @type {string} */ fieldName
+	) {
 		if (!result || !result.fields) return '-';
 		const value = result.fields[fieldName];
 		return value !== undefined && value !== null ? String(value) : '-';
 	}
 
-	function getConfidence(result, fieldName) {
+	function getConfidence(
+		/** @type {JobResult | null} */ result,
+		/** @type {string} */ fieldName
+	) {
 		if (!result || !result.confidence) return '-';
 		const conf = result.confidence[fieldName];
 		return conf !== undefined && conf !== null ? `${(conf * 100).toFixed(1)}%` : '-';
@@ -549,11 +598,11 @@
 					</table>
 
 					<!-- Transactions Comparison -->
-					{#if (aiResult?.transactions?.length > 0) || (heuristicResult?.transactions?.length > 0)}
+					{#if (aiResult?.transactions?.length ?? 0) > 0 || (heuristicResult?.transactions?.length ?? 0) > 0}
 						<h3>Transactions</h3>
 						<div class="transactions-comparison">
 							<div class="transaction-column">
-								<h4>AI Transactions ({aiResult?.transactions?.length || 0})</h4>
+								<h4>AI Transactions ({aiResult?.transactions?.length ?? 0})</h4>
 								{#if aiResult?.transactions && aiResult.transactions.length > 0}
 									<table class="transaction-table">
 										<thead>
@@ -568,7 +617,7 @@
 											{#each aiResult.transactions as tx}
 												<tr>
 													<td>{tx.date || '-'}</td>
-													<td>{tx.amount !== undefined ? tx.amount.toFixed(2) : '-'}</td>
+													<td>{typeof tx.amount === 'number' ? tx.amount.toFixed(2) : '-'}</td>
 													<td>{tx.currency || '-'}</td>
 													<td>{tx.description || '-'}</td>
 												</tr>
@@ -581,7 +630,7 @@
 							</div>
 
 							<div class="transaction-column">
-								<h4>Heuristic Transactions ({heuristicResult?.transactions?.length || 0})</h4>
+								<h4>Heuristic Transactions ({heuristicResult?.transactions?.length ?? 0})</h4>
 								{#if heuristicResult?.transactions && heuristicResult.transactions.length > 0}
 									<table class="transaction-table">
 										<thead>
@@ -596,7 +645,7 @@
 											{#each heuristicResult.transactions as tx}
 												<tr>
 													<td>{tx.date || '-'}</td>
-													<td>{tx.amount !== undefined ? tx.amount.toFixed(2) : '-'}</td>
+													<td>{typeof tx.amount === 'number' ? tx.amount.toFixed(2) : '-'}</td>
 													<td>{tx.currency || '-'}</td>
 													<td>{tx.description || '-'}</td>
 												</tr>

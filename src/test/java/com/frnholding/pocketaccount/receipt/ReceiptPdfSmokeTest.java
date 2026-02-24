@@ -35,6 +35,8 @@ class ReceiptPdfSmokeTest {
                 .as("Receipts folder should contain files")
                 .isNotEmpty();
 
+        boolean processedTextReceipt = false;
+
         for (Path file : files) {
             String filename = file.getFileName().toString();
             String lower = filename.toLowerCase();
@@ -43,9 +45,20 @@ class ReceiptPdfSmokeTest {
 
             if (lower.endsWith(".pdf")) {
                 try (PDDocument document = Loader.loadPDF(file.toFile())) {
+                    assertThat(document.getNumberOfPages())
+                            .as("PDF should contain at least one page: %s", filename)
+                            .isGreaterThan(0);
+
                     PDFTextStripper stripper = new PDFTextStripper();
                     String text = stripper.getText(document);
-                    assertThat(text).isNotBlank();
+
+                    if (text == null || text.isBlank()) {
+                        System.out.println("No embedded text layer found; likely scanned/image-based PDF.");
+                        System.out.println();
+                        continue;
+                    }
+
+                    processedTextReceipt = true;
 
                     ExtractedReceipt extracted = extractReceipt(text);
                     System.out.println(text);
@@ -70,22 +83,43 @@ class ReceiptPdfSmokeTest {
 
             System.out.println();
         }
+
+        assertThat(processedTextReceipt)
+                .as("At least one receipt PDF should contain extractable text")
+                .isTrue();
     }
 
     private ExtractedReceipt extractReceipt(String text) {
         ExtractedReceipt extracted = new ExtractedReceipt();
+        String normalizedText = text == null ? "" : text.replace('\u00A0', ' ');
 
-        Pattern amountPattern = Pattern.compile("(NOK|EUR|USD)\\s*([0-9]+[\\.,][0-9]{2})");
-        Matcher amountMatcher = amountPattern.matcher(text);
-        if (amountMatcher.find()) {
-            extracted.currency = amountMatcher.group(1);
-            extracted.amount = amountMatcher.group(2).replace(',', '.');
+        Pattern amountWithLeadingCurrency = Pattern.compile("(NOK|EUR|USD)\\s*([0-9]+[\\.,][0-9]{2})", Pattern.CASE_INSENSITIVE);
+        Matcher leadingCurrencyMatcher = amountWithLeadingCurrency.matcher(normalizedText);
+        if (leadingCurrencyMatcher.find()) {
+            extracted.currency = leadingCurrencyMatcher.group(1).toUpperCase();
+            extracted.amount = leadingCurrencyMatcher.group(2).replace(',', '.');
+        } else {
+            Pattern amountWithTrailingCurrency = Pattern.compile("([0-9]+[\\.,][0-9]{2})\\s*(kr|NOK|EUR|USD)", Pattern.CASE_INSENSITIVE);
+            Matcher trailingCurrencyMatcher = amountWithTrailingCurrency.matcher(normalizedText);
+            if (trailingCurrencyMatcher.find()) {
+                extracted.amount = trailingCurrencyMatcher.group(1).replace(',', '.');
+                String currencyToken = trailingCurrencyMatcher.group(2);
+                extracted.currency = "kr".equalsIgnoreCase(currencyToken)
+                        ? "NOK"
+                        : currencyToken.toUpperCase();
+            }
         }
 
-        Pattern datePattern = Pattern.compile("Kjøpsdato:\\s*([0-9]{2}\\.[0-9]{2}\\.[0-9]{4})");
-        Matcher dateMatcher = datePattern.matcher(text);
-        if (dateMatcher.find()) {
-            extracted.buyDate = dateMatcher.group(1);
+        Pattern purchaseDatePattern = Pattern.compile("Kjøpsdato:\\s*([0-9]{2}\\.[0-9]{2}\\.[0-9]{4})", Pattern.CASE_INSENSITIVE);
+        Matcher purchaseDateMatcher = purchaseDatePattern.matcher(normalizedText);
+        if (purchaseDateMatcher.find()) {
+            extracted.buyDate = purchaseDateMatcher.group(1);
+        } else {
+            Pattern textualDatePattern = Pattern.compile("([0-9]{1,2}\\.\\s*[A-Za-zÆØÅæøå]+\\s+[0-9]{4})");
+            Matcher textualDateMatcher = textualDatePattern.matcher(normalizedText);
+            if (textualDateMatcher.find()) {
+                extracted.buyDate = textualDateMatcher.group(1);
+            }
         }
 
         extracted.description = extractDescription(text).orElse("");

@@ -2,6 +2,7 @@
 	import { page } from '$app/stores';
 	import './styles.css';
 
+	/** @param {MouseEvent} e @param {string} path */
 	function handleClick(e, path) {
 		console.log('Link clicked:', path, e);
 	}

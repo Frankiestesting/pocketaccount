@@ -17,9 +17,9 @@ import com.frnholding.pocketaccount.interpretation.domain.StatementTransaction;
 import com.frnholding.pocketaccount.interpretation.repository.InterpretationResultRepository;
 import com.frnholding.pocketaccount.interpretation.repository.StatementTransactionRepository;
 import com.frnholding.pocketaccount.interpretation.service.InterpretationService;
+import com.frnholding.pocketaccount.accounting.domain.ReceiptMatchStatus;
 import com.frnholding.pocketaccount.accounting.repository.ReceiptRepository;
 import com.frnholding.pocketaccount.accounting.repository.ReceiptMatchRepository;
-import com.frnholding.pocketaccount.exception.ConflictException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Lazy;
 import org.springframework.stereotype.Service;
@@ -156,7 +156,7 @@ public class DocumentService {
         }
 
         if (isReceiptApproved(documentId)) {
-            throw new ConflictException("Cannot delete document: receipt is approved");
+            throw new ConflictException("Cannot delete document: receipt is matched and locked");
         }
 
         String filePath = entity.getFilePath();
@@ -174,8 +174,8 @@ public class DocumentService {
     private boolean isReceiptApproved(String documentId) {
         try {
             UUID receiptDocumentId = UUID.fromString(documentId);
-            return receiptRepository.findByDocumentId(receiptDocumentId)
-                    .map(receipt -> receiptMatchRepository.existsByReceiptId(receipt.getId()))
+                return receiptRepository.findByDocumentId(receiptDocumentId)
+                    .map(receipt -> receiptMatchRepository.existsByReceiptIdAndStatus(receipt.getId(), ReceiptMatchStatus.ACTIVE))
                     .orElse(false);
         } catch (IllegalArgumentException ex) {
             return false;
@@ -237,6 +237,13 @@ public class DocumentService {
         jobRepository.save(entity);
 
         return entity.toDomain();
+    }
+
+    @Transactional
+    public void deleteJob(String jobId) {
+        JobEntity entity = jobRepository.findById(jobId)
+                .orElseThrow(() -> new EntityNotFoundException("Job not found: " + jobId));
+        jobRepository.delete(entity);
     }
 
     public ExtractionResultResponseDTO getExtractionResult(String documentId) {

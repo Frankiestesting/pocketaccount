@@ -1,10 +1,18 @@
 <script>
 	import { onMount } from 'svelte';
 
+	/** @type {'idle' | 'checking' | 'ok' | 'error'} */
 	let status = 'idle';
+	/** @type {number | null} */
 	let statusCode = null;
 	let responseBody = '';
+	/** @type {Date | null} */
 	let lastCheckedAt = null;
+
+	/** @param {unknown} err */
+	function getErrorMessage(err) {
+		return err instanceof Error ? err.message : String(err);
+	}
 
 	async function checkConnection() {
 		status = 'checking';
@@ -20,7 +28,7 @@
 		} catch (err) {
 			status = 'error';
 			statusCode = null;
-			responseBody = err?.message || 'Network error';
+			responseBody = getErrorMessage(err) || 'Network error';
 			lastCheckedAt = new Date();
 		}
 	}

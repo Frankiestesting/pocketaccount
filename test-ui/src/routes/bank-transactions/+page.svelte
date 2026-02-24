@@ -1,11 +1,42 @@
 <script>
 	import { onMount } from 'svelte';
 
+	/**
+	 * @typedef {Object} Account
+	 * @property {string} id
+	 * @property {string} name
+	 * @property {string} accountNo
+	 */
+	/**
+	 * @typedef {Object} Transaction
+	 * @property {string} id
+	 * @property {string} [bookingDate]
+	 * @property {string} [description]
+	 * @property {number} [amount]
+	 * @property {string} [currency]
+	 * @property {string} accountName
+	 * @property {string} accountNo
+	 */
+	/**
+	 * @typedef {Object} TransactionLinks
+	 * @property {string} [statementTransactionId]
+	 * @property {string} [receiptId]
+	 */
+
+	/** @type {Account[]} */
 	let accounts = [];
+	/** @type {Transaction[]} */
 	let transactions = [];
+	/** @type {Record<string, TransactionLinks | null>} */
 	let linksById = {};
 	let loading = true;
+	/** @type {string|null} */
 	let error = null;
+
+	/** @param {unknown} err */
+	function getErrorMessage(err) {
+		return err instanceof Error ? err.message : String(err);
+	}
 
 	onMount(async () => {
 		await loadData();
@@ -30,12 +61,14 @@
 					if (!res.ok) {
 						throw new Error(`Failed to fetch transactions: ${res.status}`);
 					}
-					const rows = await res.json();
-					return rows.map((tx) => ({
-						...tx,
-						accountName: account.name,
-						accountNo: account.accountNo
-					}));
+					const rows = /** @type {Array<Record<string, unknown>>} */ (await res.json());
+					return rows.map((tx) =>
+						/** @type {Transaction} */ ({
+							...tx,
+							accountName: account.name,
+							accountNo: account.accountNo
+						})
+					);
 				})
 			);
 
@@ -58,12 +91,13 @@
 
 			linksById = Object.fromEntries(linkEntries);
 		} catch (err) {
-			error = err instanceof Error ? err.message : String(err);
+			error = getErrorMessage(err);
 		} finally {
 			loading = false;
 		}
 	}
 
+	/** @param {string|undefined} dateString */
 	function formatDate(dateString) {
 		if (!dateString) return '-';
 		const date = new Date(dateString);
@@ -71,15 +105,18 @@
 		return date.toLocaleDateString('nb-NO');
 	}
 
+	/** @param {number|undefined|null} amount */
 	function formatAmount(amount) {
 		if (amount === null || amount === undefined) return '-';
 		return Number(amount).toLocaleString('nb-NO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
 	}
 
+	/** @param {string} txId */
 	function getLinks(txId) {
 		return linksById[txId] || null;
 	}
 
+	/** @param {string} txId */
 	function hasBothLinks(txId) {
 		const links = getLinks(txId);
 		return Boolean(links?.statementTransactionId && links?.receiptId);
@@ -115,26 +152,26 @@
 			</thead>
 			<tbody>
 				{#each transactions as tx}
+					{@const links = getLinks(tx.id)}
 					<tr class:row-linked={hasBothLinks(tx.id)}>
 						<td>{formatDate(tx.bookingDate)}</td>
 						<td>{tx.description || '-'}</td>
-						<td class:negative={tx.amount < 0}>{formatAmount(tx.amount)}</td>
+						<td class:negative={(tx.amount ?? 0) < 0}>{formatAmount(tx.amount)}</td>
 						<td>{tx.currency || '-'}</td>
 						<td>{tx.accountName} ({tx.accountNo})</td>
 						<td>
-							{#if getLinks(tx.id)?.statementTransactionId}
-								<a href={`/statement-transaction/${getLinks(tx.id).statementTransactionId}`}
-									class="link">
-									{getLinks(tx.id).statementTransactionId}
+							{#if links?.statementTransactionId}
+								<a href={`/statement-transaction/${links.statementTransactionId}`} class="link">
+									{links.statementTransactionId}
 								</a>
 							{:else}
 								<span class="muted">-</span>
 							{/if}
 						</td>
 						<td>
-							{#if getLinks(tx.id)?.receiptId}
-								<a href={`/receipt/${getLinks(tx.id).receiptId}`} class="link">
-									{getLinks(tx.id).receiptId}
+							{#if links?.receiptId}
+								<a href={`/receipt/${links.receiptId}`} class="link">
+									{links.receiptId}
 								</a>
 							{:else}
 								<span class="muted">-</span>

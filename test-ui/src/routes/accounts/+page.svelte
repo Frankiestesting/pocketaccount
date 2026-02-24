@@ -1,18 +1,45 @@
 <script>
 	import { onMount } from 'svelte';
 
+	/**
+	 * @typedef {Object} Account
+	 * @property {string} id
+	 * @property {string} name
+	 * @property {string} currency
+	 * @property {string} accountNo
+	 * @property {string} createdAt
+	 */
+	/**
+	 * @typedef {Object} Transaction
+	 * @property {string} id
+	 * @property {string} [bookingDate]
+	 * @property {string} [description]
+	 * @property {number} [amount]
+	 * @property {string} [currency]
+	 */
+
+	/** @type {Account[]} */
 	let accounts = [];
 	let loading = true;
+	/** @type {string|null} */
 	let error = null;
 	let newAccountName = '';
 	let newAccountCurrency = 'NOK';
 	let newAccountNo = '';
 	let showCreateForm = false;
 
+	/** @type {Account|null} */
 	let selectedAccount = null;
+	/** @type {Transaction[]} */
 	let transactions = [];
 	let transactionsLoading = false;
+	/** @type {string|null} */
 	let transactionsError = null;
+
+	/** @param {unknown} err */
+	function getErrorMessage(err) {
+		return err instanceof Error ? err.message : String(err);
+	}
 
 	async function fetchAccounts() {
 		try {
@@ -24,13 +51,14 @@
 			}
 			accounts = await response.json();
 		} catch (err) {
-			error = err.message;
+			error = getErrorMessage(err);
 			console.error('Error fetching accounts:', err);
 		} finally {
 			loading = false;
 		}
 	}
 
+	/** @param {string} accountId */
 	async function fetchTransactions(accountId) {
 		try {
 			transactionsLoading = true;
@@ -43,13 +71,14 @@
 			}
 			transactions = await response.json();
 		} catch (err) {
-			transactionsError = err?.message ?? String(err);
+			transactionsError = getErrorMessage(err);
 			console.error('Error fetching transactions:', err);
 		} finally {
 			transactionsLoading = false;
 		}
 	}
 
+	/** @param {Account} account */
 	function toggleAccountDetails(account) {
 		if (selectedAccount?.id === account.id) {
 			selectedAccount = null;
@@ -61,6 +90,13 @@
 
 		selectedAccount = account;
 		fetchTransactions(account.id);
+	}
+
+	/** @param {Account} account */
+	function handleAccountKeydown(/** @type {KeyboardEvent} */ event, account) {
+		if (event.key === 'Enter') {
+			toggleAccountDetails(account);
+		}
 	}
 
 	async function createAccount() {
@@ -116,11 +152,12 @@
 			// Refresh accounts list
 			await fetchAccounts();
 		} catch (err) {
-			error = err.message;
+			error = getErrorMessage(err);
 			console.error('Error creating account:', err);
 		}
 	}
 
+	/** @param {string} id */
 	async function deleteAccount(id) {
 		if (!confirm('Er du sikker på at du vil slette denne kontoen?')) {
 			return;
@@ -145,7 +182,7 @@
 				transactionsLoading = false;
 			}
 		} catch (err) {
-			error = err.message;
+			error = getErrorMessage(err);
 			console.error('Error deleting account:', err);
 		}
 	}
@@ -154,6 +191,7 @@
 		fetchAccounts();
 	});
 
+	/** @param {string} value */
 	function isValidNorwegianAccountNo(value) {
 		if (!/^\d{11}$/.test(value)) {
 			return false;
@@ -262,7 +300,7 @@
 							on:click={() => toggleAccountDetails(account)}
 							role="button"
 							tabindex="0"
-							on:keydown={(e) => e.key === 'Enter' && toggleAccountDetails(account)}
+							on:keydown={(event) => handleAccountKeydown(event, account)}
 						>
 							<td class="account-name">{account.name}</td>
 							<td>{account.accountNo || '-'}</td>
@@ -385,8 +423,7 @@
 		color: #495057;
 	}
 
-	.form-group input,
-	.form-group select {
+	.form-group input {
 		width: 100%;
 		padding: 10px;
 		border: 1px solid #ced4da;
@@ -394,8 +431,7 @@
 		font-size: 14px;
 	}
 
-	.form-group input:focus,
-	.form-group select:focus {
+	.form-group input:focus {
 		outline: none;
 		border-color: #3498db;
 		box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
@@ -498,35 +534,6 @@
 	.account-name {
 		font-weight: 500;
 		color: #2c3e50;
-	}
-
-	.account-type {
-		display: inline-block;
-		padding: 4px 12px;
-		border-radius: 12px;
-		font-size: 12px;
-		font-weight: 500;
-		text-transform: uppercase;
-	}
-
-	.type-bank {
-		background: #e3f2fd;
-		color: #1565c0;
-	}
-
-	.type-credit_card {
-		background: #f3e5f5;
-		color: #6a1b9a;
-	}
-
-	.type-cash {
-		background: #e8f5e9;
-		color: #2e7d32;
-	}
-
-	.type-investment {
-		background: #fff3e0;
-		color: #e65100;
 	}
 
 	.btn-primary,
