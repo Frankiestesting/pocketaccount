@@ -127,18 +127,33 @@ Use @ControllerAdvice and map:
 
 ```mermaid
 flowchart LR
-  UI[UI (web & mobile)] -->|upload PDF| DOC[Document API]
-  DOC -->|store file + metadata| FS[(File storage)]
-  DOC -->|create job| JQ[Job row]
-  JQ -->|after commit| RUN[Interpretation job runner]
-  RUN -->|PDFBox/OCR/AI| PIPE[Interpretation pipeline]
-  PIPE --> RES[Interpretation result]
-  RES --> CORR[Corrections]
-  RES --> RECEIPT[Receipts]
-  RES --> STMT[Statement transactions]
-  RECEIPT --> MATCH[Receipt match]
-  STMT --> BANK[Bank transactions]
-  MATCH --> RECON[Reconciliation export]
-  RES --> API[Result & listing APIs]
+  UI[UI (web & mobile)]
+  DOC[Document API]
+  FS[(File storage)]
+  JQ[Job row]
+  RUN[Interpretation job runner]
+  PIPE[Interpretation pipeline]
+  RES[Interpretation result]
+  CORR[Corrections]
+  RECEIPT[Receipts]
+  STMT[Statement transactions]
+  MATCH[Receipt match]
+  BANK[Bank transactions]
+  RECON[Reconciliation export]
+  API[Result & listing APIs]
+
+  UI -->|upload PDF| DOC
+  DOC -->|store file + metadata| FS
+  DOC -->|create job| JQ
+  JQ -->|after commit| RUN
+  RUN -->|PDFBox/OCR/AI| PIPE
+  PIPE --> RES
+  RES --> CORR
+  RES --> RECEIPT
+  RES --> STMT
+  RECEIPT --> MATCH
+  STMT --> BANK
+  MATCH --> RECON
+  RES --> API
   API --> UI
 ```
