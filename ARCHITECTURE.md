@@ -231,3 +231,26 @@ sequenceDiagram
   Runner->>JobRepo: Oppdater status COMPLETED/FAILED
   Runner-->>UI: (poll via GET /jobs/{jobId}) status/resultat tilgjengelig
 ```
+
+## 10) Use case: Corrections (sequence)
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant UI
+  participant IntAPI as Interpretation API
+  participant ResultRepo as Interpretation result repo
+  participant CorrHist as Correction history
+
+  User->>UI: Åpne tolkingsresultat (viser original)
+  UI->>IntAPI: GET /api/v1/interpretation/documents/{id}/result
+  IntAPI-->>UI: Returnerer latest result (original tolking)
+  User->>UI: Rediger felt/transaksjoner (korrigert versjon)
+  UI->>IntAPI: PUT /api/v1/interpretation/documents/{id}/correction { correctedFields/transactions }
+  IntAPI->>ResultRepo: Lagre korrigert versjon (samme documentId, ny versjon)
+  IntAPI->>CorrHist: Append snapshot (before/after) for audit
+  ResultRepo-->>IntAPI: OK (corrected stored)
+  CorrHist-->>IntAPI: OK
+  IntAPI-->>UI: 200 OK
+  UI-->>User: Viser korrigert visning; original er fortsatt bevart i historikk
+```
