@@ -232,29 +232,24 @@ sequenceDiagram
   Runner-->>UI: (poll via GET /jobs/{jobId}) status/resultat tilgjengelig
 ```
 
-## 10) Use case: Corrections (sequence)
-
-```mermaid
 sequenceDiagram
   participant User
   participant UI
-  participant IntAPI as Interpretation API
-  participant ResultRepo as Interpretation result repo
-  participant CorrHist as Correction history
+  participant IntAPI as "Interpretation API"
+  participant ResultRepo as "Interpretation result repo"
+  participant CorrHist as "Correction history"
 
-  User->>UI: Åpne tolkingsresultat (viser original)
-  UI->>IntAPI: GET /api/v1/interpretation/documents/{id}/result
-  IntAPI-->>UI: Returnerer latest result (original)
-  User->>UI: Rediger felt/transaksjoner (korrigert)
-  UI->>IntAPI: PUT /api/v1/interpretation/documents/{id}/correction
-  IntAPI->>ResultRepo: Lagre korrigert versjon (samme documentId)
-  IntAPI->>CorrHist: Lagre snapshot (før/etter)
-  ResultRepo-->>IntAPI: OK
-  CorrHist-->>IntAPI: OK
-  IntAPI-->>UI: 200 OK
-  UI-->>User: Viser korrigert; original er bevart i historikk
-```
-
+  User->>UI: "Åpne tolkingsresultat (viser original)"
+  UI->>IntAPI: "GET /api/v1/interpretation/documents/{id}/result"
+  IntAPI-->>UI: "Returnerer latest result (original)"
+  User->>UI: "Rediger felt/transaksjoner (korrigert)"
+  UI->>IntAPI: "PUT /api/v1/interpretation/documents/{id}/correction"
+  IntAPI->>ResultRepo: "Lagre korrigert versjon (samme documentId)"
+  IntAPI->>CorrHist: "Lagre snapshot (før/etter)"
+  ResultRepo-->>IntAPI: "OK"
+  CorrHist-->>IntAPI: "OK"
+  IntAPI-->>UI: "200 OK"
+  UI-->>User: "Viser korrigert, original er bevart i historikk"
 ## 11) Use case: Approve statement transaction (sequence)
 
 ```mermaid
