@@ -187,3 +187,41 @@ sequenceDiagram
   DocumentAPI-->>UI: 201 Created + documentId
   UI-->>User: Viser opplastet dokument og tilbyr "start tolkning"
 ```
+
+## 9) Use case: Interpret document (sequence)
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant UI
+  participant IntAPI as Interpretation API
+  participant JobRepo as Interpretation job repo
+  participant Runner as Job runner
+  participant Pipeline as Pipeline
+  participant ResultRepo as Interpretation result repo
+
+  User->>UI: Klikk "Start tolkning" (velger metode: PDFBox/OCR/AI)
+  UI->>IntAPI: POST /api/v1/interpretation/documents/{id}/jobs { useOcr, useAi, languageHint }
+  IntAPI->>JobRepo: Lagre job (PENDING)
+  JobRepo-->>IntAPI: OK
+  IntAPI-->>UI: 202 Accepted + jobId
+  IntAPI-->>Runner: (after commit) start job async
+
+  Runner->>JobRepo: Oppdater status RUNNING
+  Runner->>Pipeline: Start pipeline
+  alt useOcr = true
+    Pipeline->>Pipeline: OCR (tekstuttrekk)
+  else useOcr = false
+    Pipeline->>Pipeline: PDFBox tekstuttrekk
+  end
+  alt useAi = true
+    Pipeline->>Pipeline: AI extraction (klassifisering/felt)
+  else
+    Pipeline->>Pipeline: Heuristikk/regex extraction
+  end
+  Pipeline->>Pipeline: Normalisering + confidence + warnings
+  Pipeline-->>Runner: Structured result
+  Runner->>ResultRepo: Lagre resultat (jobId, documentId, felt/transaksjoner)
+  Runner->>JobRepo: Oppdater status COMPLETED/FAILED
+  Runner-->>UI: (poll via GET /jobs/{jobId}) status/resultat tilgjengelig
+```

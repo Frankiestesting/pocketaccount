@@ -122,3 +122,5 @@ Store:
 - corrected result (user "final")
 
 Always link results to documentId and version them.
+Update documentation (ARCHITECTURE.md) with any new architectural decisions or patterns as they arise during development.
+Update documentation(use-case diagrams, sequence diagrams) as needed to reflect the current design and implementation.
