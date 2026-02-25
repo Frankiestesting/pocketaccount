@@ -33,6 +33,9 @@ public class InterpretationResult {
     
     @Column(length = 500)
     private String extractionMethods;
+
+    @Column(name = "account_no", length = 11)
+    private String accountNo;
     
     @Embedded
     private InvoiceFieldsDTO invoiceFields;

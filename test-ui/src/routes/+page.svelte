@@ -489,11 +489,11 @@
 </svelte:head>
 
 <section>
-	<h1>Upload PDF Document</h1>
+	<h1>Upload Document</h1>
 	<form on:submit={handleSubmit}>
 		<div>
-			<label for="file">Select PDF File:</label>
-			<input type="file" id="file" accept=".pdf" bind:files />
+			<label for="file">Select File (PDF/PNG/JPG):</label>
+			<input type="file" id="file" accept=".pdf,.png,.jpg,.jpeg" bind:files />
 		</div>
 		<div>
 			<label for="source">Source:</label>

@@ -22,6 +22,11 @@ public class SaveCorrectionRequestDTO {
      * Corrected statement transactions (only for STATEMENT type).
      */
     private List<TransactionDto> transactions;
+
+    /**
+     * Statement account number (common for the full statement).
+     */
+    private String accountNo;
     
     /**
      * Optional note about the correction.
@@ -61,6 +66,14 @@ public class SaveCorrectionRequestDTO {
 
     public void setTransactions(List<TransactionDto> transactions) {
         this.transactions = transactions;
+    }
+
+    public String getAccountNo() {
+        return accountNo;
+    }
+
+    public void setAccountNo(String accountNo) {
+        this.accountNo = accountNo;
     }
 
     public String getNote() {

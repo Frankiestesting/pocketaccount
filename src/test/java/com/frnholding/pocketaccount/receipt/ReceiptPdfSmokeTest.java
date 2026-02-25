@@ -73,7 +73,7 @@ class ReceiptPdfSmokeTest {
                     assertThat(extracted.buyDate).isNotBlank();
                     assertThat(extracted.description).isNotBlank();
                 }
-            } else if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
+            } else if (lower.endsWith(".jpg") || lower.endsWith(".jpeg") || lower.endsWith(".png")) {
                 BufferedImage image = ImageIO.read(file.toFile());
                 assertThat(image).as("Image should be readable: %s", filename).isNotNull();
                 System.out.printf("Image: %dx%d\n", image.getWidth(), image.getHeight());

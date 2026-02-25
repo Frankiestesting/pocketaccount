@@ -72,8 +72,8 @@
 
 	<div class="upload-form">
 		<div class="form-group">
-			<label for="file">Velg PDF-fil:</label>
-			<input type="file" id="file" accept=".pdf" bind:files disabled={uploading} />
+			<label for="file">Velg fil (PDF/PNG/JPG):</label>
+			<input type="file" id="file" accept=".pdf,.png,.jpg,.jpeg" bind:files disabled={uploading} />
 			{#if file}
 				<p class="file-info">Valgt: {file.name} ({(file.size / 1024).toFixed(2)} KB)</p>
 			{/if}
@@ -85,7 +85,7 @@
 				type="text"
 				id="originalFilename"
 				bind:value={originalFilename}
-				placeholder="f.eks. faktura_2026_01.pdf"
+				placeholder="f.eks. faktura_2026_01.pdf eller kvittering_2026_01.png"
 				disabled={uploading}
 			/>
 		</div>

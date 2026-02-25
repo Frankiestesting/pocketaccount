@@ -2,12 +2,14 @@ package com.frnholding.pocketaccount.interpretation.infra;
 
 import com.frnholding.pocketaccount.interpretation.pipeline.DocumentTextInterpreter;
 import com.frnholding.pocketaccount.interpretation.pipeline.InterpretedText;
+import com.frnholding.pocketaccount.repository.DocumentRepository;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import java.util.HashMap;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 
@@ -26,10 +28,12 @@ public class CompositeTextExtractor implements DocumentTextInterpreter {
 
     private final PdfBoxTextExtractor pdfBoxExtractor;
     private final OcrTextExtractor ocrExtractor;
+    private final DocumentRepository documentRepository;
 
-    public CompositeTextExtractor(PdfBoxTextExtractor pdfBoxExtractor, OcrTextExtractor ocrExtractor) {
+    public CompositeTextExtractor(PdfBoxTextExtractor pdfBoxExtractor, OcrTextExtractor ocrExtractor, DocumentRepository documentRepository) {
         this.pdfBoxExtractor = pdfBoxExtractor;
         this.ocrExtractor = ocrExtractor;
+        this.documentRepository = documentRepository;
     }
 
     @Value("${ocr.fallback.min-text-length:100}")
@@ -45,29 +49,35 @@ public class CompositeTextExtractor implements DocumentTextInterpreter {
     public InterpretedText extract(UUID documentId) {
         log.info("Starting composite text extraction for document {}", documentId);
         
+        boolean isPdf = isPdfDocument(documentId);
+
         // Step 1: Try PDFBox extraction first (fast path)
         InterpretedText pdfBoxResult = null;
         boolean pdfBoxSuccessful = false;
         
-        try {
-            pdfBoxResult = pdfBoxExtractor.extract(documentId);
-            pdfBoxSuccessful = isExtractionSufficient(pdfBoxResult);
-            
-            if (pdfBoxSuccessful) {
-                log.info("PDFBox extraction successful for document {}, OCR not needed", documentId);
-                pdfBoxResult.setTextExtractorUsed("PDFBox");
-                enrichMetadata(pdfBoxResult, "PDFBox", false);
-                return pdfBoxResult;
-            } else {
-                log.info("PDFBox extraction insufficient for document {}, falling back to OCR. " +
-                        "Extracted {} chars in {} lines", 
-                        documentId, 
-                        pdfBoxResult.getRawText().length(), 
-                        pdfBoxResult.getLines().size());
+        if (isPdf) {
+            try {
+                pdfBoxResult = pdfBoxExtractor.extract(documentId);
+                pdfBoxSuccessful = isExtractionSufficient(pdfBoxResult);
+                
+                if (pdfBoxSuccessful) {
+                    log.info("PDFBox extraction successful for document {}, OCR not needed", documentId);
+                    pdfBoxResult.setTextExtractorUsed("PDFBox");
+                    enrichMetadata(pdfBoxResult, "PDFBox", false);
+                    return pdfBoxResult;
+                } else {
+                    log.info("PDFBox extraction insufficient for document {}, falling back to OCR. " +
+                            "Extracted {} chars in {} lines", 
+                            documentId, 
+                            pdfBoxResult.getRawText().length(), 
+                            pdfBoxResult.getLines().size());
+                }
+            } catch (Exception e) {
+                log.warn("PDFBox extraction failed for document {}: {}. Falling back to OCR", 
+                        documentId, e.getMessage());
             }
-        } catch (Exception e) {
-            log.warn("PDFBox extraction failed for document {}: {}. Falling back to OCR", 
-                    documentId, e.getMessage());
+        } else {
+            log.info("Document {} is not a PDF, skipping PDFBox and using OCR", documentId);
         }
 
         // Step 2: Fallback to OCR (slow but thorough path)
@@ -157,6 +167,13 @@ public class CompositeTextExtractor implements DocumentTextInterpreter {
         log.debug("Extraction sufficient: {} chars, {} lines, avg {:.1f} chars/line, {:.1%} alphanumeric",
                 textLength, lineCount, avgCharsPerLine, alphanumericRatio);
         return true;
+    }
+
+    private boolean isPdfDocument(UUID documentId) {
+        return documentRepository.findById(documentId.toString())
+                .map(entity -> entity.getFilePath())
+                .map(path -> path.toLowerCase(Locale.ROOT).endsWith(".pdf"))
+                .orElse(true);
     }
 
     /**

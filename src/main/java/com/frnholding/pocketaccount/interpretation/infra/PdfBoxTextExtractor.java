@@ -60,6 +60,7 @@ public class PdfBoxTextExtractor implements DocumentTextInterpreter {
                     .map(info -> info.getAuthor())
                     .orElse("Unknown"));
             metadata.put("extractor", "PDFBox");
+                metadata.put("originalFilename", document.getOriginalFilename());
 
             log.info("Successfully extracted {} lines from {} pages using PDFBox", 
                     lines.size(), pdDocument.getNumberOfPages());

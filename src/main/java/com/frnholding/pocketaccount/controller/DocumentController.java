@@ -63,14 +63,14 @@ public class DocumentController {
     }
 
     @PostMapping(value = "/documents", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-    @Operation(summary = "Upload a new document", description = "Upload a PDF document for processing")
+        @Operation(summary = "Upload a new document", description = "Upload a PDF or image document for processing")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "201", description = "Document uploaded successfully"),
             @ApiResponse(responseCode = "400", description = "Invalid file or parameters"),
             @ApiResponse(responseCode = "500", description = "Server error during upload")
     })
     public ResponseEntity<DocumentUploadResponseDTO> uploadDocument(
-            @RequestParam("file") @Parameter(description = "PDF file to upload") MultipartFile file,
+            @RequestParam("file") @Parameter(description = "PDF/PNG/JPG file to upload") MultipartFile file,
             @RequestParam("source") @Parameter(description = "Document source/origin") String source,
             @RequestParam("originalFilename") @Parameter(description = "Original filename") String originalFilename,
             @RequestParam(value = "documentType", defaultValue = "PDF") @Parameter(description = "Document type (INVOICE, STATEMENT, RECEIPT, PDF)") String documentType) throws IOException {
@@ -119,18 +119,58 @@ public class DocumentController {
         }
 
     @GetMapping("/documents/{documentId}/file")
-    @Operation(summary = "Download document file", description = "Download the PDF file for a document")
+    @Operation(summary = "Download document file", description = "Download the file for a document")
     @ApiResponses(value = {
             @ApiResponse(responseCode = "200", description = "File retrieved successfully", 
                     content = @Content(mediaType = "application/pdf")),
             @ApiResponse(responseCode = "404", description = "Document not found")
     })
-        public ResponseEntity<Resource> getDocumentFile(@PathVariable @Parameter(description = "Document ID") UUID documentId) throws IOException {
+    public ResponseEntity<Resource> getDocumentFile(@PathVariable @Parameter(description = "Document ID") UUID documentId) throws IOException {
+        Document document = documentService.getDocument(documentId.toString());
+        if (document == null) {
+            return ResponseEntity.notFound().build();
+        }
         Resource file = documentService.getDocumentFile(documentId.toString());
+        MediaType mediaType = resolveMediaType(document.getFilePath(), document.getOriginalFilename());
+        String downloadName = resolveDownloadName(document, documentId.toString());
         return ResponseEntity.ok()
-                .contentType(MediaType.APPLICATION_PDF)
-                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + documentId + ".pdf\"")
+                .contentType(mediaType)
+                .header(HttpHeaders.CONTENT_DISPOSITION, "inline; filename=\"" + downloadName + "\"")
                 .body(file);
+    }
+
+    private MediaType resolveMediaType(String filePath, String originalFilename) {
+        String extension = getExtension(filePath != null ? filePath : originalFilename);
+        if ("png".equals(extension)) {
+            return MediaType.IMAGE_PNG;
+        }
+        if ("jpg".equals(extension) || "jpeg".equals(extension)) {
+            return MediaType.IMAGE_JPEG;
+        }
+        return MediaType.APPLICATION_PDF;
+    }
+
+    private String resolveDownloadName(Document document, String documentId) {
+        String originalFilename = document.getOriginalFilename();
+        if (originalFilename != null && !originalFilename.isBlank()) {
+            return originalFilename;
+        }
+        String extension = getExtension(document.getFilePath());
+        if (extension == null) {
+            return documentId;
+        }
+        return documentId + "." + extension;
+    }
+
+    private String getExtension(String filename) {
+        if (filename == null || filename.isBlank()) {
+            return null;
+        }
+        int lastDot = filename.lastIndexOf('.');
+        if (lastDot < 0 || lastDot == filename.length() - 1) {
+            return null;
+        }
+        return filename.substring(lastDot + 1).toLowerCase();
     }
 
     @PostMapping("/documents/{documentId}/jobs")

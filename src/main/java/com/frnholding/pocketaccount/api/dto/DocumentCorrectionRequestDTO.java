@@ -67,6 +67,7 @@ public class DocumentCorrectionRequestDTO {
             if (!transactions.isEmpty()) {
                 request.setTransactions(transactions);
             }
+            request.setAccountNo(toStringValue(safeFields.get("accountNo")));
             return request;
         }
 

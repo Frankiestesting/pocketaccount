@@ -38,6 +38,13 @@ public class RegexInvoiceExtractor implements InvoiceExtractor {
         Pattern.CASE_INSENSITIVE | Pattern.MULTILINE
     );
 
+    // Total label pattern for short receipts (e.g., "Tot:  kr. 30.00")
+    private static final Pattern TOTAL_LINE_PATTERN = Pattern.compile(
+        "(?:t[o0]t(?:al|alt)?|sum|beløp|til\\s+betaling)\\s*:?\\s*(?:k\\s*r\\.?|kr\\.|kr|NOK)?\\s*" +
+        "([\\d' .]+[,.]\\d{2})",
+        Pattern.CASE_INSENSITIVE | Pattern.MULTILINE
+    );
+
     // Simple amount pattern as fallback (including Norwegian format)
     private static final Pattern SIMPLE_AMOUNT_PATTERN = Pattern.compile(
         "([€$£¥₣kr])?\\s*([\\d,' .]+[,.]\\d{2})(?:\\s*([A-Z]{3}|kr|NOK))?\\b"
@@ -82,7 +89,7 @@ public class RegexInvoiceExtractor implements InvoiceExtractor {
         InvoiceFieldsDTO fields = new InvoiceFieldsDTO();
 
         // Extract amount
-        Double amount = extractAmount(content);
+        Double amount = extractAmount(content, text.getLines());
         if (amount != null) {
             fields.setAmount(amount);
             log.debug("Extracted amount: {}", amount);
@@ -122,34 +129,40 @@ public class RegexInvoiceExtractor implements InvoiceExtractor {
         return fields;
     }
 
-    private Double extractAmount(String content) {
+    private Double extractAmount(String content, List<String> lines) {
+        Double egenandelAmount = findAmountByLabel(content, "egenandel|egen andel");
+        if (egenandelAmount != null) {
+            return egenandelAmount;
+        }
+
+        Double totalFromLines = findAmountFromTotalLines(lines);
+        if (totalFromLines != null) {
+            return totalFromLines;
+        }
+
+        // Prefer explicit total lines for small receipts
+        Matcher totalMatcher = TOTAL_LINE_PATTERN.matcher(content);
+        List<Double> totals = new ArrayList<>();
+        while (totalMatcher.find()) {
+            String amountStr = totalMatcher.group(1);
+            Double parsed = parseAmountValue(amountStr);
+            if (parsed != null && parsed > 0) {
+                totals.add(parsed);
+            }
+        }
+        if (!totals.isEmpty()) {
+            return totals.get(totals.size() - 1);
+        }
+
         // Try to find amount with context (total, amount, etc.)
         Matcher matcher = AMOUNT_PATTERN.matcher(content);
         List<Double> amounts = new ArrayList<>();
         
         while (matcher.find()) {
             String amountStr = matcher.group(2);
-            if (amountStr != null) {
-                try {
-                    // Parse Norwegian format (comma decimal) or standard format (dot decimal)
-                    amountStr = amountStr.trim();
-                    double amount;
-                    
-                    if (amountStr.contains(",") && amountStr.lastIndexOf(',') > amountStr.lastIndexOf('.')) {
-                        // Norwegian format: 1.234,56 or 1 234,56
-                        amount = parseNorwegianAmount(amountStr);
-                    } else {
-                        // Standard format: 1,234.56
-                        amountStr = amountStr.replace(",", "").replace("'", "").replace(" ", "");
-                        amount = Double.parseDouble(amountStr);
-                    }
-                    
-                    if (amount > 0) {
-                        amounts.add(amount);
-                    }
-                } catch (Exception e) {
-                    log.debug("Could not parse amount: {}", amountStr);
-                }
+            Double parsed = parseAmountValue(amountStr);
+            if (parsed != null && parsed > 0) {
+                amounts.add(parsed);
             }
         }
 
@@ -162,33 +175,89 @@ public class RegexInvoiceExtractor implements InvoiceExtractor {
         matcher = SIMPLE_AMOUNT_PATTERN.matcher(content);
         while (matcher.find()) {
             String amountStr = matcher.group(2);
-            if (amountStr != null) {
-                try {
-                    amountStr = amountStr.trim();
-                    double amount;
-                    
-                    if (amountStr.contains(",") && amountStr.lastIndexOf(',') > amountStr.lastIndexOf('.')) {
-                        // Norwegian format
-                        amount = parseNorwegianAmount(amountStr);
-                    } else {
-                        // Standard format
-                        amountStr = amountStr.replace(",", "").replace("'", "").replace(" ", "");
-                        amount = Double.parseDouble(amountStr);
-                    }
-                    
-                    if (amount > 0) {
-                        amounts.add(amount);
-                    }
-                } catch (Exception e) {
-                    log.debug("Could not parse fallback amount: {}", amountStr);
-                }
+            Double parsed = parseAmountValue(amountStr);
+            if (parsed != null && parsed > 0) {
+                amounts.add(parsed);
             }
         }
 
         // Return largest amount from fallback
         return amounts.stream().max(Double::compareTo).orElse(null);
     }
+
+    private Double findAmountByLabel(String content, String labelRegex) {
+        if (content == null) {
+            return null;
+        }
+        Pattern labeledAmount = Pattern.compile(
+            "(?:" + labelRegex + ")\\s*:?\\s*(?:kr\\.|kr|NOK)?\\s*([\\d' .]+[,.]\\d{2})",
+            Pattern.CASE_INSENSITIVE | Pattern.MULTILINE
+        );
+        Matcher matcher = labeledAmount.matcher(content);
+        Double last = null;
+        while (matcher.find()) {
+            last = parseAmountValue(matcher.group(1));
+        }
+        return last;
+    }
+
+    private Double findAmountFromTotalLines(List<String> lines) {
+        if (lines == null || lines.isEmpty()) {
+            return null;
+        }
+        Pattern totalLabel = Pattern.compile("\\b(t[o0]t(?:al|alt)?|sum|beløp|total\\s*pris|totalpris)\\b",
+                Pattern.CASE_INSENSITIVE);
+        Pattern amountPattern = Pattern.compile("([\\d' .]+[,.]\\d{2})");
+
+        for (int i = 0; i < lines.size(); i++) {
+            String line = lines.get(i);
+            if (line == null) {
+                continue;
+            }
+            if (!totalLabel.matcher(line).find()) {
+                continue;
+            }
+            Matcher sameLine = amountPattern.matcher(line);
+            if (sameLine.find()) {
+                Double parsed = parseAmountValue(sameLine.group(1));
+                if (parsed != null && parsed > 0) {
+                    return parsed;
+                }
+            }
+            for (int j = i + 1; j <= Math.min(i + 2, lines.size() - 1); j++) {
+                String next = lines.get(j);
+                if (next == null) {
+                    continue;
+                }
+                Matcher nextLine = amountPattern.matcher(next);
+                if (nextLine.find()) {
+                    Double parsed = parseAmountValue(nextLine.group(1));
+                    if (parsed != null && parsed > 0) {
+                        return parsed;
+                    }
+                }
+            }
+        }
+        return null;
+    }
     
+    private Double parseAmountValue(String amountStr) {
+        if (amountStr == null) {
+            return null;
+        }
+        try {
+            String trimmed = amountStr.trim();
+            if (trimmed.contains(",") && trimmed.lastIndexOf(',') > trimmed.lastIndexOf('.')) {
+                return parseNorwegianAmount(trimmed);
+            }
+            trimmed = trimmed.replace(",", "").replace("'", "").replace(" ", "");
+            return Double.parseDouble(trimmed);
+        } catch (Exception e) {
+            log.debug("Could not parse amount: {}", amountStr);
+            return null;
+        }
+    }
+
     private double parseNorwegianAmount(String amountStr) throws NumberFormatException {
         // Remove "kr" and "NOK" suffix/prefix
         amountStr = amountStr.trim()

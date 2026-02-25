@@ -79,8 +79,12 @@ public class DocumentService {
             throw new IllegalArgumentException("File is empty");
         }
         String filename = file.getOriginalFilename();
-        if (filename == null || !filename.toLowerCase().endsWith(".pdf")) {
-            throw new IllegalArgumentException("File must be a PDF");
+        if (filename == null || filename.isBlank()) {
+            filename = originalFilename;
+        }
+        String extension = getFileExtension(filename);
+        if (extension == null || !isSupportedUploadExtension(extension)) {
+            throw new IllegalArgumentException("File must be a PDF or image (PNG/JPG)");
         }
 
         // Generate ID
@@ -91,8 +95,8 @@ public class DocumentService {
         if (!Files.exists(uploadPath)) {
             Files.createDirectories(uploadPath);
         }
-        String filePath = UPLOAD_DIR + id + ".pdf";
-        Path path = uploadPath.resolve(id + ".pdf");
+        String filePath = UPLOAD_DIR + id + "." + extension;
+        Path path = uploadPath.resolve(id + "." + extension);
         Files.copy(file.getInputStream(), path);
 
         // Create document
@@ -103,6 +107,21 @@ public class DocumentService {
         documentRepository.save(entity);
 
         return document;
+    }
+
+    private String getFileExtension(String filename) {
+        if (filename == null || filename.isBlank()) {
+            return null;
+        }
+        int lastDot = filename.lastIndexOf('.');
+        if (lastDot < 0 || lastDot == filename.length() - 1) {
+            return null;
+        }
+        return filename.substring(lastDot + 1).toLowerCase();
+    }
+
+    private boolean isSupportedUploadExtension(String extension) {
+        return "pdf".equals(extension) || "png".equals(extension) || "jpg".equals(extension) || "jpeg".equals(extension);
     }
 
     public Document getDocument(String documentId) {
@@ -302,7 +321,7 @@ public class DocumentService {
                         t.getCurrency(),
                         t.getDescription(),
                         null,
-                        t.getAccountNo(),
+                        t.getAccountNo() != null ? t.getAccountNo() : interpretationResult.getAccountNo(),
                         t.isApproved()
                     ))
                     .collect(Collectors.toList());
@@ -335,7 +354,7 @@ public class DocumentService {
         }
         
         if ("STATEMENT".equals(documentType)) {
-            return new ExtractionResultResponseDTO(
+            ExtractionResultResponseDTO response = new ExtractionResultResponseDTO(
                 documentId,
                 "STATEMENT",
                 1,
@@ -346,9 +365,13 @@ public class DocumentService {
                 warnings.isEmpty() ? null : warnings,
                 extractedTransactions
             );
+            if (interpretationResult != null) {
+                response.setAccountNo(interpretationResult.getAccountNo());
+            }
+            return response;
         }
 
-        return new ExtractionResultResponseDTO(
+        ExtractionResultResponseDTO response = new ExtractionResultResponseDTO(
             documentId,
             documentType,
             1,
@@ -359,6 +382,10 @@ public class DocumentService {
             warnings.isEmpty() ? null : warnings,
             null // transactions not used for INVOICE/RECEIPT
         );
+        if (interpretationResult != null) {
+            response.setAccountNo(interpretationResult.getAccountNo());
+        }
+        return response;
     }
 
     public DocumentCorrectionResponseDTO saveCorrection(String documentId, DocumentCorrectionRequestDTO request) {

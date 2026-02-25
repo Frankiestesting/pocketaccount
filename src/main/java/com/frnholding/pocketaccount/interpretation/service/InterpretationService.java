@@ -352,7 +352,7 @@ public class InterpretationService {
             if (receiptMatchRepository.existsByReceiptIdAndStatus(existing.getId(), ReceiptMatchStatus.ACTIVE)) {
                 throw new ConflictException("Cannot create receipt: document is locked by matched receipt");
             }
-            throw new ConflictException("Receipt already exists for document: " + documentUuid);
+            receiptRepository.delete(existing);
         });
 
         CreateReceiptRequest request = new CreateReceiptRequest(
@@ -372,6 +372,10 @@ public class InterpretationService {
             throw new EntityNotFoundException("Job not found: " + jobId);
         }
 
+        String defaultAccountNo = interpretationResultRepository.findByJobId(jobId)
+            .map(InterpretationResult::getAccountNo)
+            .orElse(null);
+
         List<StatementTransaction> transactions =
             statementTransactionRepository.findByInterpretationResult_JobId(jobId);
 
@@ -382,7 +386,7 @@ public class InterpretationService {
                         tx.getDescription(),
                         tx.getCurrency(),
                         tx.getAmount(),
-                        tx.getAccountNo(),
+                tx.getAccountNo() != null ? tx.getAccountNo() : defaultAccountNo,
                         tx.isApproved()
                 ))
                 .collect(Collectors.toList());
@@ -409,6 +413,7 @@ public class InterpretationService {
         response.setDocumentType(result.getDocumentType());
         response.setInterpretedAt(result.getInterpretedAt());
         response.setExtractionMethods(result.getExtractionMethods());
+        response.setAccountNo(result.getAccountNo());
 
         // Populate invoice fields if present
         if (result.getInvoiceFields() != null) {
@@ -431,7 +436,7 @@ public class InterpretationService {
                             t.getCurrency(),
                             t.getDate(),
                         t.getDescription(),
-                        t.getAccountNo(),
+                        t.getAccountNo() != null ? t.getAccountNo() : result.getAccountNo(),
                         t.isApproved()
                     ))
                     .collect(Collectors.toList());
@@ -476,6 +481,22 @@ public class InterpretationService {
 
         // Update with corrected data (capture previous snapshot first)
         result.setDocumentType(resolvedDocumentType);
+
+        if (request.getAccountNo() != null) {
+            if (result.getAccountNo() == null || !result.getAccountNo().equals(request.getAccountNo())) {
+                Map<String, Object> previousSnapshot = new LinkedHashMap<>();
+                previousSnapshot.put("accountNo", result.getAccountNo());
+                nextVersion = ensureVersion(nextVersion, documentId);
+                saveHistory(document, resolvedDocumentType, "STATEMENT_ACCOUNT", null,
+                    previousSnapshot,
+                    request.getNote(),
+                    nextVersion,
+                    correctedAt,
+                    correctedBy);
+                historySaved = true;
+            }
+            result.setAccountNo(request.getAccountNo());
+        }
 
         if (request.getInvoiceFields() != null) {
             Map<String, Object> previousSnapshot = buildInvoiceSnapshot(result.getInvoiceFields());
@@ -526,13 +547,20 @@ public class InterpretationService {
 
             // Add corrected transactions
             for (SaveCorrectionRequestDTO.TransactionDto dto : request.getTransactions()) {
+                String resolvedAccountNo = dto.getAccountNo();
+                if (resolvedAccountNo == null) {
+                    resolvedAccountNo = request.getAccountNo();
+                }
+                if (resolvedAccountNo == null) {
+                    resolvedAccountNo = result.getAccountNo();
+                }
                 StatementTransaction transaction = new StatementTransaction();
                 transaction.setInterpretationResult(result);
                 transaction.setAmount(dto.getAmount());
                 transaction.setCurrency(dto.getCurrency());
                 transaction.setDate(dto.getDate());
                 transaction.setDescription(dto.getDescription());
-                transaction.setAccountNo(dto.getAccountNo());
+                transaction.setAccountNo(resolvedAccountNo);
                 transaction.setApproved(Boolean.TRUE.equals(dto.getApproved()));
                 result.getStatementTransactions().add(transaction);
             }

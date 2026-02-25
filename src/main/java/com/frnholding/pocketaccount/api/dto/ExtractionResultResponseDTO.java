@@ -14,6 +14,7 @@ public class ExtractionResultResponseDTO {
     private Map<String, Double> confidence;
     private List<String> warnings;
     private List<Transaction> transactions;
+    private String accountNo;
 
     public ExtractionResultResponseDTO() {
     }
@@ -104,6 +105,14 @@ public class ExtractionResultResponseDTO {
 
     public void setTransactions(List<Transaction> transactions) {
         this.transactions = transactions;
+    }
+
+    public String getAccountNo() {
+        return accountNo;
+    }
+
+    public void setAccountNo(String accountNo) {
+        this.accountNo = accountNo;
     }
     
     public static class Transaction {

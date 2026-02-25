@@ -29,6 +29,11 @@ public class ExtractionResultResponseDTO {
      * Extraction methods used (e.g., "PDFBox, HeuristicInvoiceExtractor" or "Tesseract, AIInvoiceExtractor").
      */
     private String extractionMethods;
+
+    /**
+     * Statement account number (common for the full statement).
+     */
+    private String accountNo;
     
     /**
      * Invoice fields (populated only for INVOICE document type).
@@ -84,6 +89,14 @@ public class ExtractionResultResponseDTO {
 
     public void setExtractionMethods(String extractionMethods) {
         this.extractionMethods = extractionMethods;
+    }
+
+    public String getAccountNo() {
+        return accountNo;
+    }
+
+    public void setAccountNo(String accountNo) {
+        this.accountNo = accountNo;
     }
 
     public InvoiceFieldsDto getInvoiceFields() {

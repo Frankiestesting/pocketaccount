@@ -432,7 +432,7 @@
 <div class="container">
 	<h1>Compare AI vs Heuristic Interpretation</h1>
 	<p class="subtitle">
-		Upload a PDF document to compare results from AI interpretation and Heuristic interpretation
+		Upload a PDF or image document to compare results from AI interpretation and Heuristic interpretation
 	</p>
 
 	{#if !aiDocument && !heuristicDocument}
@@ -441,8 +441,8 @@
 			<h2>Upload Document</h2>
 			<div class="upload-form">
 				<div class="form-group">
-					<label for="file">Select PDF file:</label>
-					<input type="file" id="file" accept=".pdf" bind:files disabled={uploading} />
+					<label for="file">Select file (PDF/PNG/JPG):</label>
+					<input type="file" id="file" accept=".pdf,.png,.jpg,.jpeg" bind:files disabled={uploading} />
 					{#if file}
 						<p class="file-info">Selected: {file.name} ({(file.size / 1024).toFixed(2)} KB)</p>
 					{/if}
@@ -454,7 +454,7 @@
 						type="text"
 						id="originalFilename"
 						bind:value={originalFilename}
-						placeholder="e.g. invoice_2026_01.pdf"
+						placeholder="e.g. invoice_2026_01.pdf or receipt_2026_01.jpg"
 						disabled={uploading}
 					/>
 				</div>

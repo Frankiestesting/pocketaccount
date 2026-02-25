@@ -192,6 +192,10 @@
 			return;
 		}
 
+		const selectedAccount = selectedAccountId
+			? accounts.find((account) => account.id === selectedAccountId) || null
+			: null;
+
 		approveError = null;
 		approvingIds = new Set(approvingIds).add(txId);
 		try {
@@ -211,7 +215,13 @@
 			}
 			if (transactions) {
 				transactions = transactions.map((item) =>
-					getTransactionId(item) === txId ? { ...item, approved: true } : item
+					getTransactionId(item) === txId
+						? {
+								...item,
+								approved: true,
+								accountNo: selectedAccount?.accountNo || item.accountNo
+							}
+						: item
 				);
 			}
 		} catch (err) {

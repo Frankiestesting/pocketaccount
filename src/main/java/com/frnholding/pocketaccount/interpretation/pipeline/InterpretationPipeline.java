@@ -4,6 +4,7 @@ import com.frnholding.pocketaccount.interpretation.domain.InterpretationResult;
 import com.frnholding.pocketaccount.interpretation.domain.InvoiceFieldsDTO;
 import com.frnholding.pocketaccount.interpretation.domain.StatementTransaction;
 import com.frnholding.pocketaccount.interpretation.infra.OpenAiAuthenticationException;
+import com.frnholding.pocketaccount.repository.DocumentRepository;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -36,6 +37,10 @@ public class InterpretationPipeline {
     private InvoiceExtractor aiInvoiceExtractor;
 
     @Autowired(required = false)
+    @Qualifier("taxiReceiptExtractor")
+    private InvoiceExtractor taxiReceiptExtractor;
+
+    @Autowired(required = false)
     @Qualifier("heuristicStatementExtractor")
     private StatementExtractor heuristicStatementExtractor;
 
@@ -45,6 +50,9 @@ public class InterpretationPipeline {
 
     @Autowired(required = false)
     private ConfidenceScorer confidenceScorer;
+
+    @Autowired
+    private DocumentRepository documentRepository;
 
     /**
      * Executes the interpretation pipeline for a document
@@ -83,7 +91,11 @@ public class InterpretationPipeline {
             }
 
             if (documentType == DocumentType.INVOICE || documentType == DocumentType.RECEIPT) {
-                InvoiceFieldsDTO invoiceFields = extractInvoiceFields(interpretedText, options.isUseAi(), extractionMethods);
+                InvoiceExtractor extractor = options.isUseAi() ? aiInvoiceExtractor : heuristicInvoiceExtractor;
+                if (documentType == DocumentType.RECEIPT && isTaxiReceipt(documentId) && taxiReceiptExtractor != null) {
+                    extractor = taxiReceiptExtractor;
+                }
+                InvoiceFieldsDTO invoiceFields = extractInvoiceFields(interpretedText, extractor, extractionMethods);
                 if (invoiceFields != null && isBlank(invoiceFields.getCurrency())) {
                     invoiceFields.setCurrency(DEFAULT_CURRENCY);
                 }
@@ -139,18 +151,16 @@ public class InterpretationPipeline {
         return documentClassifier.classify(text, hintedType);
     }
 
-    private InvoiceFieldsDTO extractInvoiceFields(InterpretedText text, boolean useAi, StringBuilder extractionMethods) {
-        InvoiceExtractor extractor = useAi ? aiInvoiceExtractor : heuristicInvoiceExtractor;
-        
+    private InvoiceFieldsDTO extractInvoiceFields(InterpretedText text, InvoiceExtractor extractor, StringBuilder extractionMethods) {
         if (extractor == null) {
-            log.warn("InvoiceExtractor ({}) not available, returning null", useAi ? "AI" : "Heuristic");
+            log.warn("InvoiceExtractor not available, returning null");
             return null;
         }
         
         // Track which extractor is being used
-        String extractorType = useAi ? "AI" : "Heuristic";
+        String extractorType = extractor.getClass().getSimpleName();
         if (extractionMethods.length() > 0) extractionMethods.append(", ");
-        extractionMethods.append(extractorType).append("InvoiceExtractor");
+        extractionMethods.append(extractorType);
         
         return extractor.extract(text);
     }
@@ -171,6 +181,7 @@ public class InterpretationPipeline {
         List<StatementTransaction> transactions = extractor.extract(text);
         String accountNo = extractAccountNo(text);
         if (accountNo != null) {
+            result.setAccountNo(accountNo);
             for (StatementTransaction transaction : transactions) {
                 if (transaction.getAccountNo() == null) {
                     transaction.setAccountNo(accountNo);
@@ -196,12 +207,74 @@ public class InterpretationPipeline {
     }
 
     private String extractAccountNo(InterpretedText text) {
-        if (text == null || text.getRawText() == null) {
+        if (text == null) {
             return null;
         }
-        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("\\b\\d{11}\\b").matcher(text.getRawText());
+        java.util.List<String> candidates = new java.util.ArrayList<>();
+        if (text.getLines() != null && !text.getLines().isEmpty()) {
+            candidates.addAll(text.getLines());
+        }
+        if (text.getRawText() != null) {
+            candidates.add(text.getRawText());
+        }
+
+        for (String line : candidates) {
+            String normalized = findAccountNoFromIban(line);
+            if (normalized != null) {
+                return normalized;
+            }
+        }
+
+        for (String line : candidates) {
+            String normalized = findAccountNoInLine(line, true);
+            if (normalized != null) {
+                return normalized;
+            }
+        }
+
+        return null;
+    }
+
+        private boolean isTaxiReceipt(UUID documentId) {
+        return documentRepository.findById(documentId.toString())
+            .map(doc -> doc.getOriginalFilename() != null
+                && doc.getOriginalFilename().toLowerCase().contains("taxi"))
+            .orElse(false);
+        }
+
+    private String findAccountNoFromIban(String line) {
+        if (line == null) {
+            return null;
+        }
+        java.util.regex.Matcher matcher = java.util.regex.Pattern
+                .compile("NO\\s*\\d{2}\\s*(\\d{4})\\s*(\\d{2})\\s*(\\d{5})", java.util.regex.Pattern.CASE_INSENSITIVE)
+                .matcher(line);
         if (matcher.find()) {
-            return matcher.group();
+            return matcher.group(1) + matcher.group(2) + matcher.group(3);
+        }
+        return null;
+    }
+
+    private String findAccountNoInLine(String line, boolean requireHint) {
+        if (line == null) {
+            return null;
+        }
+        String lower = line.toLowerCase();
+        if (requireHint && !(lower.contains("konto") || lower.contains("iban") || lower.contains("account"))) {
+            return null;
+        }
+        if (lower.contains("til:") || lower.contains("betalt") || lower.contains("fra:")) {
+            return null;
+        }
+
+        java.util.regex.Matcher matcher = java.util.regex.Pattern.compile("[0-9][0-9\\s\\.]{9,}[0-9]")
+                .matcher(line);
+        while (matcher.find()) {
+            String candidate = matcher.group();
+            String digitsOnly = candidate.replaceAll("[^0-9]", "");
+            if (digitsOnly.length() == 11) {
+                return digitsOnly;
+            }
         }
         return null;
     }

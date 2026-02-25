@@ -53,6 +53,7 @@ CREATE TABLE IF NOT EXISTS interpretation_results (
     document_type VARCHAR(255) NOT NULL,
     interpreted_at TIMESTAMP NOT NULL,
     extraction_methods VARCHAR(500),
+    account_no VARCHAR(11),
     amount DOUBLE PRECISION,
     currency VARCHAR(255),
     date DATE,

@@ -176,7 +176,11 @@
 					documentType = result.documentType;
 				}
 				if (result.documentType === 'STATEMENT' && Array.isArray(result.transactions)) {
-					fieldsText = JSON.stringify({ transactions: result.transactions }, null, 2);
+					fieldsText = JSON.stringify(
+						{ accountNo: result.accountNo || null, transactions: result.transactions },
+						null,
+						2
+					);
 				} else {
 					const currentFields = result.correctedFields || result.fields || {};
 					fieldsText = JSON.stringify(currentFields, null, 2);
