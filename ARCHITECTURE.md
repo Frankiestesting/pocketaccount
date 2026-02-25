@@ -254,3 +254,51 @@ sequenceDiagram
   IntAPI-->>UI: 200 OK
   UI-->>User: Viser korrigert visning; original er fortsatt bevart i historikk
 ```
+
+## 11) Use case: Approve statement transaction (sequence)
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant UI
+  participant IntAPI as Interpretation API
+  participant ResultRepo as Interpretation result repo
+  participant BankRepo as Bank transaction repo
+
+  User->>UI: Velg statement-transaksjon og klikk "Godkjenn"
+  UI->>IntAPI: POST /api/v1/interpretation/statement-transactions/{id}/approve { accountId? }
+  IntAPI->>ResultRepo: Hent statement-transaction (fra interpretation_result)
+  alt har koblet bankTransactionId
+    ResultRepo-->>IntAPI: Return existing bank transaction id
+  else
+    IntAPI->>BankRepo: Opprett bank transaction for account
+    BankRepo-->>IntAPI: Ny bank transaction id
+  end
+  IntAPI-->>UI: 200 OK + bankTransactionId
+  UI-->>User: Viser status "approved" og koblet banktransaksjon
+```
+
+## 12) Use case: Approve receipt & match (sequence)
+
+```mermaid
+sequenceDiagram
+  participant User
+  participant UI
+  participant IntAPI as Interpretation API
+  participant ReceiptRepo as Receipt repo
+  participant MatchRepo as Receipt match repo
+  participant BankRepo as Bank transaction repo
+
+  User->>UI: Fra tolkningsresultat (RECEIPT) klikker "Opprett kvittering"
+  UI->>IntAPI: POST /api/v1/interpretation/documents/{id}/receipt
+  IntAPI->>ReceiptRepo: Lagre receipt (fra invoice fields)
+  ReceiptRepo-->>IntAPI: receiptId
+  IntAPI-->>UI: 201 Created + receiptId
+  UI-->>User: Kvittering opprettet; velg banktransaksjon å matche
+
+  User->>UI: Velg banktransaksjon + beløp (delvis/hel)
+  UI->>MatchRepo: POST /api/v1/matches { receiptId, bankTransactionId, matchedAmount }
+  MatchRepo->>BankRepo: Valider bankTransactionId og status
+  MatchRepo-->>UI: 201 Created
+  UI-->>User: Viser match-status (PARTIAL/MATCHED/OVER) basert på sum matchedAmount vs receipt total
+```
