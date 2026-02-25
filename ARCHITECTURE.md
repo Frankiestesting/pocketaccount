@@ -192,15 +192,15 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-  participant User
+  actor U as "User"
   participant UI
-  participant IntAPI as Interpretation API
-  participant JobRepo as Interpretation job repo
-  participant Runner as Job runner
-  participant Pipeline as Pipeline
-  participant ResultRepo as Interpretation result repo
+  participant IntAPI as "Interpretation API"
+  participant JobRepo as "Interpretation job repo"
+  participant Runner as "Job runner"
+  participant Pipeline as "Pipeline"
+  participant ResultRepo as "Interpretation result repo"
 
-  User->>UI: Velg dokument (opplastet fil) og metodevalg (PDFBox/OCR/AI)
+  U->>UI: Velg dokument og metodevalg (PDFBox/OCR/AI)
   UI->>IntAPI: POST /api/v1/interpretation/documents/{documentId}/jobs { useOcr, useAi, languageHint }
   IntAPI->>JobRepo: Lagre job (PENDING)
   JobRepo-->>IntAPI: OK
@@ -209,29 +209,37 @@ sequenceDiagram
 
   Runner->>JobRepo: Oppdater status RUNNING
   Runner->>Pipeline: Start pipeline
+
   alt useOcr = true
     Pipeline->>Pipeline: OCR (tekstuttrekk)
   else useOcr = false
     Pipeline->>Pipeline: PDFBox tekstuttrekk
   end
+
   alt useAi = true
     Pipeline->>Pipeline: AI extraction (klassifisering/felt)
-  else
+  else useAi = false
     Pipeline->>Pipeline: Heuristikk/regex extraction
   end
+
   Pipeline->>Pipeline: Normalisering + confidence + warnings
+
   alt documentType = RECEIPT
     Pipeline-->>Runner: Invoice fields
   else documentType = STATEMENT
     Pipeline-->>Runner: Transactions list
-  else
+  else documentType = OTHER
     Pipeline-->>Runner: Generic fields
   end
+
   Runner->>ResultRepo: Lagre resultat (jobId, documentId, felt/transaksjoner)
   Runner->>JobRepo: Oppdater status COMPLETED/FAILED
   Runner-->>UI: (poll via GET /jobs/{jobId}) status/resultat tilgjengelig
 ```
 
+## 10) Use case: Corrections (sequence)
+
+```mermaid
 sequenceDiagram
   participant User
   participant UI
@@ -250,6 +258,8 @@ sequenceDiagram
   CorrHist-->>IntAPI: "OK"
   IntAPI-->>UI: "200 OK"
   UI-->>User: "Viser korrigert, original er bevart i historikk"
+```
+
 ## 11) Use case: Approve statement transaction (sequence)
 
 ```mermaid
@@ -297,3 +307,4 @@ sequenceDiagram
   MatchRepo-->>UI: 201 Created
   UI-->>User: Viser match-status (PARTIAL/MATCHED/OVER) basert på sum matchedAmount vs receipt total
 ```
+
