@@ -200,8 +200,8 @@ sequenceDiagram
   participant Pipeline as Pipeline
   participant ResultRepo as Interpretation result repo
 
-  User->>UI: Klikk "Start tolkning" (velger metode: PDFBox/OCR/AI)
-  UI->>IntAPI: POST /api/v1/interpretation/documents/{id}/jobs { useOcr, useAi, languageHint }
+  User->>UI: Velg dokument (opplastet fil) og metodevalg (PDFBox/OCR/AI)
+  UI->>IntAPI: POST /api/v1/interpretation/documents/{documentId}/jobs { useOcr, useAi, languageHint }
   IntAPI->>JobRepo: Lagre job (PENDING)
   JobRepo-->>IntAPI: OK
   IntAPI-->>UI: 202 Accepted + jobId
@@ -220,7 +220,13 @@ sequenceDiagram
     Pipeline->>Pipeline: Heuristikk/regex extraction
   end
   Pipeline->>Pipeline: Normalisering + confidence + warnings
-  Pipeline-->>Runner: Structured result
+  alt documentType = RECEIPT
+    Pipeline-->>Runner: Invoice fields
+  else documentType = STATEMENT
+    Pipeline-->>Runner: Transactions list
+  else
+    Pipeline-->>Runner: Generic fields
+  end
   Runner->>ResultRepo: Lagre resultat (jobId, documentId, felt/transaksjoner)
   Runner->>JobRepo: Oppdater status COMPLETED/FAILED
   Runner-->>UI: (poll via GET /jobs/{jobId}) status/resultat tilgjengelig
