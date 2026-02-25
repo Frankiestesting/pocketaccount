@@ -244,15 +244,15 @@ sequenceDiagram
 
   User->>UI: Åpne tolkingsresultat (viser original)
   UI->>IntAPI: GET /api/v1/interpretation/documents/{id}/result
-  IntAPI-->>UI: Returnerer latest result (original tolking)
-  User->>UI: Rediger felt/transaksjoner (korrigert versjon)
-  UI->>IntAPI: PUT /api/v1/interpretation/documents/{id}/correction { correctedFields/transactions }
-  IntAPI->>ResultRepo: Lagre korrigert versjon (samme documentId, ny versjon)
-  IntAPI->>CorrHist: Append snapshot (before/after) for audit
-  ResultRepo-->>IntAPI: OK (corrected stored)
+  IntAPI-->>UI: Returnerer latest result (original)
+  User->>UI: Rediger felt/transaksjoner (korrigert)
+  UI->>IntAPI: PUT /api/v1/interpretation/documents/{id}/correction
+  IntAPI->>ResultRepo: Lagre korrigert versjon (samme documentId)
+  IntAPI->>CorrHist: Lagre snapshot (før/etter)
+  ResultRepo-->>IntAPI: OK
   CorrHist-->>IntAPI: OK
   IntAPI-->>UI: 200 OK
-  UI-->>User: Viser korrigert visning; original er fortsatt bevart i historikk
+  UI-->>User: Viser korrigert; original er bevart i historikk
 ```
 
 ## 11) Use case: Approve statement transaction (sequence)
