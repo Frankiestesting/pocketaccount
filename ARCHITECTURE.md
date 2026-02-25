@@ -287,24 +287,24 @@ sequenceDiagram
 
 ```mermaid
 sequenceDiagram
-  participant User
+  actor U as "User"
   participant UI
-  participant IntAPI as Interpretation API
-  participant ReceiptRepo as Receipt repo
-  participant MatchRepo as Receipt match repo
-  participant BankRepo as Bank transaction repo
+  participant IntAPI as "Interpretation API"
+  participant ReceiptRepo as "Receipt repo"
+  participant MatchRepo as "Receipt match repo"
+  participant BankRepo as "Bank transaction repo"
 
-  User->>UI: Fra tolkningsresultat (RECEIPT) klikker "Opprett kvittering"
-  UI->>IntAPI: POST /api/v1/interpretation/documents/{id}/receipt
-  IntAPI->>ReceiptRepo: Lagre receipt (fra invoice fields)
-  ReceiptRepo-->>IntAPI: receiptId
-  IntAPI-->>UI: 201 Created + receiptId
-  UI-->>User: Kvittering opprettet; velg banktransaksjon å matche
+  U->>UI: "Fra tolkningsresultat (RECEIPT) klikker 'Opprett kvittering'"
+  UI->>IntAPI: "POST /api/v1/interpretation/documents/{id}/receipt"
+  IntAPI->>ReceiptRepo: "Lagre receipt (fra invoice fields)"
+  ReceiptRepo-->>IntAPI: "receiptId"
+  IntAPI-->>UI: "201 Created + receiptId"
+  UI-->>U: "Kvittering opprettet, velg banktransaksjon å matche"
 
-  User->>UI: Velg banktransaksjon + beløp (delvis/hel)
-  UI->>MatchRepo: POST /api/v1/matches { receiptId, bankTransactionId, matchedAmount }
-  MatchRepo->>BankRepo: Valider bankTransactionId og status
-  MatchRepo-->>UI: 201 Created
-  UI-->>User: Viser match-status (PARTIAL/MATCHED/OVER) basert på sum matchedAmount vs receipt total
+  U->>UI: "Velg banktransaksjon + beløp (delvis/hel)"
+  UI->>MatchRepo: "POST /api/v1/matches { receiptId, bankTransactionId, matchedAmount }"
+  MatchRepo->>BankRepo: "Valider bankTransactionId og status"
+  MatchRepo-->>UI: "201 Created"
+  UI-->>U: "Viser match-status (PARTIAL/MATCHED/OVER) basert på sum matchedAmount vs receipt total"
 ```
 
