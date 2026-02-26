@@ -5,13 +5,14 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Data
 @NoArgsConstructor
 @AllArgsConstructor
 public class InterpreterJob {
     private String id;
-    private String documentId;
+    private UUID documentId;
     private String status;
     private Instant createdAt;
     private Instant startedAt;

@@ -82,7 +82,7 @@ public class InterpretationService {
     private String defaultLanguageHint;
 
     @Transactional
-    public InterpretationJob startInterpretation(String documentId) {
+    public InterpretationJob startInterpretation(UUID documentId) {
         // Validate document exists
         Document document = documentService.getDocument(documentId);
         if (document == null) {
@@ -126,7 +126,7 @@ public class InterpretationService {
         return job;
     }
 
-    public InterpretationResult getInterpretationResult(String documentId) {
+    public InterpretationResult getInterpretationResult(UUID documentId) {
         return interpretationResultRepository.findByDocumentId(documentId)
                 .orElseThrow(() -> new EntityNotFoundException("No interpretation result found for document: " + documentId));
     }
@@ -135,7 +135,7 @@ public class InterpretationService {
      * Start a new extraction job with configuration options.
      */
     @Transactional
-    public StartExtractionResponseDTO startExtraction(String documentId, StartExtractionRequestDTO request) {
+    public StartExtractionResponseDTO startExtraction(UUID documentId, StartExtractionRequestDTO request) {
         // Validate document exists
         Document document = documentService.getDocument(documentId);
         if (document == null) {
@@ -294,7 +294,7 @@ public class InterpretationService {
     /**
      * Get extraction results for a document.
      */
-    public ExtractionResultResponseDTO getExtractionResult(String documentId) {
+    public ExtractionResultResponseDTO getExtractionResult(UUID documentId) {
         InterpretationResult result = interpretationResultRepository.findByDocumentId(documentId)
                 .orElseThrow(() -> new EntityNotFoundException("No interpretation result found for document: " + documentId));
 
@@ -319,7 +319,7 @@ public class InterpretationService {
     }
 
     @Transactional
-    public ReceiptResponse createReceiptFromDocument(String documentId) {
+    public ReceiptResponse createReceiptFromDocument(UUID documentId) {
         InterpretationResult result = interpretationResultRepository.findByDocumentId(documentId)
                 .orElseThrow(() -> new EntityNotFoundException("No interpretation result found for document: " + documentId));
         return createReceiptFromResult(result, "Document is not a receipt interpretation");
@@ -341,12 +341,7 @@ public class InterpretationService {
             throw new IllegalArgumentException("Receipt purchase date is missing");
         }
 
-        UUID documentUuid;
-        try {
-            documentUuid = UUID.fromString(result.getDocumentId());
-        } catch (IllegalArgumentException ex) {
-            throw new IllegalArgumentException("Receipt documentId is invalid: " + result.getDocumentId());
-        }
+        UUID documentUuid = result.getDocumentId();
 
         receiptRepository.findByDocumentId(documentUuid).ifPresent(existing -> {
             if (receiptMatchRepository.existsByReceiptIdAndStatus(existing.getId(), ReceiptMatchStatus.ACTIVE)) {
@@ -450,7 +445,7 @@ public class InterpretationService {
      * Save corrections to interpretation results.
      */
     @Transactional
-    public Integer saveCorrection(String documentId, SaveCorrectionRequestDTO request) {
+    public Integer saveCorrection(UUID documentId, SaveCorrectionRequestDTO request) {
         if (isReceiptLocked(documentId)) {
             throw new ConflictException("Cannot correct: receipt is matched and locked");
         }
@@ -615,7 +610,7 @@ public class InterpretationService {
         return snapshot;
     }
 
-    private Integer ensureVersion(Integer currentVersion, String documentId) {
+    private Integer ensureVersion(Integer currentVersion, UUID documentId) {
         if (currentVersion != null) {
             return currentVersion;
         }
@@ -645,7 +640,7 @@ public class InterpretationService {
         return linked;
     }
 
-    private void syncApprovedBankTransactions(InterpretationResult result, String documentId) {
+    private void syncApprovedBankTransactions(InterpretationResult result, UUID documentId) {
         if (result.getStatementTransactions() == null || result.getStatementTransactions().isEmpty()) {
             return;
         }
@@ -676,7 +671,7 @@ public class InterpretationService {
     }
 
     private BankTransaction createBankTransactionFromStatement(StatementTransaction transaction, Account account,
-                                                               String documentId, BigDecimal amount) {
+                                                               UUID documentId, BigDecimal amount) {
         BankTransaction bankTransaction = new BankTransaction();
         bankTransaction.setAccount(account);
         bankTransaction.setBookingDate(transaction.getDate());
@@ -686,7 +681,7 @@ public class InterpretationService {
         bankTransaction.setCounterparty(null);
         bankTransaction.setDescription(transaction.getDescription());
         bankTransaction.setReference(null);
-        bankTransaction.setSourceDocumentId(parseDocumentId(documentId));
+        bankTransaction.setSourceDocumentId(documentId);
         bankTransaction.setSourceLineHash(buildSourceLineHash(transaction));
         bankTransaction.setCreatedAt(Instant.now());
         return bankTransactionRepository.save(bankTransaction);
@@ -706,12 +701,12 @@ public class InterpretationService {
         Account account = accountRepository.findByAccountNo(transaction.getAccountNo())
                 .orElseThrow(() -> new EntityNotFoundException("Account not found for accountNo: " + transaction.getAccountNo()));
         BigDecimal amount = toBigDecimal(transaction.getAmount());
-        String documentId = transaction.getInterpretationResult().getDocumentId();
+        UUID documentId = transaction.getInterpretationResult().getDocumentId();
         return findOrCreateBankTransaction(transaction, account, documentId, amount);
     }
 
     private BankTransaction findOrCreateBankTransaction(StatementTransaction transaction, Account account,
-                                                        String documentId, BigDecimal amount) {
+                                                        UUID documentId, BigDecimal amount) {
         return bankTransactionRepository
                 .findFirstByAccountIdAndBookingDateAndAmountAndCurrencyAndDescription(
                         account.getId(),
@@ -721,14 +716,6 @@ public class InterpretationService {
                         transaction.getDescription()
                 )
                 .orElseGet(() -> createBankTransactionFromStatement(transaction, account, documentId, amount));
-    }
-
-    private UUID parseDocumentId(String documentId) {
-        try {
-            return UUID.fromString(documentId);
-        } catch (IllegalArgumentException e) {
-            return null;
-        }
     }
 
     private BigDecimal toBigDecimal(Double value) {
@@ -758,14 +745,9 @@ public class InterpretationService {
         }
     }
 
-    private boolean isReceiptLocked(String documentId) {
-        try {
-            UUID documentUuid = UUID.fromString(documentId);
-            return receiptRepository.findByDocumentId(documentUuid)
-                .map(receipt -> receiptMatchRepository.existsByReceiptIdAndStatus(receipt.getId(), ReceiptMatchStatus.ACTIVE))
-                .orElse(false);
-        } catch (IllegalArgumentException ex) {
-            return false;
-        }
+    private boolean isReceiptLocked(UUID documentId) {
+        return receiptRepository.findByDocumentId(documentId)
+            .map(receipt -> receiptMatchRepository.existsByReceiptIdAndStatus(receipt.getId(), ReceiptMatchStatus.ACTIVE))
+            .orElse(false);
     }
 }

@@ -1,17 +1,18 @@
 package com.frnholding.pocketaccount.api.dto;
 
 import java.time.Instant;
+import java.util.UUID;
 
 public class JobCreationResponseDTO {
     private String jobId;
-    private String documentId;
+    private UUID documentId;
     private String status;
     private Instant created;
 
     public JobCreationResponseDTO() {
     }
 
-    public JobCreationResponseDTO(String jobId, String documentId, String status, Instant created) {
+    public JobCreationResponseDTO(String jobId, UUID documentId, String status, Instant created) {
         this.jobId = jobId;
         this.documentId = documentId;
         this.status = status;
@@ -26,11 +27,11 @@ public class JobCreationResponseDTO {
         this.jobId = jobId;
     }
 
-    public String getDocumentId() {
+    public UUID getDocumentId() {
         return documentId;
     }
 
-    public void setDocumentId(String documentId) {
+    public void setDocumentId(UUID documentId) {
         this.documentId = documentId;
     }
 

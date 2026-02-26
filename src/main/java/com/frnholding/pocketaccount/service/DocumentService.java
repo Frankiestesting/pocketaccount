@@ -88,7 +88,7 @@ public class DocumentService {
         }
 
         // Generate ID
-        String id = UUID.randomUUID().toString();
+        UUID id = UUID.randomUUID();
 
         // Save file
         Path uploadPath = Paths.get(UPLOAD_DIR);
@@ -124,7 +124,7 @@ public class DocumentService {
         return "pdf".equals(extension) || "png".equals(extension) || "jpg".equals(extension) || "jpeg".equals(extension);
     }
 
-    public Document getDocument(String documentId) {
+    public Document getDocument(UUID documentId) {
         DocumentEntity entity = documentRepository.findById(documentId).orElse(null);
         return entity != null ? entity.toDomain() : null;
     }
@@ -142,7 +142,7 @@ public class DocumentService {
                 .collect(Collectors.toList());
     }
 
-    public Map<String, Document> getDocumentsByIds(List<String> documentIds) {
+    public Map<UUID, Document> getDocumentsByIds(List<UUID> documentIds) {
         if (documentIds == null || documentIds.isEmpty()) {
             return Collections.emptyMap();
         }
@@ -151,7 +151,7 @@ public class DocumentService {
                 .collect(Collectors.toMap(Document::getId, document -> document));
     }
 
-    public Resource getDocumentFile(String documentId) throws IOException {
+    public Resource getDocumentFile(UUID documentId) throws IOException {
         Document document = getDocument(documentId);
         if (document == null) {
             throw new EntityNotFoundException("Document not found: " + documentId);
@@ -166,7 +166,7 @@ public class DocumentService {
     }
 
     @Transactional
-    public void deleteDocument(String documentId) {
+    public void deleteDocument(UUID documentId) {
         DocumentEntity entity = documentRepository.findById(documentId)
                 .orElseThrow(() -> new EntityNotFoundException("Document not found: " + documentId));
 
@@ -190,18 +190,13 @@ public class DocumentService {
         }
     }
 
-    private boolean isReceiptApproved(String documentId) {
-        try {
-            UUID receiptDocumentId = UUID.fromString(documentId);
-                return receiptRepository.findByDocumentId(receiptDocumentId)
-                    .map(receipt -> receiptMatchRepository.existsByReceiptIdAndStatus(receipt.getId(), ReceiptMatchStatus.ACTIVE))
-                    .orElse(false);
-        } catch (IllegalArgumentException ex) {
-            return false;
-        }
+    private boolean isReceiptApproved(UUID documentId) {
+        return receiptRepository.findByDocumentId(documentId)
+            .map(receipt -> receiptMatchRepository.existsByReceiptIdAndStatus(receipt.getId(), ReceiptMatchStatus.ACTIVE))
+            .orElse(false);
     }
 
-    public Job createJob(String documentId, String pipeline, boolean useOcr, boolean useAi, String languageHint) {
+    public Job createJob(UUID documentId, String pipeline, boolean useOcr, boolean useAi, String languageHint) {
         // Validate document exists
         Document document = getDocument(documentId);
         if (document == null) {
@@ -265,7 +260,7 @@ public class DocumentService {
         jobRepository.delete(entity);
     }
 
-    public ExtractionResultResponseDTO getExtractionResult(String documentId) {
+    public ExtractionResultResponseDTO getExtractionResult(UUID documentId) {
         // Validate document exists
         Document document = getDocument(documentId);
         if (document == null) {
@@ -388,7 +383,7 @@ public class DocumentService {
         return response;
     }
 
-    public DocumentCorrectionResponseDTO saveCorrection(String documentId, DocumentCorrectionRequestDTO request) {
+    public DocumentCorrectionResponseDTO saveCorrection(UUID documentId, DocumentCorrectionRequestDTO request) {
         Integer correctionVersion = interpretationService.saveCorrection(documentId, request.toInterpretationRequest());
         Instant now = Instant.now();
         return new DocumentCorrectionResponseDTO(

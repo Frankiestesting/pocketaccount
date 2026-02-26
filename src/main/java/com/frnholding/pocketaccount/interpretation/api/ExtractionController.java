@@ -60,7 +60,7 @@ public class ExtractionController {
         log.info("Starting extraction job for document {} with options: useOcr={}, useAi={}, languageHint={}, hintedType={}", 
                 id, request.isUseOcr(), request.isUseAi(), request.getLanguageHint(), request.getHintedType());
 
-        StartExtractionResponseDTO response = interpretationService.startExtraction(id.toString(), request);
+        StartExtractionResponseDTO response = interpretationService.startExtraction(id, request);
         return ResponseEntity.accepted().body(response);
     }
 
@@ -113,7 +113,7 @@ public class ExtractionController {
         
         log.debug("Getting extraction result for document {}", id);
 
-        ExtractionResultResponseDTO response = interpretationService.getExtractionResult(id.toString());
+        ExtractionResultResponseDTO response = interpretationService.getExtractionResult(id);
         return ResponseEntity.ok(response);
     }
 
@@ -155,7 +155,7 @@ public class ExtractionController {
         })
         public ResponseEntity<ReceiptResponse> createReceiptFromDocument(
                         @PathVariable @Parameter(description = "Document ID") UUID documentId) {
-                ReceiptResponse receipt = interpretationService.createReceiptFromDocument(documentId.toString());
+                ReceiptResponse receipt = interpretationService.createReceiptFromDocument(documentId);
                 return ResponseEntity.status(201).body(receipt);
         }
 
@@ -186,7 +186,7 @@ public class ExtractionController {
         
         log.info("Saving correction for document {} of type {}", id, request.getDocumentType());
 
-                interpretationService.saveCorrection(id.toString(), request);
+                interpretationService.saveCorrection(id, request);
         return ResponseEntity.ok().build();
     }
 

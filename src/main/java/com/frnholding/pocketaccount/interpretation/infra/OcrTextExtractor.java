@@ -47,7 +47,7 @@ public class OcrTextExtractor implements DocumentTextInterpreter {
     public InterpretedText extract(UUID documentId) {
         log.info("Extracting text from document {} using OCR", documentId);
         
-        var document = documentRepository.findById(documentId.toString())
+        var document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new IllegalArgumentException("Document not found: " + documentId));
 
         File inputFile = new File(document.getFilePath());

@@ -18,8 +18,8 @@ public class CorrectionHistoryEntity {
     @Column(columnDefinition = "uuid")
     private UUID id;
 
-    @Column(nullable = false)
-    private String documentId;
+    @Column(columnDefinition = "uuid", nullable = false)
+    private UUID documentId;
 
     private String documentType;
 
@@ -45,7 +45,7 @@ public class CorrectionHistoryEntity {
     public CorrectionHistoryEntity() {
     }
 
-    public CorrectionHistoryEntity(UUID id, String documentId, String documentType, String entityType,
+    public CorrectionHistoryEntity(UUID id, UUID documentId, String documentType, String entityType,
                                    String entityId, Map<String, Object> snapshot, String note,
                                    Integer correctionVersion, OffsetDateTime correctedAt, String correctedBy) {
         this.id = id;
@@ -68,11 +68,11 @@ public class CorrectionHistoryEntity {
         this.id = id;
     }
 
-    public String getDocumentId() {
+    public UUID getDocumentId() {
         return documentId;
     }
 
-    public void setDocumentId(String documentId) {
+    public void setDocumentId(UUID documentId) {
         this.documentId = documentId;
     }
 

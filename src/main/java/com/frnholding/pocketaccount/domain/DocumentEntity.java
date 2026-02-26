@@ -1,15 +1,18 @@
 package com.frnholding.pocketaccount.domain;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "documents")
 public class DocumentEntity {
     @Id
-    private String id;
+    @Column(columnDefinition = "uuid")
+    private UUID id;
     private String status;
     private Instant created;
     private String originalFilename;
@@ -21,7 +24,7 @@ public class DocumentEntity {
     }
 
     // All-arguments constructor
-    public DocumentEntity(String id, String status, Instant created, String originalFilename, 
+    public DocumentEntity(UUID id, String status, Instant created, String originalFilename, 
                           String filePath, String documentType) {
         this.id = id;
         this.status = status;
@@ -32,11 +35,11 @@ public class DocumentEntity {
     }
 
     // Getters and setters
-    public String getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 

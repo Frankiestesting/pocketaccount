@@ -170,7 +170,7 @@ public class CompositeTextExtractor implements DocumentTextInterpreter {
     }
 
     private boolean isPdfDocument(UUID documentId) {
-        return documentRepository.findById(documentId.toString())
+        return documentRepository.findById(documentId)
                 .map(entity -> entity.getFilePath())
                 .map(path -> path.toLowerCase(Locale.ROOT).endsWith(".pdf"))
                 .orElse(true);

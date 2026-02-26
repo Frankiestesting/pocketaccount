@@ -6,6 +6,7 @@ import lombok.Data;
 import lombok.NoArgsConstructor;
 
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "interpretation_jobs")
@@ -16,8 +17,8 @@ public class InterpretationJob {
     @Id
     private String id;
     
-    @Column(nullable = false)
-    private String documentId;
+    @Column(columnDefinition = "uuid", nullable = false)
+    private UUID documentId;
     
     @Column(nullable = false)
     private String status;

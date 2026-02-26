@@ -1,9 +1,10 @@
 package com.frnholding.pocketaccount.domain;
 
 import java.time.Instant;
+import java.util.UUID;
 
 public class Document {
-    private String id;
+    private UUID id;
     private String status;
     private Instant created;
     private String originalFilename;
@@ -15,7 +16,7 @@ public class Document {
     }
 
     // All-arguments constructor
-    public Document(String id, String status, Instant created, String originalFilename, 
+    public Document(UUID id, String status, Instant created, String originalFilename, 
                     String filePath, String documentType) {
         this.id = id;
         this.status = status;
@@ -26,11 +27,11 @@ public class Document {
     }
 
     // Getters and setters
-    public String getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 
@@ -103,7 +104,7 @@ public class Document {
     @Override
     public String toString() {
         return "Document{" +
-                "id='" + id + '\'' +
+            "id='" + id + '\'' +
                 ", status='" + status + '\'' +
                 ", created=" + created +
                 ", originalFilename='" + originalFilename + '\'' +

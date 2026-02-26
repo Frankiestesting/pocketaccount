@@ -1,16 +1,19 @@
 package com.frnholding.pocketaccount.domain;
 
+import jakarta.persistence.Column;
 import jakarta.persistence.Entity;
 import jakarta.persistence.Id;
 import jakarta.persistence.Table;
 import java.time.Instant;
+import java.util.UUID;
 
 @Entity
 @Table(name = "jobs")
 public class JobEntity {
     @Id
     private String id;
-    private String documentId;
+    @Column(columnDefinition = "uuid")
+    private UUID documentId;
     private String status;
     private Instant created;
     private String pipeline;
@@ -26,7 +29,7 @@ public class JobEntity {
     }
 
     // All-arguments constructor
-    public JobEntity(String id, String documentId, String status, Instant created, String pipeline, 
+    public JobEntity(String id, UUID documentId, String status, Instant created, String pipeline, 
                      boolean useOcr, boolean useAi, String languageHint, Instant startedAt, 
                      Instant finishedAt, String error) {
         this.id = id;
@@ -51,11 +54,11 @@ public class JobEntity {
         this.id = id;
     }
 
-    public String getDocumentId() {
+    public UUID getDocumentId() {
         return documentId;
     }
 
-    public void setDocumentId(String documentId) {
+    public void setDocumentId(UUID documentId) {
         this.documentId = documentId;
     }
 

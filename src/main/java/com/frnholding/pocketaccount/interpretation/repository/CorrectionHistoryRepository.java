@@ -12,5 +12,5 @@ import java.util.UUID;
 @Repository
 public interface CorrectionHistoryRepository extends JpaRepository<CorrectionHistoryEntity, UUID> {
     @Query("SELECT MAX(c.correctionVersion) FROM CorrectionHistoryEntity c WHERE c.documentId = :documentId")
-    Optional<Integer> findMaxCorrectionVersionByDocumentId(@Param("documentId") String documentId);
+    Optional<Integer> findMaxCorrectionVersionByDocumentId(@Param("documentId") UUID documentId);
 }

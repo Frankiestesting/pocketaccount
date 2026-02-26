@@ -1,6 +1,7 @@
 package com.frnholding.pocketaccount.interpretation.api.dto;
 
 import java.time.Instant;
+import java.util.UUID;
 
 /**
  * Response DTO after starting a document interpretation job.
@@ -14,7 +15,7 @@ public class StartExtractionResponseDTO {
     /**
      * Document ID being interpreted.
      */
-    private String documentId;
+    private UUID documentId;
     
     /**
      * Current status of the job.
@@ -36,7 +37,7 @@ public class StartExtractionResponseDTO {
     public StartExtractionResponseDTO() {
     }
 
-    public StartExtractionResponseDTO(String jobId, String documentId, String status, 
+    public StartExtractionResponseDTO(String jobId, UUID documentId, String status, 
                                       Instant created, String documentType) {
         this.jobId = jobId;
         this.documentId = documentId;
@@ -53,11 +54,11 @@ public class StartExtractionResponseDTO {
         this.jobId = jobId;
     }
 
-    public String getDocumentId() {
+    public UUID getDocumentId() {
         return documentId;
     }
 
-    public void setDocumentId(String documentId) {
+    public void setDocumentId(UUID documentId) {
         this.documentId = documentId;
     }
 

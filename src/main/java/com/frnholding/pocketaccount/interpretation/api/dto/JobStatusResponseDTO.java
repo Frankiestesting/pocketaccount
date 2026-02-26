@@ -1,6 +1,7 @@
 package com.frnholding.pocketaccount.interpretation.api.dto;
 
 import java.time.Instant;
+import java.util.UUID;
 
 /**
  * Response DTO for interpretation job status.
@@ -14,7 +15,7 @@ public class JobStatusResponseDTO {
     /**
      * Document ID being interpreted.
      */
-    private String documentId;
+    private UUID documentId;
     
     /**
      * Current status of the job.
@@ -61,7 +62,7 @@ public class JobStatusResponseDTO {
     public JobStatusResponseDTO() {
     }
 
-    public JobStatusResponseDTO(String jobId, String documentId, String status, String documentType, 
+    public JobStatusResponseDTO(String jobId, UUID documentId, String status, String documentType, 
                                 Instant created, Instant startedAt, Instant finishedAt, String error, 
                                 String originalFilename, String extractionMethods) {
         this.jobId = jobId;
@@ -84,11 +85,11 @@ public class JobStatusResponseDTO {
         this.jobId = jobId;
     }
 
-    public String getDocumentId() {
+    public UUID getDocumentId() {
         return documentId;
     }
 
-    public void setDocumentId(String documentId) {
+    public void setDocumentId(UUID documentId) {
         this.documentId = documentId;
     }
 

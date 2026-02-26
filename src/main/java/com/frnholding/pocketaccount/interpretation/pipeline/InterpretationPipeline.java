@@ -76,7 +76,7 @@ public class InterpretationPipeline {
 
             // Step 3: Extract fields based on document type
             InterpretationResult result = new InterpretationResult();
-            result.setDocumentId(documentId.toString());
+            result.setDocumentId(documentId);
             result.setDocumentType(documentType.name());
             result.setInterpretedAt(Instant.now());
 
@@ -236,7 +236,7 @@ public class InterpretationPipeline {
     }
 
         private boolean isTaxiReceipt(UUID documentId) {
-        return documentRepository.findById(documentId.toString())
+            return documentRepository.findById(documentId)
             .map(doc -> doc.getOriginalFilename() != null
                 && doc.getOriginalFilename().toLowerCase().contains("taxi"))
             .orElse(false);

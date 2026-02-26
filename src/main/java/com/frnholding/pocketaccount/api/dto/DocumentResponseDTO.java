@@ -1,9 +1,10 @@
 package com.frnholding.pocketaccount.api.dto;
 
 import java.time.Instant;
+import java.util.UUID;
 
 public class DocumentResponseDTO {
-    private String id;
+    private UUID id;
     private String status;
     private String documentType;
     private Instant uploadedAt;
@@ -12,7 +13,7 @@ public class DocumentResponseDTO {
     public DocumentResponseDTO() {
     }
 
-    public DocumentResponseDTO(String id, String status, String documentType, Instant uploadedAt, String originalFilename) {
+    public DocumentResponseDTO(UUID id, String status, String documentType, Instant uploadedAt, String originalFilename) {
         this.id = id;
         this.status = status;
         this.documentType = documentType;
@@ -20,11 +21,11 @@ public class DocumentResponseDTO {
         this.originalFilename = originalFilename;
     }
 
-    public String getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 

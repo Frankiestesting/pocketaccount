@@ -11,6 +11,12 @@
 	 */
 	/**
 	 * @typedef {{
+	 *  jobId: string,
+	 *  documentId: string
+	 * }} Job
+	 */
+	/**
+	 * @typedef {{
 	 *  extractionVersion?: number,
 	 *  extractedAt?: string,
 	 *  documentType?: string,
@@ -35,8 +41,14 @@
 	/** @type {string | null} */
 	let error = null;
 	let filter = '';
+	/** @type {'open' | 'hidden' | 'all'} */
+	let filterMode = 'open';
 	/** @type {DocumentSummary | null} */
 	let selectedDocument = null;
+	/** @type {Set<string>} */
+	let hiddenJobIds = new Set();
+	/** @type {Set<string>} */
+	let hiddenDocumentIds = new Set();
 
 	let documentId = '';
 	let documentType = 'INVOICE';
@@ -60,7 +72,10 @@
 	/** @type {Set<string>} */
 	let deletingIds = new Set();
 
-	onMount(loadDocuments);
+	onMount(async () => {
+		loadHiddenJobs();
+		await Promise.all([loadDocuments(), loadJobIndex()]);
+	});
 
 	/** @param {string | number | Date | null | undefined} value */
 	function formatTimestamp(value) {
@@ -94,6 +109,46 @@
 			error = `Network error: ${getErrorMessage(err)}`;
 		} finally {
 			loading = false;
+			loadHiddenJobs();
+			await loadJobIndex();
+		}
+	}
+
+	function loadHiddenJobs() {
+		try {
+			const raw = localStorage.getItem('hiddenJobIds');
+			if (!raw) {
+				hiddenJobIds = new Set();
+				return;
+			}
+			const ids = JSON.parse(raw);
+			hiddenJobIds = new Set(Array.isArray(ids) ? ids : []);
+		} catch (err) {
+			hiddenJobIds = new Set();
+		}
+	}
+
+	async function loadJobIndex() {
+		if (hiddenJobIds.size === 0) {
+			hiddenDocumentIds = new Set();
+			return;
+		}
+		try {
+			const res = await fetch('/api/v1/interpretation/jobs');
+			if (!res.ok) {
+				hiddenDocumentIds = new Set();
+				return;
+			}
+			const jobs = /** @type {Job[]} */ (await res.json());
+			const next = new Set();
+			jobs.forEach((job) => {
+				if (hiddenJobIds.has(job.jobId)) {
+					next.add(job.documentId);
+				}
+			});
+			hiddenDocumentIds = next;
+		} catch (err) {
+			hiddenDocumentIds = new Set();
 		}
 	}
 
@@ -137,14 +192,32 @@
 	}
 
 	/** @type {DocumentSummary[]} */
-	$: filteredDocuments = filter
-		? documents.filter((doc) => {
-				const name = (doc.originalFilename || '').toLowerCase();
-				const id = (doc.id || '').toLowerCase();
-				const value = filter.toLowerCase();
-				return name.includes(value) || id.includes(value);
-			})
-		: documents;
+	$: filteredDocuments = getVisibleDocuments(
+		filter
+			? documents.filter((doc) => {
+					const name = (doc.originalFilename || '').toLowerCase();
+					const id = (doc.id || '').toLowerCase();
+					const value = filter.toLowerCase();
+					return name.includes(value) || id.includes(value);
+				})
+			: documents
+	);
+
+	/** @param {DocumentSummary} doc */
+	function isHiddenDoc(doc) {
+		return hiddenDocumentIds.has(doc.id);
+	}
+
+	/** @param {DocumentSummary[]} list */
+	function getVisibleDocuments(list) {
+		if (filterMode === 'all') {
+			return list;
+		}
+		if (filterMode === 'hidden') {
+			return list.filter((doc) => isHiddenDoc(doc));
+		}
+		return list.filter((doc) => !isHiddenDoc(doc));
+	}
 
 	/** @param {DocumentSummary} doc */
 	function selectDocument(doc) {
@@ -318,6 +391,38 @@
 					bind:value={filter}
 				/>
 			</div>
+			<div class="filter-controls">
+				<div class="filter-group" role="radiogroup" aria-label="Filter dokumenter">
+					<label class="radio">
+						<input
+							type="radio"
+							name="corrections-filter"
+							value="open"
+							bind:group={filterMode}
+						/>
+						<span>Vis åpne</span>
+					</label>
+					<label class="radio">
+						<input
+							type="radio"
+							name="corrections-filter"
+							value="hidden"
+							bind:group={filterMode}
+						/>
+						<span>Vis skjulte</span>
+					</label>
+					<label class="radio">
+						<input
+							type="radio"
+							name="corrections-filter"
+							value="all"
+							bind:group={filterMode}
+						/>
+						<span>Vis alle</span>
+					</label>
+				</div>
+				<span class="filter-note">Skjuling styres fra Resultater.</span>
+			</div>
 			{#if loading}
 				<div class="empty">Loading documents...</div>
 			{:else if filteredDocuments.length === 0}
@@ -325,10 +430,15 @@
 			{:else}
 				<ul class="doc-list">
 					{#each filteredDocuments as doc}
-						<li class:selected={doc.id === selectedDocument?.id}>
+						<li class:selected={doc.id === selectedDocument?.id} class:hidden={filterMode === 'all' && isHiddenDoc(doc)}>
 							<div class="doc-row">
 								<button class="doc-main" on:click={() => selectDocument(doc)}>
-									<span class="doc-name">{doc.originalFilename || 'Untitled document'}</span>
+									<span class="doc-name">
+										{#if filterMode === 'all' && isHiddenDoc(doc)}
+											<span class="hidden-pill">Skjult</span>
+										{/if}
+										{doc.originalFilename || 'Untitled document'}
+									</span>
 									<span class="doc-meta">{doc.documentType} • {doc.id}</span>
 									<span class="doc-timestamp">Uploaded {formatTimestamp(doc.uploadedAt)}</span>
 								</button>
@@ -555,6 +665,40 @@
 		font-family: inherit;
 	}
 
+	.filter-controls {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		margin-top: 12px;
+		padding: 10px 12px;
+		border-radius: 12px;
+		background: #f1f5f9;
+		border: 1px solid #e2e8f0;
+	}
+
+	.filter-group {
+		display: flex;
+		gap: 12px;
+		flex-wrap: wrap;
+		align-items: center;
+	}
+
+	.radio {
+		display: inline-flex;
+		gap: 6px;
+		align-items: center;
+		font-size: 0.85rem;
+		color: #334155;
+		cursor: pointer;
+	}
+
+	.filter-note {
+		font-size: 0.75rem;
+		color: #64748b;
+	}
+
 	.doc-list {
 		list-style: none;
 		padding: 0;
@@ -573,6 +717,11 @@
 	.doc-list li.selected {
 		border-color: #6366f1;
 		background: #eef2ff;
+	}
+
+	.doc-list li.hidden {
+		background: #f1f5f9;
+		border-color: #e2e8f0;
 	}
 
 	.doc-row {
@@ -627,6 +776,16 @@
 		display: block;
 		font-weight: 600;
 		margin-bottom: 4px;
+	}
+
+	.hidden-pill {
+		background: #e2e8f0;
+		color: #475569;
+		font-size: 0.7rem;
+		padding: 2px 8px;
+		border-radius: 999px;
+		font-weight: 600;
+		margin-right: 6px;
 	}
 
 	.doc-meta {

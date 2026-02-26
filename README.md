@@ -409,7 +409,7 @@ documents
 
 interpretation_jobs
 ├─ id (VARCHAR, PK)
-├─ document_id (VARCHAR, FK)
+├─ document_id (UUID, FK)
 ├─ status (VARCHAR)
 ├─ created (TIMESTAMP)
 ├─ started_at (TIMESTAMP)
@@ -420,7 +420,7 @@ interpretation_jobs
 interpretation_results
 ├─ id (BIGINT, PK)
 ├─ job_id (VARCHAR, FK, Unique)
-├─ document_id (VARCHAR, FK)
+├─ document_id (UUID, FK)
 ├─ document_type (VARCHAR)
 ├─ interpreted_at (TIMESTAMP)
 ├─ extraction_methods (VARCHAR)

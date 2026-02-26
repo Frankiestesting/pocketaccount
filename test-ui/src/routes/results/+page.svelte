@@ -41,6 +41,12 @@
 	let deleteError = null;
 	/** @type {Set<string>} */
 	let deletingIds = new Set();
+	/** @type {Set<string>} */
+	let selectedJobIds = new Set();
+	/** @type {Set<string>} */
+	let hiddenJobIds = new Set();
+	/** @type {'open' | 'hidden' | 'all'} */
+	let filterMode = 'open';
 	/** @type {Job|null} */
 	let selectedJob = null;
 	/** @type {JobResult|null} */
@@ -53,11 +59,31 @@
 	let receiptCreated = null;
 
 	onMount(() => {
+		loadHiddenJobs();
 		loadJobs();
 		// Auto-refresh every 5 seconds
 		const interval = setInterval(loadJobs, 5000);
 		return () => clearInterval(interval);
 	});
+
+	function loadHiddenJobs() {
+		try {
+			const raw = localStorage.getItem('hiddenJobIds');
+			if (!raw) {
+				hiddenJobIds = new Set();
+				return;
+			}
+			const ids = JSON.parse(raw);
+			hiddenJobIds = new Set(Array.isArray(ids) ? ids : []);
+		} catch (err) {
+			hiddenJobIds = new Set();
+		}
+	}
+
+	function persistHiddenJobs(nextHidden) {
+		hiddenJobIds = nextHidden;
+		localStorage.setItem('hiddenJobIds', JSON.stringify(Array.from(nextHidden)));
+	}
 
 	/** @param {unknown} err */
 	function getErrorMessage(err) {
@@ -76,6 +102,9 @@
 				jobs = data.sort(
 					(a, b) => new Date(b.startedAt || 0).getTime() - new Date(a.startedAt || 0).getTime()
 				);
+				selectedJobIds = new Set(
+					Array.from(selectedJobIds).filter((id) => data.some((job) => job.jobId === id))
+				);
 			} else {
 				error = `Error loading jobs: ${res.status}`;
 			}
@@ -84,6 +113,73 @@
 		} finally {
 			loading = false;
 		}
+	}
+
+	/** @param {Job} job */
+	function isHidden(job) {
+		return hiddenJobIds.has(job.jobId);
+	}
+
+	/** @param {Job} job */
+	function isSelected(job) {
+		return selectedJobIds.has(job.jobId);
+	}
+
+	/** @param {Job} job */
+	function toggleSelection(job) {
+		const next = new Set(selectedJobIds);
+		if (next.has(job.jobId)) {
+			next.delete(job.jobId);
+		} else {
+			next.add(job.jobId);
+		}
+		selectedJobIds = next;
+	}
+
+	function hideSelected() {
+		if (selectedJobIds.size === 0) {
+			return;
+		}
+		const next = new Set(hiddenJobIds);
+		selectedJobIds.forEach((id) => next.add(id));
+		persistHiddenJobs(next);
+		selectedJobIds = new Set();
+	}
+
+	function showSelected() {
+		if (selectedJobIds.size === 0) {
+			return;
+		}
+		const next = new Set(hiddenJobIds);
+		selectedJobIds.forEach((id) => next.delete(id));
+		persistHiddenJobs(next);
+		selectedJobIds = new Set();
+	}
+
+	function clearSelection() {
+		selectedJobIds = new Set();
+	}
+
+	/** @param {Job} job */
+	function handleRowClick(job, event) {
+		const target = event.target;
+		if (target instanceof HTMLElement) {
+			if (target.closest('button') || target.closest('input')) {
+				return;
+			}
+		}
+		viewResult(job);
+	}
+
+	/** @param {Job[]} list */
+	function getVisibleJobs(list) {
+		if (filterMode === 'all') {
+			return list;
+		}
+		if (filterMode === 'hidden') {
+			return list.filter((job) => hiddenJobIds.has(job.jobId));
+		}
+		return list.filter((job) => !hiddenJobIds.has(job.jobId));
 	}
 
 	/** @param {Job} job */
@@ -241,14 +337,60 @@
 	{:else if !selectedJob}
 		<div class="jobs-list">
 			<p class="info">Klikk på en fullført jobb for å se resultatet. Listen oppdateres automatisk.</p>
+			<div class="list-controls">
+				<div class="filter-group" role="radiogroup" aria-label="Filter resultater">
+					<label class="radio">
+						<input
+							type="radio"
+							name="result-filter"
+							value="open"
+							bind:group={filterMode}
+							on:change={clearSelection}
+						/>
+						<span>Vis åpne</span>
+					</label>
+					<label class="radio">
+						<input
+							type="radio"
+							name="result-filter"
+							value="hidden"
+							bind:group={filterMode}
+							on:change={clearSelection}
+						/>
+						<span>Vis skjulte</span>
+					</label>
+					<label class="radio">
+						<input
+							type="radio"
+							name="result-filter"
+							value="all"
+							bind:group={filterMode}
+							on:change={clearSelection}
+						/>
+						<span>Vis alle</span>
+					</label>
+				</div>
+				<div class="action-group">
+					<button class="btn-secondary" on:click={hideSelected} disabled={selectedJobIds.size === 0}>
+						Skjul
+					</button>
+					<button
+						class="btn-secondary"
+						on:click={showSelected}
+						disabled={selectedJobIds.size === 0}
+					>
+						Vis
+					</button>
+				</div>
+			</div>
 			{#if deleteError}
 				<div class="alert alert-error">{deleteError}</div>
 			{/if}
 			<table>
 				<thead>
 					<tr>
-						<th>ID</th>
-						<th>Dokument-ID</th>
+						<th></th>
+						<th>Dokument</th>
 						<th>Type</th>
 						<th>Filnavn</th>
 						<th>Startet</th>
@@ -259,18 +401,29 @@
 					</tr>
 				</thead>
 				<tbody>
-					{#each jobs as job}
-						<tr>
+					{#each getVisibleJobs(jobs) as job}
+						<tr
+							class:hidden-row={filterMode === 'all' && isHidden(job)}
+							on:click={(event) => handleRowClick(job, event)}
+							on:keydown={(event) => event.key === 'Enter' && viewResult(job)}
+							tabindex="0"
+						>
 							<td>
-								{#if job.status === 'COMPLETED'}
-									<button class="job-id-btn" on:click={() => viewResult(job)}>
-										{job.jobId}
-									</button>
-								{:else}
-									<span class="job-id-text">{job.jobId}</span>
-								{/if}
+								<input
+									type="checkbox"
+									checked={isSelected(job)}
+									on:click|stopPropagation={() => toggleSelection(job)}
+									aria-label="Velg resultat"
+								/>
 							</td>
-							<td>{job.documentId}</td>
+							<td>
+								<div class="document-cell">
+									{#if isHidden(job)}
+										<span class="hidden-pill">Skjult</span>
+									{/if}
+									<span>{job.originalFilename || job.documentId}</span>
+								</div>
+							</td>
 							<td>{job.documentType || '-'}</td>
 							<td>{job.originalFilename || '-'}</td>
 							<td>{job.created ? new Date(job.created).toLocaleString('nb-NO') : '-'}</td>
@@ -290,7 +443,7 @@
 							<td class="action-cell">
 								<button
 									class="icon-button"
-									on:click={() => deleteResult(job)}
+									on:click|stopPropagation={() => deleteResult(job)}
 									disabled={job.status === 'RUNNING' || deletingIds.has(job.jobId)}
 									title="Slett resultat"
 								>
@@ -519,6 +672,40 @@
 		box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
 	}
 
+	.list-controls {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		justify-content: space-between;
+		gap: 12px;
+		margin-bottom: 16px;
+		padding: 12px;
+		border-radius: 10px;
+		border: 1px solid #e1e7f0;
+		background: #f8fafc;
+	}
+
+	.filter-group {
+		display: flex;
+		gap: 14px;
+		flex-wrap: wrap;
+		align-items: center;
+	}
+
+	.radio {
+		display: inline-flex;
+		gap: 6px;
+		align-items: center;
+		font-size: 14px;
+		color: #2c3e50;
+		cursor: pointer;
+	}
+
+	.action-group {
+		display: flex;
+		gap: 8px;
+	}
+
 	table {
 		width: 100%;
 		border-collapse: collapse;
@@ -544,6 +731,15 @@
 		background: #f8f9fa;
 	}
 
+	tr.hidden-row {
+		background: #f3f4f6;
+		color: #6b7280;
+	}
+
+	tr.hidden-row:hover {
+		background: #e5e7eb;
+	}
+
 	.job-id-btn {
 		background: #3498db;
 		color: white;
@@ -561,6 +757,22 @@
 
 	.job-id-text {
 		color: #666;
+	}
+
+	.document-cell {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		font-weight: 600;
+	}
+
+	.hidden-pill {
+		background: #e2e8f0;
+		color: #475569;
+		font-size: 12px;
+		padding: 2px 8px;
+		border-radius: 999px;
+		font-weight: 600;
 	}
 
 	.status-badge {

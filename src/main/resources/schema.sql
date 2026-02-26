@@ -4,9 +4,9 @@
 
 CREATE EXTENSION IF NOT EXISTS "pgcrypto";
 
--- Documents table (existing)
+-- Documents table (UUID IDs)
 CREATE TABLE IF NOT EXISTS documents (
-    id VARCHAR(255) PRIMARY KEY,
+    id UUID PRIMARY KEY,
     status VARCHAR(255),
     created TIMESTAMP,
     original_filename VARCHAR(255),
@@ -17,7 +17,7 @@ CREATE TABLE IF NOT EXISTS documents (
 -- Correction History table (new)
 CREATE TABLE IF NOT EXISTS correction_history (
     id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    document_id VARCHAR(255) NOT NULL,
+    document_id UUID NOT NULL,
     document_type VARCHAR(255),
     entity_type VARCHAR(50) NOT NULL,
     entity_id VARCHAR(255),
@@ -35,7 +35,7 @@ CREATE INDEX IF NOT EXISTS idx_correction_history_version ON correction_history(
 -- Interpretation Jobs table (existing)
 CREATE TABLE IF NOT EXISTS interpretation_jobs (
     id VARCHAR(255) PRIMARY KEY,
-    document_id VARCHAR(255) NOT NULL,
+    document_id UUID NOT NULL,
     status VARCHAR(255) NOT NULL,
     created TIMESTAMP NOT NULL,
     started_at TIMESTAMP,
@@ -48,7 +48,7 @@ CREATE TABLE IF NOT EXISTS interpretation_jobs (
 -- Interpretation Results table (existing)
 CREATE TABLE IF NOT EXISTS interpretation_results (
     id BIGSERIAL PRIMARY KEY,
-    document_id VARCHAR(255) NOT NULL,
+    document_id UUID NOT NULL,
     job_id VARCHAR(255) UNIQUE,
     document_type VARCHAR(255) NOT NULL,
     interpreted_at TIMESTAMP NOT NULL,
@@ -81,7 +81,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_statement_transaction_bank_id ON statement
 -- Jobs table (existing)
 CREATE TABLE IF NOT EXISTS jobs (
     id VARCHAR(255) PRIMARY KEY,
-    document_id VARCHAR(255),
+    document_id UUID,
     status VARCHAR(255),
     created TIMESTAMP,
     pipeline VARCHAR(255),

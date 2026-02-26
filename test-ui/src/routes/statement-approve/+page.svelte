@@ -35,6 +35,8 @@
 	let loading = true;
 	/** @type {string|null} */
 	let error = null;
+	/** @type {Record<string, { total: number, approved: number, allApproved: boolean } | null>} */
+	let jobStats = {};
 	/** @type {Job|null} */
 	let selectedJob = null;
 	/** @type {StatementTransaction[]|null} */
@@ -76,10 +78,51 @@
 					(/** @type {Job} */ a, /** @type {Job} */ b) =>
 						new Date(b.finishedAt || 0).getTime() - new Date(a.finishedAt || 0).getTime()
 				);
+			await loadJobStats(jobs);
 		} catch (err) {
 			error = `Error loading jobs: ${getErrorMessage(err)}`;
 		} finally {
 			loading = false;
+		}
+	}
+
+	/** @param {Job[]} jobList */
+	async function loadJobStats(jobList) {
+		if (!jobList.length) {
+			jobStats = {};
+			return;
+		}
+		const entries = await Promise.all(
+			jobList.map(async (job) => {
+				try {
+					const res = await fetch(`/api/v1/interpretation/jobs/${job.jobId}/statement-transactions`);
+					if (!res.ok) {
+						return [job.jobId, null];
+					}
+					const rows = /** @type {StatementTransaction[]} */ (await res.json());
+					const total = Array.isArray(rows) ? rows.length : 0;
+					const approved = Array.isArray(rows)
+						? rows.filter((row) => Boolean(row?.approved)).length
+						: 0;
+					return [job.jobId, { total, approved, allApproved: total > 0 && approved === total }];
+				} catch (err) {
+					return [job.jobId, null];
+				}
+			})
+		);
+		jobStats = Object.fromEntries(entries);
+	}
+
+	/** @param {Job} job */
+	function getJobStats(job) {
+		return jobStats[job.jobId] || null;
+	}
+
+	/** @param {Job} job */
+	function handleJobKeydown(job, event) {
+		if (event.key === 'Enter' || event.key === ' ') {
+			event.preventDefault();
+			selectJob(job);
 		}
 	}
 
@@ -277,29 +320,43 @@
 			<table>
 				<thead>
 					<tr>
-						<th>Jobb-ID</th>
-						<th>Dokument-ID</th>
+						<th>Dokument</th>
 						<th>Type</th>
 						<th>Filnavn</th>
 						<th>Fullfort</th>
+						<th>Transaksjoner</th>
+						<th>Godkjent</th>
 					</tr>
 				</thead>
 				<tbody>
 					{#each jobs as job}
-						<tr>
+						{@const stats = getJobStats(job)}
+						<tr
+							class:job-complete={stats?.allApproved}
+							on:click={() => selectJob(job)}
+							on:keydown={(event) => handleJobKeydown(job, event)}
+							role="button"
+							tabindex="0"
+						>
 							<td>
-								<button class="link-button" on:click={() => selectJob(job)}>
-									{job.jobId}
-								</button>
+								<div class="document-cell">
+									{#if stats?.allApproved}
+										<span class="status-check" aria-label="Alle transaksjoner godkjent">
+											✓
+										</span>
+									{/if}
+									<span>{job.originalFilename || job.documentId || '-'}</span>
+								</div>
 							</td>
-							<td>{job.documentId}</td>
 							<td>{job.documentType || '-'}</td>
 							<td>{job.originalFilename || '-'}</td>
 							<td>{job.finishedAt ? new Date(job.finishedAt).toLocaleString('nb-NO') : '-'}</td>
+							<td>{stats ? stats.total : '-'}</td>
+							<td>{stats ? `${stats.approved}/${stats.total}` : '-'}</td>
 						</tr>
 					{:else}
 						<tr>
-							<td colspan="5" class="no-data">Ingen fullforte jobber funnet</td>
+							<td colspan="6" class="no-data">Ingen fullforte jobber funnet</td>
 						</tr>
 					{/each}
 				</tbody>
@@ -464,6 +521,50 @@
 		color: #4b5563;
 		font-weight: 600;
 		font-size: 13px;
+	}
+
+	.document-cell {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		font-weight: 600;
+		color: #1f2937;
+	}
+
+	.status-check {
+		display: inline-flex;
+		align-items: center;
+		justify-content: center;
+		width: 22px;
+		height: 22px;
+		border-radius: 50%;
+		background: #1f7a3e;
+		color: #fff;
+		font-size: 14px;
+		font-weight: 700;
+		box-shadow: 0 6px 12px rgba(31, 122, 62, 0.24);
+	}
+
+	.jobs-list tbody tr {
+		cursor: pointer;
+		transition: background 0.2s ease;
+	}
+
+	.jobs-list tbody tr:hover {
+		background: #eef6ff;
+	}
+
+	.jobs-list tbody tr:focus-visible {
+		outline: 2px solid #2c7be5;
+		outline-offset: -2px;
+	}
+
+	.jobs-list tbody tr.job-complete {
+		background: #e6f6ec;
+	}
+
+	.jobs-list tbody tr.job-complete:hover {
+		background: #d7f0e1;
 	}
 
 	.link-button {

@@ -1,10 +1,11 @@
 package com.frnholding.pocketaccount.domain;
 
 import java.time.Instant;
+import java.util.UUID;
 
 public class Job {
     private String id;
-    private String documentId;
+    private UUID documentId;
     private String status;
     private Instant created;
     private String pipeline;
@@ -20,7 +21,7 @@ public class Job {
     }
 
     // All-arguments constructor
-    public Job(String id, String documentId, String status, Instant created, String pipeline, 
+    public Job(String id, UUID documentId, String status, Instant created, String pipeline, 
                boolean useOcr, boolean useAi, String languageHint, Instant startedAt, 
                Instant finishedAt, String error) {
         this.id = id;
@@ -45,11 +46,11 @@ public class Job {
         this.id = id;
     }
 
-    public String getDocumentId() {
+    public UUID getDocumentId() {
         return documentId;
     }
 
-    public void setDocumentId(String documentId) {
+    public void setDocumentId(UUID documentId) {
         this.documentId = documentId;
     }
 

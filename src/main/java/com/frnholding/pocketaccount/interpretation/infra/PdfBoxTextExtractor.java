@@ -32,7 +32,7 @@ public class PdfBoxTextExtractor implements DocumentTextInterpreter {
     public InterpretedText extract(UUID documentId) {
         log.info("Extracting text from document {} using PDFBox", documentId);
         
-        var document = documentRepository.findById(documentId.toString())
+        var document = documentRepository.findById(documentId)
                 .orElseThrow(() -> new IllegalArgumentException("Document not found: " + documentId));
 
         File pdfFile = new File(document.getFilePath());

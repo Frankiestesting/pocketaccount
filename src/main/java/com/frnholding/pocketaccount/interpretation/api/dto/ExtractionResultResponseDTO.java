@@ -3,6 +3,7 @@ package com.frnholding.pocketaccount.interpretation.api.dto;
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
+import java.util.UUID;
 
 /**
  * Response DTO for interpretation/extraction results.
@@ -12,7 +13,7 @@ public class ExtractionResultResponseDTO {
     /**
      * Document ID that was interpreted.
      */
-    private String documentId;
+    private UUID documentId;
     
     /**
      * Type of document interpreted.
@@ -48,7 +49,7 @@ public class ExtractionResultResponseDTO {
     public ExtractionResultResponseDTO() {
     }
 
-    public ExtractionResultResponseDTO(String documentId, String documentType, Instant interpretedAt, 
+    public ExtractionResultResponseDTO(UUID documentId, String documentType, Instant interpretedAt, 
                                        String extractionMethods, InvoiceFieldsDto invoiceFields, 
                                        List<TransactionDto> transactions) {
         this.documentId = documentId;
@@ -59,11 +60,11 @@ public class ExtractionResultResponseDTO {
         this.transactions = transactions;
     }
 
-    public String getDocumentId() {
+    public UUID getDocumentId() {
         return documentId;
     }
 
-    public void setDocumentId(String documentId) {
+    public void setDocumentId(UUID documentId) {
         this.documentId = documentId;
     }
 

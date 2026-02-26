@@ -93,7 +93,7 @@ public class DocumentController {
             @ApiResponse(responseCode = "404", description = "Document not found")
     })
     public ResponseEntity<DocumentResponseDTO> getDocument(@PathVariable @Parameter(description = "Document ID") UUID documentId) {
-        Document document = documentService.getDocument(documentId.toString());
+        Document document = documentService.getDocument(documentId);
         if (document == null) {
             return ResponseEntity.notFound().build();
         }
@@ -114,7 +114,7 @@ public class DocumentController {
                         @ApiResponse(responseCode = "404", description = "Document not found")
         })
         public ResponseEntity<Void> deleteDocument(@PathVariable @Parameter(description = "Document ID") UUID documentId) {
-                documentService.deleteDocument(documentId.toString());
+                documentService.deleteDocument(documentId);
                 return ResponseEntity.noContent().build();
         }
 
@@ -126,11 +126,11 @@ public class DocumentController {
             @ApiResponse(responseCode = "404", description = "Document not found")
     })
     public ResponseEntity<Resource> getDocumentFile(@PathVariable @Parameter(description = "Document ID") UUID documentId) throws IOException {
-        Document document = documentService.getDocument(documentId.toString());
+        Document document = documentService.getDocument(documentId);
         if (document == null) {
             return ResponseEntity.notFound().build();
         }
-        Resource file = documentService.getDocumentFile(documentId.toString());
+        Resource file = documentService.getDocumentFile(documentId);
         MediaType mediaType = resolveMediaType(document.getFilePath(), document.getOriginalFilename());
         String downloadName = resolveDownloadName(document, documentId.toString());
         return ResponseEntity.ok()
@@ -183,7 +183,7 @@ public class DocumentController {
             @PathVariable @Parameter(description = "Document ID") UUID documentId,
             @Valid @RequestBody @Parameter(description = "Job configuration") JobCreationRequestDTO request) {
         Job job = documentService.createJob(
-                documentId.toString(),
+            documentId,
                 request.getPipeline(),
                 request.isUseOcr(),
                 request.isUseAi(),
@@ -227,11 +227,11 @@ public class DocumentController {
             @RequestParam(defaultValue = "0") int page,
             @RequestParam(defaultValue = "100") int size) {
         List<Job> jobs = documentService.getJobs(page, size);
-        List<String> documentIds = jobs.stream()
+        List<UUID> documentIds = jobs.stream()
                 .map(Job::getDocumentId)
                 .distinct()
                 .collect(Collectors.toList());
-        Map<String, Document> documentsById = documentService.getDocumentsByIds(documentIds);
+        Map<UUID, Document> documentsById = documentService.getDocumentsByIds(documentIds);
 
         List<JobStatusResponseDTO> responses = jobs.stream()
                 .map(job -> {
@@ -291,7 +291,7 @@ public class DocumentController {
             @ApiResponse(responseCode = "404", description = "Document or result not found")
     })
     public ResponseEntity<ExtractionResultResponseDTO> getExtractionResult(@PathVariable @Parameter(description = "Document ID") UUID documentId) {
-        ExtractionResultResponseDTO result = documentService.getExtractionResult(documentId.toString());
+        ExtractionResultResponseDTO result = documentService.getExtractionResult(documentId);
         return ResponseEntity.ok(result);
     }
 
@@ -304,7 +304,7 @@ public class DocumentController {
     public ResponseEntity<DocumentCorrectionResponseDTO> saveCorrection(
             @PathVariable @Parameter(description = "Document ID") UUID documentId,
             @Valid @RequestBody @Parameter(description = "Corrected extraction data") DocumentCorrectionRequestDTO request) {
-        DocumentCorrectionResponseDTO response = documentService.saveCorrection(documentId.toString(), request);
+        DocumentCorrectionResponseDTO response = documentService.saveCorrection(documentId, request);
         return ResponseEntity.ok(response);
     }
 }

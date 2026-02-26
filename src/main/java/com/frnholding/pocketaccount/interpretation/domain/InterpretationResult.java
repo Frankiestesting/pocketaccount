@@ -8,6 +8,7 @@ import lombok.NoArgsConstructor;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.List;
+import java.util.UUID;
 
 @Entity
 @Table(name = "interpretation_results")
@@ -19,8 +20,8 @@ public class InterpretationResult {
     @GeneratedValue(strategy = GenerationType.IDENTITY)
     private Long id;
     
-    @Column(nullable = false)
-    private String documentId;
+    @Column(columnDefinition = "uuid", nullable = false)
+    private UUID documentId;
     
     @Column(unique = true)
     private String jobId;

@@ -3,9 +3,10 @@ package com.frnholding.pocketaccount.api.dto;
 import java.time.Instant;
 import java.util.Map;
 import java.util.List;
+import java.util.UUID;
 
 public class ExtractionResultResponseDTO {
-    private String documentId;
+    private UUID documentId;
     private String documentType;
     private Integer extractionVersion;
     private Instant extractedAt;
@@ -19,7 +20,7 @@ public class ExtractionResultResponseDTO {
     public ExtractionResultResponseDTO() {
     }
 
-    public ExtractionResultResponseDTO(String documentId, String documentType, Integer extractionVersion,
+    public ExtractionResultResponseDTO(UUID documentId, String documentType, Integer extractionVersion,
                                        Instant extractedAt, Map<String, Object> fields,
                                        Map<String, Object> correctedFields,
                                        Map<String, Double> confidence, List<String> warnings,
@@ -35,11 +36,11 @@ public class ExtractionResultResponseDTO {
         this.transactions = transactions;
     }
 
-    public String getDocumentId() {
+    public UUID getDocumentId() {
         return documentId;
     }
 
-    public void setDocumentId(String documentId) {
+    public void setDocumentId(UUID documentId) {
         this.documentId = documentId;
     }
 

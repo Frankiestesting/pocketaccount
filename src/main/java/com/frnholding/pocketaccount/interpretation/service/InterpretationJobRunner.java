@@ -60,7 +60,7 @@ public class InterpretationJobRunner {
             // Perform interpretation based on configuration
             InterpretationResult result = performInterpretation(
                     jobId,
-                    job.getDocumentId(),
+                        job.getDocumentId(),
                     job.getDocumentType(),
                     useOcr,
                     useAi,
@@ -92,7 +92,7 @@ public class InterpretationJobRunner {
 
     private InterpretationResult performInterpretation(
             String jobId,
-            String documentId,
+            UUID documentId,
             String documentType,
             boolean useOcr,
             boolean useAi,
@@ -120,10 +120,7 @@ public class InterpretationJobRunner {
                     .build();
 
             // Execute the interpretation pipeline
-            InterpretationResult result = interpretationPipeline.execute(
-                    UUID.fromString(documentId),
-                    options
-            );
+                InterpretationResult result = interpretationPipeline.execute(documentId, options);
 
             // Set the jobId for this result
             result.setJobId(jobId);

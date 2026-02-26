@@ -2,9 +2,10 @@ package com.frnholding.pocketaccount.api.dto;
 
 import java.time.Instant;
 import java.time.OffsetDateTime;
+import java.util.UUID;
 
 public class DocumentCorrectionResponseDTO {
-    private String documentId;
+    private UUID documentId;
     private Integer correctionVersion;
     private Instant savedAt;
     private OffsetDateTime correctionPlacedAt;
@@ -14,7 +15,7 @@ public class DocumentCorrectionResponseDTO {
     public DocumentCorrectionResponseDTO() {
     }
 
-    public DocumentCorrectionResponseDTO(String documentId, Integer correctionVersion, Instant savedAt,
+    public DocumentCorrectionResponseDTO(UUID documentId, Integer correctionVersion, Instant savedAt,
                                          OffsetDateTime correctionPlacedAt, String savedBy,
                                          Integer normalizedTransactionsCreated) {
         this.documentId = documentId;
@@ -25,11 +26,11 @@ public class DocumentCorrectionResponseDTO {
         this.normalizedTransactionsCreated = normalizedTransactionsCreated;
     }
 
-    public String getDocumentId() {
+    public UUID getDocumentId() {
         return documentId;
     }
 
-    public void setDocumentId(String documentId) {
+    public void setDocumentId(UUID documentId) {
         this.documentId = documentId;
     }
 
