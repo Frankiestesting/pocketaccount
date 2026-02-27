@@ -1,6 +1,7 @@
 package com.frnholding.pocketaccount.accounting.service;
 
 import com.frnholding.pocketaccount.accounting.api.dto.AccountResponse;
+import com.frnholding.pocketaccount.accounting.api.dto.ApproveReceiptWaiverRequest;
 import com.frnholding.pocketaccount.accounting.api.dto.BankStatementLineDto;
 import com.frnholding.pocketaccount.accounting.api.dto.BankTransactionDTO;
 import com.frnholding.pocketaccount.accounting.api.dto.BankTransactionLinkResponse;
@@ -14,6 +15,7 @@ import com.frnholding.pocketaccount.accounting.api.dto.MatchStatusResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.ReceiptMatchCandidateResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.ReceiptMatchResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.ReceiptResponse;
+import com.frnholding.pocketaccount.accounting.api.dto.ReceiptWaiverReasonResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.ReconciliationRowResponse;
 import com.frnholding.pocketaccount.accounting.domain.Account;
 import com.frnholding.pocketaccount.accounting.domain.BankTransaction;
@@ -23,6 +25,7 @@ import com.frnholding.pocketaccount.accounting.domain.ReceiptMatchStatus;
 import com.frnholding.pocketaccount.accounting.mapper.AccountingMapper;
 import com.frnholding.pocketaccount.accounting.repository.AccountRepository;
 import com.frnholding.pocketaccount.accounting.repository.BankTransactionRepository;
+import com.frnholding.pocketaccount.accounting.repository.ReceiptWaiverReasonRepository;
 import com.frnholding.pocketaccount.accounting.repository.ReceiptMatchRepository;
 import com.frnholding.pocketaccount.accounting.repository.ReceiptRepository;
 import com.frnholding.pocketaccount.interpretation.repository.StatementTransactionRepository;
@@ -42,6 +45,7 @@ import java.io.IOException;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.UUID;
@@ -55,6 +59,7 @@ public class AccountingService {
     private final BankTransactionRepository bankTransactionRepository;
     private final ReceiptRepository receiptRepository;
     private final ReceiptMatchRepository receiptMatchRepository;
+    private final ReceiptWaiverReasonRepository receiptWaiverReasonRepository;
     private final StatementTransactionRepository statementTransactionRepository;
     private final AccountingMapper mapper;
     
@@ -62,12 +67,14 @@ public class AccountingService {
                            BankTransactionRepository bankTransactionRepository,
                            ReceiptRepository receiptRepository,
                            ReceiptMatchRepository receiptMatchRepository,
+                           ReceiptWaiverReasonRepository receiptWaiverReasonRepository,
                            StatementTransactionRepository statementTransactionRepository,
                            AccountingMapper mapper) {
         this.accountRepository = accountRepository;
         this.bankTransactionRepository = bankTransactionRepository;
         this.receiptRepository = receiptRepository;
         this.receiptMatchRepository = receiptMatchRepository;
+        this.receiptWaiverReasonRepository = receiptWaiverReasonRepository;
         this.statementTransactionRepository = statementTransactionRepository;
         this.mapper = mapper;
     }
@@ -217,6 +224,13 @@ public class AccountingService {
                 .map(mapper::toReceiptResponse)
                 .collect(Collectors.toList());
     }
+
+    @Transactional(readOnly = true)
+    public List<ReceiptWaiverReasonResponse> getReceiptWaiverReasons() {
+        return receiptWaiverReasonRepository.findAll(Sort.by(Sort.Direction.ASC, "sortOrder")).stream()
+            .map(reason -> new ReceiptWaiverReasonResponse(reason.getCode(), reason.getLabel()))
+            .collect(Collectors.toList());
+    }
     
     @Transactional
     public ReceiptMatchResponse createReceiptMatch(CreateReceiptMatchRequest request) {
@@ -245,6 +259,11 @@ public class AccountingService {
         // Verify bank transaction exists
         BankTransaction bankTransaction = bankTransactionRepository.findById(request.getBankTransactionId())
                 .orElseThrow(() -> new EntityNotFoundException("Bank transaction not found: " + request.getBankTransactionId()));
+
+        if (bankTransaction.isReceiptWaived()) {
+            clearReceiptWaiverFields(bankTransaction);
+            bankTransactionRepository.save(bankTransaction);
+        }
         
         // Create match
         ReceiptMatch match = new ReceiptMatch();
@@ -258,6 +277,38 @@ public class AccountingService {
         
         ReceiptMatch saved = receiptMatchRepository.save(match);
         return mapper.toReceiptMatchResponse(saved);
+    }
+
+    @Transactional
+    public BankTransactionResponse approveReceiptWaiver(UUID bankTransactionId, ApproveReceiptWaiverRequest request) {
+        BankTransaction transaction = bankTransactionRepository.findById(bankTransactionId)
+            .orElseThrow(() -> new EntityNotFoundException("Bank transaction not found: " + bankTransactionId));
+
+        if (receiptMatchRepository.existsByBankTransactionIdAndStatus(bankTransactionId, ReceiptMatchStatus.ACTIVE)) {
+            throw new ConflictException("Cannot approve without receipt: bank transaction is already matched");
+        }
+
+        transaction.setReceiptWaived(true);
+        transaction.setReceiptWaiverReason(request.getReason());
+        transaction.setReceiptWaiverNote(request.getNote());
+        transaction.setReceiptWaivedAt(OffsetDateTime.now());
+
+        BankTransaction saved = bankTransactionRepository.save(transaction);
+        return mapper.toBankTransactionResponse(saved);
+    }
+
+    @Transactional
+    public BankTransactionResponse clearReceiptWaiver(UUID bankTransactionId) {
+        BankTransaction transaction = bankTransactionRepository.findById(bankTransactionId)
+            .orElseThrow(() -> new EntityNotFoundException("Bank transaction not found: " + bankTransactionId));
+
+        if (!transaction.isReceiptWaived()) {
+            return mapper.toBankTransactionResponse(transaction);
+        }
+
+        clearReceiptWaiverFields(transaction);
+        BankTransaction saved = bankTransactionRepository.save(transaction);
+        return mapper.toBankTransactionResponse(saved);
     }
 
     @Transactional(readOnly = true)
@@ -456,7 +507,9 @@ public class AccountingService {
             ReceiptMatchStatus.ACTIVE);
         
         String status;
-        if (sumMatched.compareTo(BigDecimal.ZERO) == 0) {
+        if (transaction.isReceiptWaived() && sumMatched.compareTo(BigDecimal.ZERO) == 0) {
+            status = "APPROVED_NO_RECEIPT";
+        } else if (sumMatched.compareTo(BigDecimal.ZERO) == 0) {
             status = "UNMATCHED";
         } else if (sumMatched.compareTo(transactionAmountAbs) < 0) {
             status = "PARTIAL";
@@ -487,7 +540,9 @@ public class AccountingService {
                     BigDecimal transactionAmountAbs = transaction.getAmount().abs();
                     
                     String status;
-                    if (sumMatched.compareTo(BigDecimal.ZERO) == 0) {
+                    if (transaction.isReceiptWaived() && sumMatched.compareTo(BigDecimal.ZERO) == 0) {
+                        status = "APPROVED_NO_RECEIPT";
+                    } else if (sumMatched.compareTo(BigDecimal.ZERO) == 0) {
                         status = "UNMATCHED";
                     } else if (sumMatched.compareTo(transactionAmountAbs) < 0) {
                         status = "PARTIAL";
@@ -503,7 +558,11 @@ public class AccountingService {
                             transaction.getAmount(),
                             transaction.getDescription(),
                             sumMatched,
-                            status
+                            status,
+                            transaction.isReceiptWaived(),
+                            transaction.getReceiptWaiverReason(),
+                            transaction.getReceiptWaiverNote(),
+                            transaction.getReceiptWaivedAt()
                     );
                 })
                 .collect(Collectors.toList());
@@ -531,7 +590,9 @@ public class AccountingService {
                     BigDecimal transactionAmountAbs = transaction.getAmount().abs();
 
                     String status;
-                    if (sumMatched.compareTo(BigDecimal.ZERO) == 0) {
+                    if (transaction.isReceiptWaived() && sumMatched.compareTo(BigDecimal.ZERO) == 0) {
+                        status = "APPROVED_NO_RECEIPT";
+                    } else if (sumMatched.compareTo(BigDecimal.ZERO) == 0) {
                         status = "UNMATCHED";
                     } else if (sumMatched.compareTo(transactionAmountAbs) < 0) {
                         status = "PARTIAL";
@@ -547,7 +608,11 @@ public class AccountingService {
                             transaction.getAmount(),
                             transaction.getDescription(),
                             sumMatched,
-                            status
+                            status,
+                            transaction.isReceiptWaived(),
+                            transaction.getReceiptWaiverReason(),
+                            transaction.getReceiptWaiverNote(),
+                            transaction.getReceiptWaivedAt()
                     );
                 })
                 .collect(Collectors.toList());
@@ -560,7 +625,7 @@ public class AccountingService {
         StringBuilder csv = new StringBuilder();
         
         // Header row
-        csv.append("transactionId,bookingDate,amount,description,sumMatched,status\n");
+        csv.append("transactionId,bookingDate,amount,description,sumMatched,status,receiptWaived,receiptWaiverReason,receiptWaiverNote,receiptWaivedAt\n");
         
         // Data rows
         for (ReconciliationRowResponse row : rows) {
@@ -569,7 +634,11 @@ public class AccountingService {
             csv.append(escapeCsvField(row.getAmount().toString())).append(",");
             csv.append(escapeCsvField(row.getDescription())).append(",");
             csv.append(escapeCsvField(row.getSumMatched().toString())).append(",");
-            csv.append(escapeCsvField(row.getStatus())).append("\n");
+            csv.append(escapeCsvField(row.getStatus())).append(",");
+            csv.append(escapeCsvField(Boolean.toString(row.isReceiptWaived()))).append(",");
+            csv.append(escapeCsvField(row.getReceiptWaiverReason() != null ? row.getReceiptWaiverReason().name() : null)).append(",");
+            csv.append(escapeCsvField(row.getReceiptWaiverNote())).append(",");
+            csv.append(escapeCsvField(row.getReceiptWaivedAt() != null ? row.getReceiptWaivedAt().toString() : null)).append("\n");
         }
         
         return csv.toString();
@@ -590,6 +659,10 @@ public class AccountingService {
             header.createCell(3).setCellValue("description");
             header.createCell(4).setCellValue("sumMatched");
             header.createCell(5).setCellValue("status");
+            header.createCell(6).setCellValue("receiptWaived");
+            header.createCell(7).setCellValue("receiptWaiverReason");
+            header.createCell(8).setCellValue("receiptWaiverNote");
+            header.createCell(9).setCellValue("receiptWaivedAt");
 
             for (ReconciliationRowResponse row : rows) {
                 Row excelRow = sheet.createRow(rowIndex++);
@@ -599,9 +672,13 @@ public class AccountingService {
                 excelRow.createCell(3).setCellValue(row.getDescription());
                 excelRow.createCell(4).setCellValue(row.getSumMatched().toPlainString());
                 excelRow.createCell(5).setCellValue(row.getStatus());
+                excelRow.createCell(6).setCellValue(Boolean.toString(row.isReceiptWaived()));
+                excelRow.createCell(7).setCellValue(row.getReceiptWaiverReason() != null ? row.getReceiptWaiverReason().name() : "");
+                excelRow.createCell(8).setCellValue(row.getReceiptWaiverNote() != null ? row.getReceiptWaiverNote() : "");
+                excelRow.createCell(9).setCellValue(row.getReceiptWaivedAt() != null ? row.getReceiptWaivedAt().toString() : "");
             }
 
-            for (int i = 0; i <= 5; i++) {
+            for (int i = 0; i <= 9; i++) {
                 sheet.autoSizeColumn(i);
             }
 
@@ -621,5 +698,12 @@ public class AccountingService {
             return "\"" + field.replace("\"", "\"\"") + "\"";
         }
         return field;
+    }
+
+    private void clearReceiptWaiverFields(BankTransaction transaction) {
+        transaction.setReceiptWaived(false);
+        transaction.setReceiptWaiverReason(null);
+        transaction.setReceiptWaiverNote(null);
+        transaction.setReceiptWaivedAt(null);
     }
 }

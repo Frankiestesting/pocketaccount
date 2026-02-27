@@ -1,8 +1,10 @@
 package com.frnholding.pocketaccount.accounting.api.dto;
 
+import com.frnholding.pocketaccount.accounting.domain.ReceiptWaiverReason;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public class BankTransactionResponse {
@@ -18,13 +20,19 @@ public class BankTransactionResponse {
     private UUID sourceDocumentId;
     private String sourceLineHash;
     private Instant createdAt;
+    private boolean receiptWaived;
+    private ReceiptWaiverReason receiptWaiverReason;
+    private String receiptWaiverNote;
+    private OffsetDateTime receiptWaivedAt;
     
     public BankTransactionResponse() {
     }
     
     public BankTransactionResponse(UUID id, UUID accountId, LocalDate bookingDate, LocalDate valueDate,
                                    BigDecimal amount, String currency, String counterparty, String description,
-                                   String reference, UUID sourceDocumentId, String sourceLineHash, Instant createdAt) {
+                                   String reference, UUID sourceDocumentId, String sourceLineHash, Instant createdAt,
+                                   boolean receiptWaived, ReceiptWaiverReason receiptWaiverReason,
+                                   String receiptWaiverNote, OffsetDateTime receiptWaivedAt) {
         this.id = id;
         this.accountId = accountId;
         this.bookingDate = bookingDate;
@@ -37,6 +45,10 @@ public class BankTransactionResponse {
         this.sourceDocumentId = sourceDocumentId;
         this.sourceLineHash = sourceLineHash;
         this.createdAt = createdAt;
+        this.receiptWaived = receiptWaived;
+        this.receiptWaiverReason = receiptWaiverReason;
+        this.receiptWaiverNote = receiptWaiverNote;
+        this.receiptWaivedAt = receiptWaivedAt;
     }
     
     public UUID getId() {
@@ -133,5 +145,37 @@ public class BankTransactionResponse {
     
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public boolean isReceiptWaived() {
+        return receiptWaived;
+    }
+
+    public void setReceiptWaived(boolean receiptWaived) {
+        this.receiptWaived = receiptWaived;
+    }
+
+    public ReceiptWaiverReason getReceiptWaiverReason() {
+        return receiptWaiverReason;
+    }
+
+    public void setReceiptWaiverReason(ReceiptWaiverReason receiptWaiverReason) {
+        this.receiptWaiverReason = receiptWaiverReason;
+    }
+
+    public String getReceiptWaiverNote() {
+        return receiptWaiverNote;
+    }
+
+    public void setReceiptWaiverNote(String receiptWaiverNote) {
+        this.receiptWaiverNote = receiptWaiverNote;
+    }
+
+    public OffsetDateTime getReceiptWaivedAt() {
+        return receiptWaivedAt;
+    }
+
+    public void setReceiptWaivedAt(OffsetDateTime receiptWaivedAt) {
+        this.receiptWaivedAt = receiptWaivedAt;
     }
 }

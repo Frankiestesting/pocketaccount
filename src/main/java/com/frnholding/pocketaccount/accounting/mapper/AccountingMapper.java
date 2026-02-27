@@ -52,6 +52,10 @@ public class AccountingMapper {
         dto.setSourceDocumentId(transaction.getSourceDocumentId());
         dto.setSourceLineHash(transaction.getSourceLineHash());
         dto.setCreatedAt(transaction.getCreatedAt());
+        dto.setReceiptWaived(transaction.isReceiptWaived());
+        dto.setReceiptWaiverReason(transaction.getReceiptWaiverReason());
+        dto.setReceiptWaiverNote(transaction.getReceiptWaiverNote());
+        dto.setReceiptWaivedAt(transaction.getReceiptWaivedAt());
         return dto;
     }
     
@@ -71,7 +75,11 @@ public class AccountingMapper {
             transaction.getReference(),
             transaction.getSourceDocumentId(),
             transaction.getSourceLineHash(),
-            transaction.getCreatedAt()
+            transaction.getCreatedAt(),
+            transaction.isReceiptWaived(),
+            transaction.getReceiptWaiverReason(),
+            transaction.getReceiptWaiverNote(),
+            transaction.getReceiptWaivedAt()
         );
     }
     

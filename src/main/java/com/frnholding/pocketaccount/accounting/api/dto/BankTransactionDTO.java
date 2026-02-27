@@ -1,8 +1,10 @@
 package com.frnholding.pocketaccount.accounting.api.dto;
 
 import java.math.BigDecimal;
+import com.frnholding.pocketaccount.accounting.domain.ReceiptWaiverReason;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 public class BankTransactionDTO {
@@ -19,6 +21,10 @@ public class BankTransactionDTO {
     private UUID sourceDocumentId;
     private String sourceLineHash;
     private Instant createdAt;
+    private boolean receiptWaived;
+    private ReceiptWaiverReason receiptWaiverReason;
+    private String receiptWaiverNote;
+    private OffsetDateTime receiptWaivedAt;
     
     public BankTransactionDTO() {
     }
@@ -117,5 +123,37 @@ public class BankTransactionDTO {
     
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public boolean isReceiptWaived() {
+        return receiptWaived;
+    }
+
+    public void setReceiptWaived(boolean receiptWaived) {
+        this.receiptWaived = receiptWaived;
+    }
+
+    public ReceiptWaiverReason getReceiptWaiverReason() {
+        return receiptWaiverReason;
+    }
+
+    public void setReceiptWaiverReason(ReceiptWaiverReason receiptWaiverReason) {
+        this.receiptWaiverReason = receiptWaiverReason;
+    }
+
+    public String getReceiptWaiverNote() {
+        return receiptWaiverNote;
+    }
+
+    public void setReceiptWaiverNote(String receiptWaiverNote) {
+        this.receiptWaiverNote = receiptWaiverNote;
+    }
+
+    public OffsetDateTime getReceiptWaivedAt() {
+        return receiptWaivedAt;
+    }
+
+    public void setReceiptWaivedAt(OffsetDateTime receiptWaivedAt) {
+        this.receiptWaivedAt = receiptWaivedAt;
     }
 }

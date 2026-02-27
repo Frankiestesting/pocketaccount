@@ -1,6 +1,7 @@
 package com.frnholding.pocketaccount.accounting.controller;
 
 import com.frnholding.pocketaccount.accounting.api.dto.AccountResponse;
+import com.frnholding.pocketaccount.accounting.api.dto.ApproveReceiptWaiverRequest;
 import com.frnholding.pocketaccount.accounting.api.dto.BankTransactionDTO;
 import com.frnholding.pocketaccount.accounting.api.dto.BankTransactionLinkResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.BankTransactionResponse;
@@ -13,6 +14,7 @@ import com.frnholding.pocketaccount.accounting.api.dto.MatchStatusResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.ReceiptMatchCandidateResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.ReceiptMatchResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.ReceiptResponse;
+import com.frnholding.pocketaccount.accounting.api.dto.ReceiptWaiverReasonResponse;
 import com.frnholding.pocketaccount.accounting.api.dto.ReconciliationRowResponse;
 import com.frnholding.pocketaccount.accounting.service.AccountingService;
 import io.swagger.v3.oas.annotations.Operation;
@@ -89,6 +91,26 @@ public class AccountingController {
             @RequestParam(defaultValue = "100") int size) {
         List<BankTransactionResponse> transactions = accountingService.getTransactionsByDateRange(accountId, from, to, page, size);
         return ResponseEntity.ok(transactions);
+    }
+
+    @GetMapping("/receipt-waiver-reasons")
+    public ResponseEntity<List<ReceiptWaiverReasonResponse>> getReceiptWaiverReasons() {
+        List<ReceiptWaiverReasonResponse> reasons = accountingService.getReceiptWaiverReasons();
+        return ResponseEntity.ok(reasons);
+    }
+
+    @PostMapping("/bank-transactions/{id}/receipt-waiver")
+    public ResponseEntity<BankTransactionResponse> approveReceiptWaiver(
+            @PathVariable UUID id,
+            @Valid @RequestBody ApproveReceiptWaiverRequest request) {
+        BankTransactionResponse response = accountingService.approveReceiptWaiver(id, request);
+        return ResponseEntity.ok(response);
+    }
+
+    @DeleteMapping("/bank-transactions/{id}/receipt-waiver")
+    public ResponseEntity<Void> clearReceiptWaiver(@PathVariable UUID id) {
+        accountingService.clearReceiptWaiver(id);
+        return ResponseEntity.noContent().build();
     }
     
     @PostMapping("/receipts")

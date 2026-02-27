@@ -14,6 +14,10 @@
 	 * @property {string} [description]
 	 * @property {number} [amount]
 	 * @property {string} [currency]
+	 * @property {boolean} [receiptWaived]
+	 * @property {string} [receiptWaiverReason]
+	 * @property {string} [receiptWaiverNote]
+	 * @property {string} [receiptWaivedAt]
 	 * @property {string} accountName
 	 * @property {string} accountNo
 	 */
@@ -21,6 +25,11 @@
 	 * @typedef {Object} TransactionLinks
 	 * @property {string} [statementTransactionId]
 	 * @property {string} [receiptId]
+	 */
+	/**
+	 * @typedef {Object} WaiverReason
+	 * @property {string} code
+	 * @property {string} label
 	 */
 
 	/** @type {Account[]} */
@@ -39,6 +48,22 @@
 	let monthGroups = new Map();
 	/** @type {string[]} */
 	let monthKeys = [];
+	let receiptFilter = 'all';
+
+	/** @type {WaiverReason[]} */
+	let waiverReasons = [];
+	/** @type {Record<string, string>} */
+	let waiverReasonLabels = {};
+
+	/** @type {Record<string, { reason: string, note: string }>} */
+	let waiverForms = {};
+	/** @type {Record<string, boolean>} */
+	let waiverSaving = {};
+	/** @type {Record<string, string | null>} */
+	let waiverErrors = {};
+
+	/** @type {Transaction[]} */
+	let filteredTransactions = [];
 
 	/** @param {unknown} err */
 	function getErrorMessage(err) {
@@ -61,6 +86,15 @@
 				throw new Error(`Failed to fetch accounts: ${accountsRes.status}`);
 			}
 			accounts = await accountsRes.json();
+
+			const waiverRes = await fetch('/api/v1/receipt-waiver-reasons');
+			if (waiverRes.ok) {
+				const reasonRows = await waiverRes.json();
+				waiverReasons = Array.isArray(reasonRows) ? reasonRows : [];
+				waiverReasonLabels = Object.fromEntries(
+					waiverReasons.map((reason) => [reason.code, reason.label])
+				);
+			}
 
 			const perAccount = await Promise.all(
 				accounts.map(async (account) => {
@@ -104,7 +138,8 @@
 		}
 	}
 
-	$: monthGroups = buildMonthGroups(transactions, linksById);
+	$: filteredTransactions = filterTransactions(transactions, linksById, receiptFilter);
+	$: monthGroups = buildMonthGroups(filteredTransactions, linksById);
 	$: monthKeys = Array.from(monthGroups.keys()).sort((a, b) => {
 		if (a === 'unknown') return 1;
 		if (b === 'unknown') return -1;
@@ -123,6 +158,19 @@
 	function formatAmount(amount) {
 		if (amount === null || amount === undefined) return '-';
 		return Number(amount).toLocaleString('nb-NO', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+	}
+
+	/** @param {string|undefined} reason */
+	function formatWaiverReason(reason) {
+		if (!reason) return '-';
+		return waiverReasonLabels[reason] || reason;
+	}
+
+	function getDefaultWaiverReason() {
+		if (waiverReasons.length > 0) {
+			return waiverReasons[0].code;
+		}
+		return 'OTHER';
 	}
 
 	/** @param {string|undefined} dateString */
@@ -166,7 +214,7 @@
 			} else {
 				group.expense += Math.abs(amount);
 				group.expenseCount += 1;
-				if (linkMap?.[tx.id]?.receiptId) {
+				if (linkMap?.[tx.id]?.receiptId || tx.receiptWaived) {
 					group.approvedExpenseCount += 1;
 				}
 			}
@@ -219,6 +267,110 @@
 		const links = getLinks(txId);
 		return Boolean(links?.statementTransactionId && links?.receiptId);
 	}
+
+	/** @param {Transaction} tx */
+	function isExpense(tx) {
+		return Number(tx.amount ?? 0) < 0;
+	}
+
+	/** @param {TransactionLinks | null} links */
+	function hasReceiptLink(links) {
+		return Boolean(links?.receiptId);
+	}
+
+	/** @param {Transaction[]} rows */
+	/** @param {Record<string, TransactionLinks | null>} linkMap */
+	/** @param {string} filter */
+	function filterTransactions(rows, linkMap, filter) {
+		switch (filter) {
+			case 'missing':
+				return rows.filter((tx) =>
+					isExpense(tx) && !hasReceiptLink(linkMap?.[tx.id]) && !tx.receiptWaived
+				);
+			case 'waived':
+				return rows.filter((tx) => Boolean(tx.receiptWaived));
+			case 'receipt':
+				return rows.filter((tx) => hasReceiptLink(linkMap?.[tx.id]));
+			default:
+				return rows;
+		}
+	}
+
+	/** @param {string} txId */
+	function updateWaiverForm(txId, field, value) {
+		const existing = waiverForms[txId] || { reason: getDefaultWaiverReason(), note: '' };
+		waiverForms = { ...waiverForms, [txId]: { ...existing, [field]: value } };
+	}
+
+	/** @param {string} txId */
+	function setWaiverSaving(txId, value) {
+		waiverSaving = { ...waiverSaving, [txId]: value };
+	}
+
+	/** @param {string} txId */
+	function setWaiverError(txId, value) {
+		waiverErrors = { ...waiverErrors, [txId]: value };
+	}
+
+	function updateTransactionFromResponse(updated) {
+		transactions = transactions.map((tx) =>
+			tx.id === updated.id ? { ...tx, ...updated, accountName: tx.accountName, accountNo: tx.accountNo } : tx
+		);
+	}
+
+	/** @param {Transaction} tx */
+	async function approveWaiver(tx) {
+		const form = waiverForms[tx.id] || { reason: getDefaultWaiverReason(), note: '' };
+		if (!form.reason) {
+			setWaiverError(tx.id, 'Velg arsak for godkjenning.');
+			return;
+		}
+		setWaiverSaving(tx.id, true);
+		setWaiverError(tx.id, null);
+		try {
+			const res = await fetch(`/api/v1/bank-transactions/${tx.id}/receipt-waiver`, {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({ reason: form.reason, note: form.note?.trim() || null })
+			});
+			if (!res.ok) {
+				const errorText = await res.text();
+				throw new Error(`Godkjenning feilet: ${res.status} ${errorText}`);
+			}
+			const updated = await res.json();
+			updateTransactionFromResponse(updated);
+		} catch (err) {
+			setWaiverError(tx.id, getErrorMessage(err));
+		} finally {
+			setWaiverSaving(tx.id, false);
+		}
+	}
+
+	/** @param {Transaction} tx */
+	async function clearWaiver(tx) {
+		setWaiverSaving(tx.id, true);
+		setWaiverError(tx.id, null);
+		try {
+			const res = await fetch(`/api/v1/bank-transactions/${tx.id}/receipt-waiver`, {
+				method: 'DELETE'
+			});
+			if (!res.ok) {
+				const errorText = await res.text();
+				throw new Error(`Fjerning feilet: ${res.status} ${errorText}`);
+			}
+			updateTransactionFromResponse({
+				...tx,
+				receiptWaived: false,
+				receiptWaiverReason: null,
+				receiptWaiverNote: null,
+				receiptWaivedAt: null
+			});
+		} catch (err) {
+			setWaiverError(tx.id, getErrorMessage(err));
+		} finally {
+			setWaiverSaving(tx.id, false);
+		}
+	}
 </script>
 
 <svelte:head>
@@ -238,6 +390,15 @@
 	{:else}
 		<div class="month-controls">
 			<div class="summary">{monthKeys.length} måneder</div>
+			<div class="filters">
+				<label for="receiptFilter">Filter:</label>
+				<select id="receiptFilter" bind:value={receiptFilter}>
+					<option value="all">Alle</option>
+					<option value="missing">Mangler kvittering</option>
+					<option value="waived">Godkjent uten kvittering</option>
+					<option value="receipt">Har kvittering</option>
+				</select>
+			</div>
 			<div class="controls">
 				<button
 					type="button"
@@ -269,7 +430,10 @@
 					<div class="month-title">
 						<div class="month-title-row">
 							{#if group.expenseCount > 0 && group.approvedExpenseCount === group.expenseCount}
-								<span class="status-check" aria-label="Alle utgifter har godkjent kvittering">
+								<span
+									class="status-check"
+									aria-label="Alle utgifter har kvittering eller er godkjent uten kvittering"
+								>
 									✓
 								</span>
 							{/if}
@@ -300,11 +464,15 @@
 								<th>Konto</th>
 								<th>Statement</th>
 								<th>Kvittering</th>
+								<th>Status</th>
+								<th>Handling</th>
 							</tr>
 						</thead>
 						<tbody>
 							{#each group.transactions as tx}
 								{@const links = getLinks(tx.id)}
+								{@const receiptLinked = hasReceiptLink(links)}
+								{@const expense = isExpense(tx)}
 								<tr class:row-linked={hasBothLinks(tx.id)}>
 									<td>{formatDate(tx.bookingDate)}</td>
 									<td>{tx.description || '-'}</td>
@@ -325,6 +493,71 @@
 											<a href={`/receipt/${links.receiptId}`} class="link">
 												{links.receiptId}
 											</a>
+										{:else}
+											<span class="muted">-</span>
+										{/if}
+									</td>
+									<td>
+										{#if receiptLinked}
+											<span class="status-pill status-ok">Kvittering</span>
+										{:else if tx.receiptWaived}
+											<div class="status-stack">
+												<span class="status-pill status-waived">Godkjent uten kvittering</span>
+												<span class="waiver-meta">
+													{formatWaiverReason(tx.receiptWaiverReason)}
+													{#if tx.receiptWaiverNote}
+														• {tx.receiptWaiverNote}
+													{/if}
+												</span>
+											</div>
+										{:else}
+											<span class="status-pill status-missing">Mangler</span>
+										{/if}
+									</td>
+									<td>
+										{#if expense && !receiptLinked}
+											{#if tx.receiptWaived}
+												<button
+													type="button"
+													class="control-button secondary small"
+													disabled={waiverSaving[tx.id]}
+													on:click={() => clearWaiver(tx)}
+												>
+													Fjern godkjenning
+												</button>
+											{:else}
+												<div class="waiver-form">
+													<select
+														value={waiverForms[tx.id]?.reason || getDefaultWaiverReason()}
+														on:change={(event) => updateWaiverForm(tx.id, 'reason', event.target.value)}
+													>
+														{#if waiverReasons.length === 0}
+															<option value="">Ingen arsaker lastet</option>
+														{:else}
+															{#each waiverReasons as reason}
+																<option value={reason.code}>{reason.label}</option>
+															{/each}
+														{/if}
+													</select>
+													<input
+														type="text"
+														placeholder="Kort notat (valgfritt)"
+														value={waiverForms[tx.id]?.note || ''}
+														on:input={(event) => updateWaiverForm(tx.id, 'note', event.target.value)}
+													/>
+													<button
+														type="button"
+														class="control-button small"
+														disabled={waiverSaving[tx.id]}
+														on:click={() => approveWaiver(tx)}
+													>
+														Godkjenn uten kvittering
+													</button>
+												</div>
+												{#if waiverErrors[tx.id]}
+													<div class="waiver-error">{waiverErrors[tx.id]}</div>
+												{/if}
+											{/if}
 										{:else}
 											<span class="muted">-</span>
 										{/if}
@@ -417,6 +650,24 @@
 		gap: 10px;
 	}
 
+	.month-controls .filters {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+		font-size: 14px;
+		color: #1f3b63;
+		font-weight: 600;
+	}
+
+	.month-controls select {
+		border-radius: 8px;
+		border: 1px solid #cbd5f5;
+		padding: 6px 10px;
+		background: #fff;
+		color: #1f3b63;
+		font-weight: 600;
+	}
+
 	.control-button {
 		border: none;
 		border-radius: 8px;
@@ -434,6 +685,11 @@
 		color: #1f3b63;
 		box-shadow: none;
 		border: 1px solid #d7e2f3;
+	}
+
+	.control-button.small {
+		padding: 6px 10px;
+		font-size: 12px;
 	}
 
 	.control-button:hover:enabled {
@@ -589,5 +845,63 @@
 
 	.transactions-table tbody tr.row-linked:hover {
 		background: #b6e9c5;
+	}
+
+	.status-pill {
+		display: inline-flex;
+		align-items: center;
+		gap: 6px;
+		padding: 4px 10px;
+		border-radius: 999px;
+		font-size: 12px;
+		font-weight: 700;
+		text-transform: uppercase;
+		letter-spacing: 0.03em;
+	}
+
+	.status-ok {
+		background: #dcfce7;
+		color: #166534;
+	}
+
+	.status-waived {
+		background: #fde68a;
+		color: #92400e;
+	}
+
+	.status-missing {
+		background: #fee2e2;
+		color: #991b1b;
+	}
+
+	.status-stack {
+		display: flex;
+		flex-direction: column;
+		gap: 6px;
+	}
+
+	.waiver-meta {
+		font-size: 12px;
+		color: #6b7280;
+	}
+
+	.waiver-form {
+		display: grid;
+		gap: 6px;
+		grid-template-columns: minmax(140px, 1fr);
+	}
+
+	.waiver-form select,
+	.waiver-form input {
+		border-radius: 8px;
+		border: 1px solid #cbd5f5;
+		padding: 6px 8px;
+		font-size: 12px;
+	}
+
+	.waiver-error {
+		margin-top: 6px;
+		color: #b91c1c;
+		font-size: 12px;
 	}
 </style>

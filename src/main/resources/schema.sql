@@ -119,6 +119,10 @@ CREATE TABLE IF NOT EXISTS bank_transaction (
     source_document_id UUID NULL,
     source_line_hash VARCHAR(64) NOT NULL,
     created_at TIMESTAMPTZ NOT NULL DEFAULT now(),
+    receipt_waived BOOLEAN NOT NULL DEFAULT FALSE,
+    receipt_waiver_reason VARCHAR(50) NULL,
+    receipt_waiver_note TEXT NULL,
+    receipt_waived_at TIMESTAMPTZ NULL,
     CONSTRAINT fk_bank_transaction_account FOREIGN KEY (account_id) REFERENCES account(id) ON DELETE CASCADE,
     CONSTRAINT uk_bank_transaction_account_hash UNIQUE (account_id, source_line_hash)
 );
@@ -132,6 +136,13 @@ ALTER TABLE statement_transactions
 
 CREATE INDEX IF NOT EXISTS idx_bank_transaction_account_id ON bank_transaction(account_id);
 CREATE INDEX IF NOT EXISTS idx_bank_transaction_booking_date ON bank_transaction(booking_date);
+
+-- Receipt waiver reason table
+CREATE TABLE IF NOT EXISTS receipt_waiver_reason (
+    code VARCHAR(50) PRIMARY KEY,
+    label VARCHAR(200) NOT NULL,
+    sort_order INTEGER NOT NULL
+);
 
 -- Receipt table
 CREATE TABLE IF NOT EXISTS receipt (

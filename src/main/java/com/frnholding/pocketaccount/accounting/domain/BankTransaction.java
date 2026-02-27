@@ -4,6 +4,7 @@ import jakarta.persistence.*;
 import java.math.BigDecimal;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
 import java.util.UUID;
 
 @Entity
@@ -48,6 +49,19 @@ public class BankTransaction {
     
     @Column(name = "created_at", nullable = false)
     private Instant createdAt;
+
+    @Column(name = "receipt_waived", nullable = false)
+    private boolean receiptWaived;
+
+    @Enumerated(EnumType.STRING)
+    @Column(name = "receipt_waiver_reason", length = 50)
+    private ReceiptWaiverReason receiptWaiverReason;
+
+    @Column(name = "receipt_waiver_note", columnDefinition = "TEXT")
+    private String receiptWaiverNote;
+
+    @Column(name = "receipt_waived_at")
+    private OffsetDateTime receiptWaivedAt;
     
     public BankTransaction() {
     }
@@ -146,5 +160,37 @@ public class BankTransaction {
     
     public void setCreatedAt(Instant createdAt) {
         this.createdAt = createdAt;
+    }
+
+    public boolean isReceiptWaived() {
+        return receiptWaived;
+    }
+
+    public void setReceiptWaived(boolean receiptWaived) {
+        this.receiptWaived = receiptWaived;
+    }
+
+    public ReceiptWaiverReason getReceiptWaiverReason() {
+        return receiptWaiverReason;
+    }
+
+    public void setReceiptWaiverReason(ReceiptWaiverReason receiptWaiverReason) {
+        this.receiptWaiverReason = receiptWaiverReason;
+    }
+
+    public String getReceiptWaiverNote() {
+        return receiptWaiverNote;
+    }
+
+    public void setReceiptWaiverNote(String receiptWaiverNote) {
+        this.receiptWaiverNote = receiptWaiverNote;
+    }
+
+    public OffsetDateTime getReceiptWaivedAt() {
+        return receiptWaivedAt;
+    }
+
+    public void setReceiptWaivedAt(OffsetDateTime receiptWaivedAt) {
+        this.receiptWaivedAt = receiptWaivedAt;
     }
 }
