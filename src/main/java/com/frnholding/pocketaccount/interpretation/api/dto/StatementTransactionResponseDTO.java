@@ -1,9 +1,10 @@
 package com.frnholding.pocketaccount.interpretation.api.dto;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 public class StatementTransactionResponseDTO {
-    private Long id;
+    private UUID id;
     private LocalDate date;
     private String description;
     private String currency;
@@ -14,7 +15,7 @@ public class StatementTransactionResponseDTO {
     public StatementTransactionResponseDTO() {
     }
 
-    public StatementTransactionResponseDTO(Long id, LocalDate date, String description,
+    public StatementTransactionResponseDTO(UUID id, LocalDate date, String description,
                                            String currency, Double amount, String accountNo,
                                            Boolean approved) {
         this.id = id;
@@ -26,11 +27,11 @@ public class StatementTransactionResponseDTO {
         this.approved = approved;
     }
 
-    public Long getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(Long id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 

@@ -21,6 +21,8 @@
 	let error = null;
 	/** @type {string|null} */
 	let currentId = null;
+	/** @type {string|null} */
+	let fileError = null;
 
 	$: receiptId = $page.params.id;
 
@@ -43,6 +45,7 @@
 	async function loadReceipt() {
 		loading = true;
 		error = null;
+		fileError = null;
 		try {
 			const res = await fetch(`/api/v1/receipts/${receiptId}`);
 			if (!res.ok) {
@@ -94,6 +97,30 @@
 			<p><strong>Beskrivelse:</strong> {receipt.description || '-'}</p>
 			<p><strong>Status:</strong> {receipt.rejected ? 'Rejected' : 'Active'}</p>
 		</div>
+		<div class="panel">
+			<h2>Filinnhold</h2>
+			{#if fileError}
+				<div class="alert error">{fileError}</div>
+			{:else}
+				<div class="file-actions">
+					<a class="btn-secondary" href={`/api/v1/documents/${receipt.documentId}/file`} target="_blank" rel="noreferrer">
+						Åpne i ny fane
+					</a>
+				</div>
+				<div class="file-preview">
+					<object
+						data={`/api/v1/documents/${receipt.documentId}/file`}
+						type="application/pdf"
+						aria-label="Kvitteringsfil"
+					>
+						<iframe
+							src={`/api/v1/documents/${receipt.documentId}/file`}
+							title="Kvitteringsfil"
+						></iframe>
+					</object>
+				</div>
+			{/if}
+		</div>
 	{/if}
 </div>
 
@@ -121,6 +148,11 @@
 		margin-top: 16px;
 	}
 
+	.panel h2 {
+		margin: 0 0 12px 0;
+		color: #2c3e50;
+	}
+
 	.alert {
 		margin-top: 16px;
 		padding: 12px 14px;
@@ -137,5 +169,24 @@
 		background: #eef6ff;
 		border: 1px solid #cfe4ff;
 		color: #28527a;
+	}
+
+	.file-actions {
+		margin-bottom: 12px;
+	}
+
+	.file-preview {
+		border: 1px solid #e2e8f0;
+		border-radius: 6px;
+		overflow: hidden;
+		background: #f8fafc;
+	}
+
+	.file-preview object,
+	.file-preview iframe {
+		width: 100%;
+		height: 600px;
+		border: 0;
+		display: block;
 	}
 </style>

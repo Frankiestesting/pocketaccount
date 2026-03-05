@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 public class JobCreationResponseDTO {
-    private String jobId;
+    private UUID jobId;
     private UUID documentId;
     private String status;
     private Instant created;
@@ -12,18 +12,18 @@ public class JobCreationResponseDTO {
     public JobCreationResponseDTO() {
     }
 
-    public JobCreationResponseDTO(String jobId, UUID documentId, String status, Instant created) {
+    public JobCreationResponseDTO(UUID jobId, UUID documentId, String status, Instant created) {
         this.jobId = jobId;
         this.documentId = documentId;
         this.status = status;
         this.created = created;
     }
 
-    public String getJobId() {
+    public UUID getJobId() {
         return jobId;
     }
 
-    public void setJobId(String jobId) {
+    public void setJobId(UUID jobId) {
         this.jobId = jobId;
     }
 

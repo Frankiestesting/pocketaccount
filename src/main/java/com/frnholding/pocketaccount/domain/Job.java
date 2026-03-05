@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 public class Job {
-    private String id;
+    private UUID id;
     private UUID documentId;
     private String status;
     private Instant created;
@@ -21,7 +21,7 @@ public class Job {
     }
 
     // All-arguments constructor
-    public Job(String id, UUID documentId, String status, Instant created, String pipeline, 
+    public Job(UUID id, UUID documentId, String status, Instant created, String pipeline, 
                boolean useOcr, boolean useAi, String languageHint, Instant startedAt, 
                Instant finishedAt, String error) {
         this.id = id;
@@ -38,11 +38,11 @@ public class Job {
     }
 
     // Getters and setters
-    public String getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 
@@ -165,7 +165,7 @@ public class Job {
     @Override
     public String toString() {
         return "Job{" +
-                "id='" + id + '\'' +
+            "id='" + id + '\'' +
                 ", documentId='" + documentId + '\'' +
                 ", status='" + status + '\'' +
                 ", created=" + created +

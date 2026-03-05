@@ -360,7 +360,7 @@ public class AccountingService {
         bankTransactionRepository.findById(bankTransactionId)
             .orElseThrow(() -> new EntityNotFoundException("Bank transaction not found: " + bankTransactionId));
 
-        Long statementTransactionId = statementTransactionRepository.findFirstByBankTransactionId(bankTransactionId)
+        UUID statementTransactionId = statementTransactionRepository.findFirstByBankTransactionId(bankTransactionId)
             .map(statement -> statement.getId())
             .orElse(null);
         UUID receiptId = receiptMatchRepository.findFirstByBankTransactionIdAndStatus(

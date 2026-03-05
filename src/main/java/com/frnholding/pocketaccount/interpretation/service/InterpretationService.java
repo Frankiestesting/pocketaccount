@@ -7,6 +7,7 @@ import com.frnholding.pocketaccount.interpretation.repository.InterpretationResu
 import com.frnholding.pocketaccount.interpretation.repository.CorrectionHistoryRepository;
 import com.frnholding.pocketaccount.interpretation.repository.entity.CorrectionHistoryEntity;
 import com.frnholding.pocketaccount.interpretation.repository.StatementTransactionRepository;
+import com.frnholding.pocketaccount.interpretation.pipeline.DocumentType;
 import com.frnholding.pocketaccount.domain.Document;
 import com.frnholding.pocketaccount.exception.EntityNotFoundException;
 import com.frnholding.pocketaccount.service.DocumentService;
@@ -90,7 +91,7 @@ public class InterpretationService {
         }
 
         // Create interpretation job
-        String jobId = UUID.randomUUID().toString();
+        UUID jobId = UUID.randomUUID();
         InterpretationJob job = new InterpretationJob(
                 jobId,
                 documentId,
@@ -143,7 +144,7 @@ public class InterpretationService {
         }
 
         // Create interpretation job
-        String jobId = UUID.randomUUID().toString();
+        UUID jobId = UUID.randomUUID();
         InterpretationJob job = new InterpretationJob(
                 jobId,
                 documentId,
@@ -187,7 +188,7 @@ public class InterpretationService {
     /**
      * Get job status.
      */
-    public JobStatusResponseDTO getJobStatus(String jobId) {
+    public JobStatusResponseDTO getJobStatus(UUID jobId) {
         InterpretationJob job = interpretationJobRepository.findById(jobId)
             .orElseThrow(() -> new EntityNotFoundException("Job not found: " + jobId));
 
@@ -277,7 +278,44 @@ public class InterpretationService {
     }
 
     @Transactional
-    public void deleteJob(String jobId) {
+    public JobStatusResponseDTO updateJobDocumentType(UUID jobId, String documentType) {
+        DocumentType resolvedType = parseDocumentType(documentType);
+        InterpretationJob job = interpretationJobRepository.findById(jobId)
+                .orElseThrow(() -> new EntityNotFoundException("Job not found: " + jobId));
+        job.setDocumentType(resolvedType.name());
+        interpretationJobRepository.save(job);
+
+        interpretationResultRepository.findByJobId(jobId).ifPresent(result -> {
+            result.setDocumentType(resolvedType.name());
+            interpretationResultRepository.save(result);
+        });
+
+        documentService.updateDocumentType(job.getDocumentId(), resolvedType.name());
+
+        JobStatusResponseDTO response = new JobStatusResponseDTO();
+        response.setJobId(job.getId());
+        response.setDocumentId(job.getDocumentId());
+        response.setStatus(job.getStatus());
+        response.setDocumentType(job.getDocumentType());
+        response.setCreated(job.getCreated());
+        response.setStartedAt(job.getStartedAt());
+        response.setFinishedAt(job.getFinishedAt());
+        response.setError(job.getError());
+
+        Document doc = documentService.getDocument(job.getDocumentId());
+        if (doc != null) {
+            response.setOriginalFilename(doc.getOriginalFilename());
+        }
+        if ("COMPLETED".equals(job.getStatus())) {
+            interpretationResultRepository.findByJobId(job.getId())
+                .ifPresent(result -> response.setExtractionMethods(result.getExtractionMethods()));
+        }
+
+        return response;
+    }
+
+    @Transactional
+    public void deleteJob(UUID jobId) {
         InterpretationJob job = interpretationJobRepository.findById(jobId)
                 .orElseThrow(() -> new EntityNotFoundException("Job not found: " + jobId));
 
@@ -304,7 +342,7 @@ public class InterpretationService {
     /**
      * Get extraction results for a specific job.
      */
-    public ExtractionResultResponseDTO getJobResult(String jobId) {
+    public ExtractionResultResponseDTO getJobResult(UUID jobId) {
         InterpretationResult result = interpretationResultRepository.findByJobId(jobId)
                 .orElseThrow(() -> new EntityNotFoundException("No interpretation result found for job: " + jobId));
 
@@ -312,7 +350,7 @@ public class InterpretationService {
     }
 
     @Transactional
-    public ReceiptResponse createReceiptFromJob(String jobId) {
+    public ReceiptResponse createReceiptFromJob(UUID jobId) {
         InterpretationResult result = interpretationResultRepository.findByJobId(jobId)
                 .orElseThrow(() -> new EntityNotFoundException("No interpretation result found for job: " + jobId));
         return createReceiptFromResult(result, "Job is not a receipt interpretation");
@@ -362,7 +400,7 @@ public class InterpretationService {
         return accountingService.createReceipt(request);
     }
 
-    public List<StatementTransactionResponseDTO> getStatementTransactionsForJob(String jobId) {
+    public List<StatementTransactionResponseDTO> getStatementTransactionsForJob(UUID jobId) {
         if (!interpretationJobRepository.existsById(jobId)) {
             throw new EntityNotFoundException("Job not found: " + jobId);
         }
@@ -388,7 +426,7 @@ public class InterpretationService {
     }
 
     @Transactional(readOnly = true)
-    public StatementTransactionResponseDTO getStatementTransactionById(Long statementTransactionId) {
+    public StatementTransactionResponseDTO getStatementTransactionById(UUID statementTransactionId) {
         StatementTransaction transaction = statementTransactionRepository.findById(statementTransactionId)
                 .orElseThrow(() -> new EntityNotFoundException("Statement transaction not found: " + statementTransactionId));
         return new StatementTransactionResponseDTO(
@@ -618,8 +656,19 @@ public class InterpretationService {
                 .orElse(0) + 1;
     }
 
+    private DocumentType parseDocumentType(String documentType) {
+        if (documentType == null || documentType.isBlank()) {
+            throw new IllegalArgumentException("documentType must not be blank");
+        }
+        try {
+            return DocumentType.valueOf(documentType.trim().toUpperCase());
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Invalid documentType: " + documentType);
+        }
+    }
+
     @Transactional
-    public BankTransaction approveStatementTransaction(Long statementTransactionId, UUID accountId) {
+    public BankTransaction approveStatementTransaction(UUID statementTransactionId, UUID accountId) {
         StatementTransaction transaction = statementTransactionRepository.findById(statementTransactionId)
                 .orElseThrow(() -> new EntityNotFoundException("Statement transaction not found: " + statementTransactionId));
 
@@ -707,15 +756,10 @@ public class InterpretationService {
 
     private BankTransaction findOrCreateBankTransaction(StatementTransaction transaction, Account account,
                                                         UUID documentId, BigDecimal amount) {
-        return bankTransactionRepository
-                .findFirstByAccountIdAndBookingDateAndAmountAndCurrencyAndDescription(
-                        account.getId(),
-                        transaction.getDate(),
-                        amount,
-                        transaction.getCurrency(),
-                        transaction.getDescription()
-                )
-                .orElseGet(() -> createBankTransactionFromStatement(transaction, account, documentId, amount));
+        if (transaction.getBankTransaction() != null) {
+            return transaction.getBankTransaction();
+        }
+        return createBankTransactionFromStatement(transaction, account, documentId, amount);
     }
 
     private BigDecimal toBigDecimal(Double value) {
@@ -723,11 +767,15 @@ public class InterpretationService {
     }
 
     private String buildSourceLineHash(StatementTransaction transaction) {
-        String payload = String.format("%s|%s|%s|%s",
-                transaction.getAmount(),
-                transaction.getCurrency(),
-                transaction.getDescription(),
-                transaction.getDate());
+        String uniquePart = transaction.getId() != null
+            ? transaction.getId().toString()
+            : (transaction.getInterpretationResult() != null ? transaction.getInterpretationResult().getId().toString() : "");
+        String payload = String.format("%s|%s|%s|%s|%s",
+            uniquePart,
+            transaction.getAmount(),
+            transaction.getCurrency(),
+            transaction.getDescription(),
+            transaction.getDate());
         return sha256Hex(payload);
     }
 

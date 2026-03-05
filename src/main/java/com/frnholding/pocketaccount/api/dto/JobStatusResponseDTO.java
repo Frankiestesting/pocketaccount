@@ -4,7 +4,7 @@ import java.time.Instant;
 import java.util.UUID;
 
 public class JobStatusResponseDTO {
-    private String jobId;
+    private UUID jobId;
     private UUID documentId;
     private String status;
     private Instant startedAt;
@@ -18,7 +18,7 @@ public class JobStatusResponseDTO {
     public JobStatusResponseDTO() {
     }
 
-    public JobStatusResponseDTO(String jobId, UUID documentId, String status, Instant startedAt, Instant finishedAt, String error) {
+    public JobStatusResponseDTO(UUID jobId, UUID documentId, String status, Instant startedAt, Instant finishedAt, String error) {
         this.jobId = jobId;
         this.documentId = documentId;
         this.status = status;
@@ -27,7 +27,7 @@ public class JobStatusResponseDTO {
         this.error = error;
     }
 
-    public JobStatusResponseDTO(String jobId, UUID documentId, String status, Instant startedAt, 
+    public JobStatusResponseDTO(UUID jobId, UUID documentId, String status, Instant startedAt, 
                                 Instant finishedAt, String error, String documentType, 
                                 String originalFilename, String pipeline, boolean useAi) {
         this.jobId = jobId;
@@ -42,11 +42,11 @@ public class JobStatusResponseDTO {
         this.useAi = useAi;
     }
 
-    public String getJobId() {
+    public UUID getJobId() {
         return jobId;
     }
 
-    public void setJobId(String jobId) {
+    public void setJobId(UUID jobId) {
         this.jobId = jobId;
     }
 

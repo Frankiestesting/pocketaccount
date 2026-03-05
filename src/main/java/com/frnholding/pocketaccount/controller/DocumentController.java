@@ -9,8 +9,10 @@ import com.frnholding.pocketaccount.api.dto.ExtractionResultResponseDTO;
 import com.frnholding.pocketaccount.api.dto.JobCancelResponseDTO;
 import com.frnholding.pocketaccount.api.dto.JobCreationResponseDTO;
 import com.frnholding.pocketaccount.api.dto.JobStatusResponseDTO;
+import com.frnholding.pocketaccount.api.dto.UpdateDocumentTypeRequestDTO;
 import com.frnholding.pocketaccount.domain.Document;
 import com.frnholding.pocketaccount.domain.Job;
+import com.frnholding.pocketaccount.interpretation.pipeline.DocumentType;
 import com.frnholding.pocketaccount.service.DocumentService;
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
@@ -30,6 +32,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import java.io.IOException;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.UUID;
 import java.util.stream.Collectors;
@@ -107,6 +110,29 @@ public class DocumentController {
         return ResponseEntity.ok(response);
     }
 
+    @PatchMapping("/documents/{documentId}/type")
+    @Operation(summary = "Update document type", description = "Override the document type for a document")
+    @ApiResponses(value = {
+            @ApiResponse(responseCode = "200", description = "Document type updated"),
+            @ApiResponse(responseCode = "400", description = "Invalid document type"),
+            @ApiResponse(responseCode = "404", description = "Document not found")
+    })
+    public ResponseEntity<DocumentResponseDTO> updateDocumentType(
+            @PathVariable @Parameter(description = "Document ID") UUID documentId,
+            @Valid @RequestBody UpdateDocumentTypeRequestDTO request) {
+        DocumentType documentType = parseDocumentType(request.getDocumentType());
+        documentService.updateDocumentType(documentId, documentType.name());
+        Document document = documentService.getDocument(documentId);
+        DocumentResponseDTO response = new DocumentResponseDTO(
+                document.getId(),
+                document.getStatus(),
+                document.getDocumentType(),
+                document.getCreated(),
+                document.getOriginalFilename()
+        );
+        return ResponseEntity.ok(response);
+    }
+
         @DeleteMapping("/documents/{documentId}")
         @Operation(summary = "Delete document", description = "Delete a document and its interpretation jobs/results")
         @ApiResponses(value = {
@@ -173,6 +199,17 @@ public class DocumentController {
         return filename.substring(lastDot + 1).toLowerCase();
     }
 
+    private DocumentType parseDocumentType(String rawType) {
+        if (rawType == null || rawType.isBlank()) {
+            throw new IllegalArgumentException("documentType must not be blank");
+        }
+        try {
+            return DocumentType.valueOf(rawType.trim().toUpperCase(Locale.ROOT));
+        } catch (IllegalArgumentException ex) {
+            throw new IllegalArgumentException("Invalid documentType: " + rawType);
+        }
+    }
+
     @PostMapping("/documents/{documentId}/jobs")
     @Operation(summary = "Create extraction job", description = "Create a new extraction/interpretation job for a document")
     @ApiResponses(value = {
@@ -205,7 +242,7 @@ public class DocumentController {
             @ApiResponse(responseCode = "404", description = "Job not found")
     })
     public ResponseEntity<JobStatusResponseDTO> getJobStatus(@PathVariable @Parameter(description = "Job ID") UUID jobId) {
-        Job job = documentService.getJob(jobId.toString());
+        Job job = documentService.getJob(jobId);
         if (job == null) {
             return ResponseEntity.notFound().build();
         }
@@ -264,7 +301,7 @@ public class DocumentController {
             @ApiResponse(responseCode = "400", description = "Job cannot be cancelled in current state")
     })
     public ResponseEntity<JobCancelResponseDTO> cancelJob(@PathVariable @Parameter(description = "Job ID") UUID jobId) {
-        Job job = documentService.cancelJob(jobId.toString());
+        Job job = documentService.cancelJob(jobId);
         JobCancelResponseDTO response = new JobCancelResponseDTO(
                 job.getId(),
                 job.getStatus(),
@@ -280,7 +317,7 @@ public class DocumentController {
                         @ApiResponse(responseCode = "404", description = "Job not found")
         })
         public ResponseEntity<Void> deleteJob(@PathVariable @Parameter(description = "Job ID") UUID jobId) {
-                documentService.deleteJob(jobId.toString());
+            documentService.deleteJob(jobId);
                 return ResponseEntity.noContent().build();
         }
 

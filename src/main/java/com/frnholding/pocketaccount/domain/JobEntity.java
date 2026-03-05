@@ -11,7 +11,7 @@ import java.util.UUID;
 @Table(name = "jobs")
 public class JobEntity {
     @Id
-    private String id;
+    private UUID id;
     @Column(columnDefinition = "uuid")
     private UUID documentId;
     private String status;
@@ -29,7 +29,7 @@ public class JobEntity {
     }
 
     // All-arguments constructor
-    public JobEntity(String id, UUID documentId, String status, Instant created, String pipeline, 
+    public JobEntity(UUID id, UUID documentId, String status, Instant created, String pipeline, 
                      boolean useOcr, boolean useAi, String languageHint, Instant startedAt, 
                      Instant finishedAt, String error) {
         this.id = id;
@@ -46,11 +46,11 @@ public class JobEntity {
     }
 
     // Getters and setters
-    public String getId() {
+    public UUID getId() {
         return id;
     }
 
-    public void setId(String id) {
+    public void setId(UUID id) {
         this.id = id;
     }
 

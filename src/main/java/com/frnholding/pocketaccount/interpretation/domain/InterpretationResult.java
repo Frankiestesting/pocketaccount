@@ -17,14 +17,14 @@ import java.util.UUID;
 @AllArgsConstructor
 public class InterpretationResult {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    private UUID id;
     
     @Column(columnDefinition = "uuid", nullable = false)
     private UUID documentId;
     
-    @Column(unique = true)
-    private String jobId;
+    @Column(columnDefinition = "uuid", unique = true)
+    private UUID jobId;
     
     @Column(nullable = false)
     private String documentType;

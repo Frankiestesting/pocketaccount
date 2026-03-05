@@ -10,7 +10,7 @@ public class StartExtractionResponseDTO {
     /**
      * Unique identifier for the interpretation job.
      */
-    private String jobId;
+    private UUID jobId;
     
     /**
      * Document ID being interpreted.
@@ -37,7 +37,7 @@ public class StartExtractionResponseDTO {
     public StartExtractionResponseDTO() {
     }
 
-    public StartExtractionResponseDTO(String jobId, UUID documentId, String status, 
+    public StartExtractionResponseDTO(UUID jobId, UUID documentId, String status, 
                                       Instant created, String documentType) {
         this.jobId = jobId;
         this.documentId = documentId;
@@ -46,11 +46,11 @@ public class StartExtractionResponseDTO {
         this.documentType = documentType;
     }
 
-    public String getJobId() {
+    public UUID getJobId() {
         return jobId;
     }
 
-    public void setJobId(String jobId) {
+    public void setJobId(UUID jobId) {
         this.jobId = jobId;
     }
 

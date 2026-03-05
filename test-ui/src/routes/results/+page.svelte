@@ -57,6 +57,12 @@
 	let receiptCreateError = null;
 	/** @type {{ id?: string } | null} */
 	let receiptCreated = null;
+	/** @type {string} */
+	let selectedDocumentType = 'UNKNOWN';
+	/** @type {string|null} */
+	let typeUpdateError = null;
+	let typeUpdateLoading = false;
+	const documentTypeOptions = ['INVOICE', 'STATEMENT', 'RECEIPT', 'UNKNOWN'];
 
 	onMount(() => {
 		loadHiddenJobs();
@@ -193,11 +199,16 @@
 		jobResult = null;
 		receiptCreateError = null;
 		receiptCreated = null;
+		typeUpdateError = null;
+		selectedDocumentType = job.documentType || 'UNKNOWN';
 
 		try {
 			const res = await fetch(`/api/v1/interpretation/jobs/${job.jobId}/result`);
 			if (res.ok) {
 				jobResult = await res.json();
+				if (jobResult?.documentType) {
+					selectedDocumentType = jobResult.documentType;
+				}
 			} else if (res.status === 404) {
 				resultError = 'Resultat ikke funnet';
 			} else {
@@ -276,6 +287,9 @@
 		resultError = null;
 		receiptCreateError = null;
 		receiptCreated = null;
+		typeUpdateError = null;
+		typeUpdateLoading = false;
+		selectedDocumentType = 'UNKNOWN';
 	}
 
 	/** @param {JobResult|null} result */
@@ -301,6 +315,40 @@
 			receiptCreated = await res.json();
 		} catch (err) {
 			receiptCreateError = `Network error: ${getErrorMessage(err)}`;
+		}
+	}
+
+	async function updateDocumentType() {
+		if (!selectedJob || !selectedDocumentType) {
+			return;
+		}
+
+		typeUpdateError = null;
+		typeUpdateLoading = true;
+		try {
+			const res = await fetch(`/api/v1/interpretation/jobs/${selectedJob.jobId}/type`, {
+				method: 'PATCH',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ documentType: selectedDocumentType })
+			});
+			if (!res.ok) {
+				const errorText = await res.text();
+				typeUpdateError = `Oppdatering feilet: ${res.status} - ${errorText}`;
+				return;
+			}
+			const updated = await res.json();
+			const nextType = updated?.documentType || selectedDocumentType;
+			selectedJob = { ...selectedJob, documentType: nextType };
+			if (jobResult) {
+				jobResult = { ...jobResult, documentType: nextType };
+			}
+			jobs = jobs.map((job) => (job.jobId === selectedJob?.jobId ? { ...job, documentType: nextType } : job));
+		} catch (err) {
+			typeUpdateError = `Network error: ${getErrorMessage(err)}`;
+		} finally {
+			typeUpdateLoading = false;
 		}
 	}
 
@@ -470,11 +518,31 @@
 
 			<div class="job-info">
 				<p><strong>Dokument-ID:</strong> {selectedJob.documentId}</p>
-				<p><strong>Type:</strong> {selectedJob.documentType}</p>
+				<div class="type-switch">
+					<label for="document-type"><strong>Type:</strong></label>
+					<select id="document-type" bind:value={selectedDocumentType}>
+						{#each documentTypeOptions as option}
+							<option value={option}>{option}</option>
+						{/each}
+					</select>
+					<button
+						class="btn-primary"
+						on:click={updateDocumentType}
+						disabled={
+							typeUpdateLoading ||
+							selectedDocumentType === (jobResult?.documentType || selectedJob.documentType || 'UNKNOWN')
+						}
+					>
+						{typeUpdateLoading ? 'Lagrer...' : 'Lagre type'}
+					</button>
+				</div>
 				<p><strong>Filnavn:</strong> {selectedJob.originalFilename}</p>
 				<p><strong>Startet:</strong> {selectedJob.startedAt ? new Date(selectedJob.startedAt).toLocaleString('nb-NO') : '-'}</p>
 				<p><strong>Fullført:</strong> {selectedJob.finishedAt ? new Date(selectedJob.finishedAt).toLocaleString('nb-NO') : '-'}</p>
 			</div>
+			{#if typeUpdateError}
+				<div class="alert alert-error">{typeUpdateError}</div>
+			{/if}
 
 			{#if resultError}
 				<div class="alert alert-error">
@@ -493,6 +561,14 @@
 							<button class="btn-primary" on:click={createReceiptFromResult}>
 								Opprett kvittering
 							</button>
+							<a
+								class="btn-secondary view-receipt"
+								href={`/api/v1/documents/${selectedJob.documentId}/file`}
+								target="_blank"
+								rel="noreferrer"
+							>
+								Se kvittering
+							</a>
 							{#if receiptCreateError}
 								<div class="alert alert-error">{receiptCreateError}</div>
 							{/if}
@@ -601,6 +677,7 @@
 		border: 1px solid #cfead7;
 		color: #1f7a3e;
 	}
+
 
 	.receipt-actions {
 		margin: 16px 0;
@@ -849,6 +926,22 @@
 		padding: 15px;
 		border-radius: 4px;
 		margin-bottom: 20px;
+	}
+
+	.type-switch {
+		display: flex;
+		flex-wrap: wrap;
+		align-items: center;
+		gap: 10px;
+		margin: 8px 0;
+	}
+
+	.type-switch select {
+		padding: 6px 10px;
+		border-radius: 4px;
+		border: 1px solid #cbd5f5;
+		background: white;
+		font-size: 14px;
 	}
 
 	.job-info p {

@@ -15,7 +15,7 @@ import java.util.UUID;
 @AllArgsConstructor
 public class InterpretationJob {
     @Id
-    private String id;
+    private UUID id;
     
     @Column(columnDefinition = "uuid", nullable = false)
     private UUID documentId;

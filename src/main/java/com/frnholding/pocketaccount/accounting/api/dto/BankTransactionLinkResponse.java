@@ -4,13 +4,13 @@ import java.util.UUID;
 
 public class BankTransactionLinkResponse {
     private UUID bankTransactionId;
-    private Long statementTransactionId;
+    private UUID statementTransactionId;
     private UUID receiptId;
 
     public BankTransactionLinkResponse() {
     }
 
-    public BankTransactionLinkResponse(UUID bankTransactionId, Long statementTransactionId, UUID receiptId) {
+    public BankTransactionLinkResponse(UUID bankTransactionId, UUID statementTransactionId, UUID receiptId) {
         this.bankTransactionId = bankTransactionId;
         this.statementTransactionId = statementTransactionId;
         this.receiptId = receiptId;
@@ -24,11 +24,11 @@ public class BankTransactionLinkResponse {
         this.bankTransactionId = bankTransactionId;
     }
 
-    public Long getStatementTransactionId() {
+    public UUID getStatementTransactionId() {
         return statementTransactionId;
     }
 
-    public void setStatementTransactionId(Long statementTransactionId) {
+    public void setStatementTransactionId(UUID statementTransactionId) {
         this.statementTransactionId = statementTransactionId;
     }
 

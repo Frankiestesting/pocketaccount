@@ -34,7 +34,7 @@ CREATE INDEX IF NOT EXISTS idx_correction_history_version ON correction_history(
 
 -- Interpretation Jobs table (existing)
 CREATE TABLE IF NOT EXISTS interpretation_jobs (
-    id VARCHAR(255) PRIMARY KEY,
+    id UUID PRIMARY KEY,
     document_id UUID NOT NULL,
     status VARCHAR(255) NOT NULL,
     created TIMESTAMP NOT NULL,
@@ -47,9 +47,9 @@ CREATE TABLE IF NOT EXISTS interpretation_jobs (
 
 -- Interpretation Results table (existing)
 CREATE TABLE IF NOT EXISTS interpretation_results (
-    id BIGSERIAL PRIMARY KEY,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     document_id UUID NOT NULL,
-    job_id VARCHAR(255) UNIQUE,
+    job_id UUID UNIQUE,
     document_type VARCHAR(255) NOT NULL,
     interpreted_at TIMESTAMP NOT NULL,
     extraction_methods VARCHAR(500),
@@ -64,8 +64,8 @@ CREATE TABLE IF NOT EXISTS interpretation_results (
 
 -- Statement Transactions table (existing)
 CREATE TABLE IF NOT EXISTS statement_transactions (
-    id BIGSERIAL PRIMARY KEY,
-    interpretation_result_id BIGINT NOT NULL,
+    id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
+    interpretation_result_id UUID NOT NULL,
     amount DOUBLE PRECISION,
     currency VARCHAR(255),
     date DATE,
@@ -80,7 +80,7 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_statement_transaction_bank_id ON statement
 
 -- Jobs table (existing)
 CREATE TABLE IF NOT EXISTS jobs (
-    id VARCHAR(255) PRIMARY KEY,
+    id UUID PRIMARY KEY,
     document_id UUID,
     status VARCHAR(255),
     created TIMESTAMP,

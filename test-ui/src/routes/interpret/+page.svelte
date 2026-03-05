@@ -43,6 +43,13 @@
 	let deleteError = null;
 	/** @type {Set<string>} */
 	let deletingIds = new Set();
+	/** @type {Object.<string, string>} */
+	let typeSelections = {};
+	/** @type {Set<string>} */
+	let typeUpdateLoadingIds = new Set();
+	/** @type {string | null} */
+	let typeUpdateError = null;
+	const documentTypeOptions = ['INVOICE', 'STATEMENT', 'RECEIPT', 'UNKNOWN'];
 
 	// Interpretation settings
 	let useOcr = false;
@@ -77,6 +84,7 @@
 						new Date(b.uploadedAt || 0).getTime() -
 						new Date(a.uploadedAt || 0).getTime()
 				);
+				syncTypeSelections(documents);
 			} else {
 				error = `Error loading documents: ${res.status}`;
 			}
@@ -85,6 +93,15 @@
 		} finally {
 			loading = false;
 		}
+	}
+
+	/** @param {DocumentSummary[]} list */
+	function syncTypeSelections(list) {
+		const next = {};
+		list.forEach((doc) => {
+			next[doc.id] = typeSelections[doc.id] || doc.documentType || 'UNKNOWN';
+		});
+		typeSelections = next;
 	}
 
 	/** @param {unknown} err */
@@ -134,6 +151,55 @@
 		hintedType = doc.documentType || 'INVOICE';
 		jobResponse = null;
 		jobError = null;
+	}
+
+	/** @param {DocumentSummary} doc */
+	function updateTypeSelection(doc, value) {
+		typeSelections = { ...typeSelections, [doc.id]: value };
+	}
+
+	/** @param {DocumentSummary} doc */
+	async function saveDocumentType(doc) {
+		if (!doc?.id || typeUpdateLoadingIds.has(doc.id)) {
+			return;
+		}
+
+		const nextType = typeSelections[doc.id] || doc.documentType || 'UNKNOWN';
+		if (nextType === (doc.documentType || 'UNKNOWN')) {
+			return;
+		}
+
+		typeUpdateError = null;
+		typeUpdateLoadingIds = new Set(typeUpdateLoadingIds).add(doc.id);
+		try {
+			const res = await fetch(`/api/v1/documents/${doc.id}/type`, {
+				method: 'PATCH',
+				headers: {
+					'Content-Type': 'application/json'
+				},
+				body: JSON.stringify({ documentType: nextType })
+			});
+			if (!res.ok) {
+				const errorText = await res.text();
+				typeUpdateError = `Oppdatering feilet: ${res.status} - ${errorText}`;
+				return;
+			}
+			const updated = await res.json();
+			const updatedType = updated?.documentType || nextType;
+			documents = documents.map((item) =>
+				item.id === doc.id ? { ...item, documentType: updatedType } : item
+			);
+			typeSelections = { ...typeSelections, [doc.id]: updatedType };
+			if (selectedDocument?.id === doc.id) {
+				selectedDocument = { ...selectedDocument, documentType: updatedType };
+			}
+		} catch (err) {
+			typeUpdateError = `Nettverksfeil: ${getErrorMessage(err)}`;
+		} finally {
+			const next = new Set(typeUpdateLoadingIds);
+			next.delete(doc.id);
+			typeUpdateLoadingIds = next;
+		}
 	}
 
 	function cancelInterpretation() {
@@ -249,6 +315,9 @@
 			{#if deleteError}
 				<div class="alert alert-error">{deleteError}</div>
 			{/if}
+			{#if typeUpdateError}
+				<div class="alert alert-error">{typeUpdateError}</div>
+			{/if}
 			<table>
 				<thead>
 					<tr>
@@ -267,7 +336,29 @@
 									{doc.id}
 								</button>
 							</td>
-							<td>{doc.documentType}</td>
+							<td>
+								<div class="type-edit">
+									<select
+										value={typeSelections[doc.id] || doc.documentType || 'UNKNOWN'}
+										on:change={(event) => updateTypeSelection(doc, event.target.value)}
+									>
+										{#each documentTypeOptions as option}
+											<option value={option}>{option}</option>
+										{/each}
+									</select>
+									<button
+										class="btn-secondary"
+										on:click={() => saveDocumentType(doc)}
+										disabled={
+											typeUpdateLoadingIds.has(doc.id) ||
+											(typeSelections[doc.id] || doc.documentType || 'UNKNOWN') ===
+												(doc.documentType || 'UNKNOWN')
+										}
+									>
+										{typeUpdateLoadingIds.has(doc.id) ? 'Lagrer...' : 'Lagre type'}
+									</button>
+								</div>
+							</td>
 							<td>{doc.originalFilename}</td>
 							<td>
 								{doc.uploadedAt ? new Date(doc.uploadedAt).toLocaleString('nb-NO') : '-'}
@@ -484,6 +575,20 @@
 
 	.doc-id-btn:hover {
 		background: #2980b9;
+	}
+
+	.type-edit {
+		display: flex;
+		align-items: center;
+		gap: 8px;
+	}
+
+	.type-edit select {
+		padding: 6px 10px;
+		border-radius: 4px;
+		border: 1px solid #cbd5f5;
+		background: white;
+		font-size: 14px;
 	}
 
 	.delete-cell {

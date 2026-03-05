@@ -7,6 +7,7 @@ import com.frnholding.pocketaccount.interpretation.api.dto.ExtractionResultRespo
 import com.frnholding.pocketaccount.interpretation.api.dto.SaveCorrectionRequestDTO;
 import com.frnholding.pocketaccount.interpretation.api.dto.ApproveStatementTransactionRequest;
 import com.frnholding.pocketaccount.interpretation.api.dto.ApproveStatementTransactionResponse;
+import com.frnholding.pocketaccount.interpretation.api.dto.UpdateJobDocumentTypeRequest;
 import com.frnholding.pocketaccount.accounting.api.dto.ReceiptResponse;
 import com.frnholding.pocketaccount.interpretation.api.dto.StatementTransactionResponseDTO;
 import com.frnholding.pocketaccount.interpretation.infra.OpenAiConnectionService;
@@ -87,7 +88,7 @@ public class ExtractionController {
         
         log.debug("Getting status for interpretation job {}", jobId);
 
-        JobStatusResponseDTO response = interpretationService.getJobStatus(jobId.toString());
+                JobStatusResponseDTO response = interpretationService.getJobStatus(jobId);
         return ResponseEntity.ok(response);
     }
 
@@ -99,7 +100,7 @@ public class ExtractionController {
                         @ApiResponse(responseCode = "409", description = "Job cannot be deleted due to approved transactions")
         })
         public ResponseEntity<Void> deleteJob(@PathVariable @Parameter(description = "Job ID") UUID jobId) {
-                interpretationService.deleteJob(jobId.toString());
+                interpretationService.deleteJob(jobId);
                 return ResponseEntity.noContent().build();
         }
 
@@ -127,9 +128,23 @@ public class ExtractionController {
         
         log.debug("Getting extraction result for job {}", jobId);
 
-        ExtractionResultResponseDTO response = interpretationService.getJobResult(jobId.toString());
+                ExtractionResultResponseDTO response = interpretationService.getJobResult(jobId);
         return ResponseEntity.ok(response);
     }
+
+        @PatchMapping("/jobs/{jobId}/type")
+        @Operation(summary = "Update job document type", description = "Override the document type for a completed interpretation job")
+        @ApiResponses(value = {
+                        @ApiResponse(responseCode = "200", description = "Job type updated"),
+                        @ApiResponse(responseCode = "400", description = "Invalid document type"),
+                        @ApiResponse(responseCode = "404", description = "Job not found")
+        })
+        public ResponseEntity<JobStatusResponseDTO> updateJobDocumentType(
+                        @PathVariable @Parameter(description = "Job ID") UUID jobId,
+                        @Valid @RequestBody UpdateJobDocumentTypeRequest request) {
+                JobStatusResponseDTO response = interpretationService.updateJobDocumentType(jobId, request.getDocumentType());
+                return ResponseEntity.ok(response);
+        }
 
         @PostMapping("/jobs/{jobId}/receipt")
         @Operation(summary = "Create receipt from interpretation result", description = "Create a receipt from a completed receipt interpretation job")
@@ -141,7 +156,7 @@ public class ExtractionController {
         })
         public ResponseEntity<ReceiptResponse> createReceiptFromJob(
                         @PathVariable @Parameter(description = "Job ID") UUID jobId) {
-                ReceiptResponse receipt = interpretationService.createReceiptFromJob(jobId.toString());
+                ReceiptResponse receipt = interpretationService.createReceiptFromJob(jobId);
                 return ResponseEntity.status(201).body(receipt);
         }
 
@@ -169,7 +184,7 @@ public class ExtractionController {
                         @PathVariable @Parameter(description = "Job ID") UUID jobId) {
 
                 List<StatementTransactionResponseDTO> transactions =
-                                interpretationService.getStatementTransactionsForJob(jobId.toString());
+                                interpretationService.getStatementTransactionsForJob(jobId);
                 return ResponseEntity.ok(transactions);
         }
 
@@ -198,7 +213,7 @@ public class ExtractionController {
             @ApiResponse(responseCode = "400", description = "Missing required transaction fields")
     })
     public ResponseEntity<ApproveStatementTransactionResponse> approveStatementTransaction(
-            @PathVariable @Parameter(description = "Statement transaction ID") Long id,
+            @PathVariable @Parameter(description = "Statement transaction ID") UUID id,
             @RequestBody(required = false) ApproveStatementTransactionRequest request) {
         log.info("Approving statement transaction {}", id);
         var bankTransaction = interpretationService.approveStatementTransaction(
@@ -220,7 +235,7 @@ public class ExtractionController {
                         @ApiResponse(responseCode = "404", description = "Statement transaction not found")
         })
         public ResponseEntity<StatementTransactionResponseDTO> getStatementTransactionById(
-                        @PathVariable @Parameter(description = "Statement transaction ID") Long id) {
+                        @PathVariable @Parameter(description = "Statement transaction ID") UUID id) {
                 StatementTransactionResponseDTO transaction = interpretationService.getStatementTransactionById(id);
                 return ResponseEntity.ok(transaction);
         }

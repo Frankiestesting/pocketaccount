@@ -109,6 +109,14 @@ public class DocumentService {
         return document;
     }
 
+    @Transactional
+    public void updateDocumentType(UUID documentId, String documentType) {
+        DocumentEntity entity = documentRepository.findById(documentId)
+                .orElseThrow(() -> new EntityNotFoundException("Document not found: " + documentId));
+        entity.setDocumentType(documentType);
+        documentRepository.save(entity);
+    }
+
     private String getFileExtension(String filename) {
         if (filename == null || filename.isBlank()) {
             return null;
@@ -204,7 +212,7 @@ public class DocumentService {
         }
 
         // Generate job ID
-        String jobId = UUID.randomUUID().toString();
+        UUID jobId = UUID.randomUUID();
 
         // Create job
         Job job = new Job(jobId, documentId, "pending", Instant.now(), pipeline, useOcr, useAi, languageHint, null, null, null);
@@ -216,7 +224,7 @@ public class DocumentService {
         return job;
     }
 
-    public Job getJob(String jobId) {
+    public Job getJob(UUID jobId) {
         JobEntity entity = jobRepository.findById(jobId).orElse(null);
         return entity != null ? entity.toDomain() : null;
     }
@@ -234,7 +242,7 @@ public class DocumentService {
                 .collect(Collectors.toList());
     }
 
-    public Job cancelJob(String jobId) {
+    public Job cancelJob(UUID jobId) {
         JobEntity entity = jobRepository.findById(jobId).orElse(null);
         if (entity == null) {
             throw new EntityNotFoundException("Job not found: " + jobId);
@@ -254,7 +262,7 @@ public class DocumentService {
     }
 
     @Transactional
-    public void deleteJob(String jobId) {
+    public void deleteJob(UUID jobId) {
         JobEntity entity = jobRepository.findById(jobId)
                 .orElseThrow(() -> new EntityNotFoundException("Job not found: " + jobId));
         jobRepository.delete(entity);

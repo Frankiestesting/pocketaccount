@@ -1,26 +1,27 @@
 package com.frnholding.pocketaccount.api.dto;
 
 import java.time.Instant;
+import java.util.UUID;
 
 public class JobCancelResponseDTO {
-    private String jobId;
+    private UUID jobId;
     private String status;
     private Instant cancelledAt;
 
     public JobCancelResponseDTO() {
     }
 
-    public JobCancelResponseDTO(String jobId, String status, Instant cancelledAt) {
+    public JobCancelResponseDTO(UUID jobId, String status, Instant cancelledAt) {
         this.jobId = jobId;
         this.status = status;
         this.cancelledAt = cancelledAt;
     }
 
-    public String getJobId() {
+    public UUID getJobId() {
         return jobId;
     }
 
-    public void setJobId(String jobId) {
+    public void setJobId(UUID jobId) {
         this.jobId = jobId;
     }
 

@@ -7,6 +7,7 @@ import lombok.NoArgsConstructor;
 import com.frnholding.pocketaccount.accounting.domain.BankTransaction;
 
 import java.time.LocalDate;
+import java.util.UUID;
 
 @Entity
 @Table(name = "statement_transactions")
@@ -15,8 +16,8 @@ import java.time.LocalDate;
 @AllArgsConstructor
 public class StatementTransaction {
     @Id
-    @GeneratedValue(strategy = GenerationType.IDENTITY)
-    private Long id;
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    private UUID id;
     
     @ManyToOne(fetch = FetchType.LAZY)
     @JoinColumn(name = "interpretation_result_id", nullable = false)

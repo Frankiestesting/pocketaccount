@@ -107,6 +107,9 @@ Accounting endpoints:
 Bank import MUST be idempotent:
 - unique(account_id, source_line_hash)
 
+Statement approvals:
+- bank_transaction entries created from statement transactions use a per-statement source_line_hash to allow duplicate amounts/descriptions on the same day
+
 Matching supports partial matching:
 - receipt_match.matched_amount
 

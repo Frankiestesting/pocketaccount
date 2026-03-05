@@ -38,7 +38,7 @@ public class InterpretationJobRunner {
 
     @Async
     @Transactional
-    public void runJob(String jobId, boolean useOcr, boolean useAi, String languageHint) {
+    public void runJob(UUID jobId, boolean useOcr, boolean useAi, String languageHint) {
         log.info("Starting interpretation job: {} with useOcr={}, useAi={}, languageHint={}", 
                 jobId, useOcr, useAi, languageHint);
 
@@ -90,8 +90,8 @@ public class InterpretationJobRunner {
         }
     }
 
-    private InterpretationResult performInterpretation(
-            String jobId,
+        private InterpretationResult performInterpretation(
+            UUID jobId,
             UUID documentId,
             String documentType,
             boolean useOcr,

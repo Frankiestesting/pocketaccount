@@ -6,11 +6,11 @@ import org.springframework.stereotype.Repository;
 import java.util.UUID;
 
 @Repository
-public interface StatementTransactionRepository extends JpaRepository<StatementTransaction, Long> {
-	java.util.List<StatementTransaction> findByInterpretationResult_JobId(String jobId);
+public interface StatementTransactionRepository extends JpaRepository<StatementTransaction, UUID> {
+	java.util.List<StatementTransaction> findByInterpretationResult_JobId(UUID jobId);
 	java.util.Optional<StatementTransaction> findFirstByBankTransactionId(java.util.UUID bankTransactionId);
 
 	boolean existsByInterpretationResult_DocumentIdAndApprovedTrue(UUID documentId);
 
-	boolean existsByInterpretationResult_JobIdAndApprovedTrue(String jobId);
+	boolean existsByInterpretationResult_JobIdAndApprovedTrue(UUID jobId);
 }

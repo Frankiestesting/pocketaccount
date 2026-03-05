@@ -9,9 +9,9 @@ import java.util.UUID;
 import java.util.Optional;
 
 @Repository
-public interface InterpretationResultRepository extends JpaRepository<InterpretationResult, Long> {
+public interface InterpretationResultRepository extends JpaRepository<InterpretationResult, UUID> {
     @Query("SELECT ir FROM InterpretationResult ir WHERE ir.documentId = :documentId ORDER BY ir.interpretedAt DESC LIMIT 1")
     Optional<InterpretationResult> findByDocumentId(UUID documentId);
     
-    Optional<InterpretationResult> findByJobId(String jobId);
+    Optional<InterpretationResult> findByJobId(UUID jobId);
 }
